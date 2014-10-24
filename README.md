@@ -43,7 +43,7 @@ more details of the nature of these dependencies in the
 
 * h5py                 http://www.h5py.org
 * numpy,scipy          http://numpy.scipy.org
-* pyro4
+* pyro4                http://pythonhosted.org//Pyro4/
 
 The following environment variable may need to be set
 PYTHONPATH --> paths to numpy,scipy if installed in a nonstandard place

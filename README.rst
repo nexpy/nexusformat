@@ -29,37 +29,24 @@ To install in an alternate location::
 
 Required Libraries
 ==================
-Python Command-Line API
------------------------
-The current version of NeXpy uses h5py to read and write NeXus files because
-of its ability to handle large data files. There is currently no dependency 
-on the `NeXus C API <http://download.nexusformat.org/doc/html/napi.html>`_. 
-This also means that the current version cannot read and write HDF4 or XML 
-NeXus files, although this functionality may be restored in a future version.
-If you only intend to utilize the Python API from the command-line, the only 
-other required library is `Numpy <http://numpy.scipy.org>`_.
 
 =================  =================================================
 Library            URL
 =================  =================================================
 h5py               http://www.h5py.org
 numpy              http://numpy.scipy.org/
+pyro4              http://pythonhosted.org//Pyro4/
 =================  =================================================
-
-.. note:: If you need to read HDF4 or XML files now, please clone the 
-          old-master branch (https://github.com/nexpy/nexpy/tree/old-master).
 
 Semantic Versioning
 -------------------
-With the release of v0.1.0, NeXpy is using `Semantic Versioning 
-<http://semver.org/spec/v2.0.0.html>`_.
+NeXpy-RO is using `Semantic Versioning <http://semver.org/spec/v2.0.0.html>`_.
 
 User Support
 ------------
 Consult the `NeXpy documentation <http://nexpy.github.io/nexpy/>`_ for details 
-of both the Python command-line API and how to use the NeXpy GUI. If you have 
-any general questions concerning the use of NeXpy, please address 
-them to the `NeXus Mailing List 
+of both NeXpy and NeXpy-RO. If you have any general questions concerning the use 
+of NeXpy, please address them to the `NeXus Mailing List 
 <http://download.nexusformat.org/doc/html/mailinglist.html>`_. If you discover
 any bugs, please submit a `Github issue 
 <https://github.com/nexpy/nexpyro/issues>`_, preferably with relevant 

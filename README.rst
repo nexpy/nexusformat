@@ -1,23 +1,23 @@
 Installation
 ============
-Released versions of NeXpy are available on `PyPI 
-<https://pypi.python.org/pypi/NeXpy/>`_. If you have the `Python Setup Tools 
+Released versions of NeXpy-RO are available on `PyPI 
+<https://pypi.python.org/pypi/NeXpy-RO/>`_. If you have the `Python Setup Tools 
 <https://pypi.python.org/pypi/setuptools>`_ installed, then you can install 
 using either::
 
-    $ pip install nexpy
+    $ pip install nexpyro
 
 or:: 
 
-    $ easy_install nexpy 
+    $ easy_install nexpyro 
 
 If you have trouble with the pip or easy_install installations, you can install
 the package from the source code either by downloading one of the 
 `Github releases <https://github.com/nexpy/nexpy/releases>`_ or by cloning the
 latest development version in the `NeXpy Git 
-repository <https://github.com/nexpy/nexpy>`_::
+repository <https://github.com/nexpy/nexpyro>`_::
 
-    $ git clone http://github.com/nexpy/nexpy.git
+    $ git clone http://github.com/nexpy/nexpyro.git
 
 You can then install NeXpy by changing to the source directory and typing::
 
@@ -62,7 +62,8 @@ any general questions concerning the use of NeXpy, please address
 them to the `NeXus Mailing List 
 <http://download.nexusformat.org/doc/html/mailinglist.html>`_. If you discover
 any bugs, please submit a `Github issue 
-<https://github.com/nexpy/nexpy/issues>`_, preferably with relevant tracebacks.
+<https://github.com/nexpy/nexpyro/issues>`_, preferably with relevant 
+tracebacks.
 
 Acknowledgements
 ----------------

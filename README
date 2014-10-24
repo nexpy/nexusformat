@@ -1,33 +1,30 @@
 Introduction
 ============
-NeXpy-API provides a high-level python interface to NeXus data. It is a stripped
-down version of the NeXpy package without the PySide GUI that is designed
-to work with the NeXpy package. It is designed to provide an intuitive 
-interactive toolbox allowing users both to access existing NeXus files and to 
-create new NeXus-conforming data structures without expert knowledge of the file 
-format.
+NeXpy-RO provides remote access across a network to NeXus data. It is designed 
+to work in conjunction with NeXpy.
+
 
 Installing and Running
 ======================
 
-Released versions of NeXpy are available on PyPI. If you have the Python Setup 
-Tools <https://pypi.python.org/pypi/setuptools> installed, then you can install 
-using either::
+Released versions of NeXpy-RO are available on PyPI. If you have the Python 
+Setup Tools <https://pypi.python.org/pypi/setuptools> installed, then you can 
+install using either::
 
-    $ pip install nexpy-api
+    $ pip install nexpyro
 
 or:: 
 
-    $ easy_install nexpy-api 
+    $ easy_install nexpyro 
 
 The latest development versions of nexpy-api can be downloaded from the NeXpy 
-Git repository <https://github.com/nexpy/nexpy>.
+Git repository <https://github.com/nexpy/nexpyro>.
 
-    $ git clone http://github.com/nexpy/nexpy-api.git
+    $ git clone http://github.com/nexpy/nexpyro.git
 
 To install in the standard Python location:
 
-    $ cd nexpy-api
+    $ cd nexpyro
     $ python setup.py install
 
 To install in an alternate location:
@@ -56,4 +53,4 @@ Consult the NeXpy documentation at http://nexpy.github.io/nexpy for details
 of both the Python command-line API and how to use the NeXpy GUI. 
 
 If you discover any bugs, please submit a Github issue to
-https://github.com/nexpy/nexpy/issues, preferably with relevant tracebacks.
+https://github.com/nexpy/nexpyro/issues, preferably with relevant tracebacks.

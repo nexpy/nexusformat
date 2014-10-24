@@ -1,0 +1,12 @@
+
+= Nexpy/Pyro Integration
+
+== Setup
+
+To run with Pyro 4.27: 
+
+export PYTHONPATH=$HOME/proj/Pyro4/src:/usr/local/lib/python2.7/dist-packages
+
+== Tests
+
+Run ./run.sh

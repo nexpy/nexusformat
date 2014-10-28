@@ -34,6 +34,9 @@ setup (name =  nexpyro.__package_name__,        # NeXpy
        install_requires = nexpyro.requires.pkg_requirements,
        package_dir = {'': 'src'},
        packages = find_packages('src'),
+       entry_points={
+            'command_line_scripts': ['nxstartserver = nexpyro.start_server:main',],
+       },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',
                      'Intended Audience :: Science/Research',

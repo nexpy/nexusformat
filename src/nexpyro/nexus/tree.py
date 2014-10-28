@@ -237,8 +237,6 @@ from __future__ import with_statement
 import os
 from copy import copy, deepcopy
 
-import os
-
 import numpy as np
 import h5py as h5
 
@@ -305,28 +303,12 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode=None, **kwds):
+    def __init__(self, name, **kwds):
         """
         Creates an h5py File object for reading and writing.
         """
         print ("NXfile.__init__: " + name + " in: " + os.getcwd())
-        if mode == 'w4' or mode == 'wx':
-            raise NeXusError('Only HDF5 files supported')
-        elif mode == 'w' or mode == 'w-' or mode == 'w5':
-            if mode == 'w5':
-                mode = 'w'
-            self._file = h5.File(name, mode, **kwds)
-            self._filename = self._file.filename
-            self._mode = 'rw'
-        else:
-            if mode == 'rw':
-                mode = 'r+'
-            self._file = h5.File(name, mode, **kwds)
-            self._filename = self._file.filename
-            if mode == 'rw' or mode == 'r+':
-                self._mode = 'rw'
-            else:
-                self._mode = 'r'                                
+        self._mode = 'r'
         self._path = ''
         if "proxy" in kwds:
             print "NXfile is a Proxy!"
@@ -380,7 +362,7 @@ class NXFile(object):
         """
         print "NXFile.readfile"
         self.nxpath = '/'
-        root = self._readgroup()
+        root = self._readgroup('/')
         root._group = None
         root._filename = self.filename
         root._file = self
@@ -403,7 +385,7 @@ class NXFile(object):
             #Read in the data if it's not too large
             if np.prod(shape) < 1000:# i.e., less than 1k dims
                 try:
-                    value = self[self.nxpath][()]
+                    value = self_readvalue(self.nxpath, key=())
                     #Variable length strings are returned from h5py with dtype 'O'
                     if h5.check_dtype(vlen=self[self.nxpath].dtype) in (str, unicode):
                         value = np.string_(value)
@@ -418,6 +400,9 @@ class NXFile(object):
                            attrs=attrs)
         data._changed = True
         return data
+
+    def _readvalue(self, path, key=()):
+        return self[path][key]
 
     def _readnxclass(self, obj):        # see issue #33
         nxclass = obj.attrs.get('NX_class', None)
@@ -1122,8 +1107,6 @@ class NXobject(object):
         print ("_getfile _root: " + str(_root))
         print ("_getfile _root._proxy: " + str(_root._proxy))
         print ("_global_server: " + str(getserver()))
-        if _root._proxy and not getserver():
-            return "proxy"
         if _root._file:
             print("if1 ...")
             return _root._file
@@ -1549,23 +1532,15 @@ class NXfield(NXobject):
 
     def _get_filedata(self, idx=()):
         print("_get_filedata...")
-        f = self.nxfile
-        if not "proxy" == f:
-            result = f[self.nxpath][idx]
+        with self.nxfile as f:
+            result = f._readvalue(self.nxpath, idx)
             if 'mask' in self.attrs:
                 try:
                     mask = self.nxgroup[self.attrs['mask']]
-                    result = np.ma.array(result, mask=f[mask.nxpath][idx])
+                    result = np.ma.array(result, 
+                                         mask=f._readvalue(mask.nxpath, idx))
                 except KeyError:
                     pass
-        else: 
-            print("_get_filedata: proxy: " + str(_global_proxy))
-            p = self.nxpath
-            print("path: " + str(p))
-            print("idx: " + str(idx))
-            result = _global_proxy.getdata(p)
-            result = _global_proxy.getdata(idx)
-            print("result: " + str(result))
         return result   
 
     def _put_filedata(self, idx, value):

@@ -6,7 +6,7 @@ Main client test
 
 import sys
 
-from nxfileremote import NXFileRemote
+from nxfileremote import nxloadremote
 
 def msg(m):
     print("pyro test: " + str(m))
@@ -37,8 +37,9 @@ def t():
     print 
     msgv("TEST", test_count)
 
-with NXFileRemote(uri, name) as nxfr:
-    # print("file: ") #  + str(nxfr._file))
+nxfr=nxloadremote(name, uri)
+while 1:
+# print("file: ") #  + str(nxfr._file))
     t()
     f = nxfr["/entry/data/v"]
     msgv("f", f)
@@ -46,6 +47,7 @@ with NXFileRemote(uri, name) as nxfr:
     f = nxfr["/entry/data/v"]
     msgv("f", f)
     t()
+    print "Class of f is ", f.__class__
     v = f[0,0,0]
     msgv("v", v)
     t()
@@ -59,4 +61,5 @@ with NXFileRemote(uri, name) as nxfr:
     msgv("f1", f1)
     f2 = f1["data"]
     msgv("f2", f2)
+    break
     

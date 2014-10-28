@@ -1,4 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
+# -*- coding: utf-8 -*-
+
+#-----------------------------------------------------------------------------
+# Copyright (c) 2013-2014, NeXpy Development Team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file COPYING, distributed with this software.
+#-----------------------------------------------------------------------------
 
 """
 Daemon process presenting NeXus file over Pyro
@@ -24,12 +33,6 @@ def shutdown():
     time.sleep(1)
     daemon.shutdown()
 
-# Use automated port number by default
-port = 0
-if len(sys.argv) > 1:
-    port = int(sys.argv[1])
-
-whoami = os.environ["USER"]
 
 class NXFileService:
     name = ""
@@ -63,25 +66,16 @@ class NXFileService:
         return result
 
     # Two-step call sequence
-    def getdata(self, key):
-        msgv("getdata", key)
+    def getvalue(self, path, idx=()):
+        msgv("getvalue", idx)
         try:
-            msg("get path: " + str(self.path))
-            if self.path == None:
-                self.path = key
-                msg("ok")
-                t = self.root[self.path]
-                msg("returning t")
-            else:
-                g = self.root[self.path]
-                print("g: " + str(g))
-                t = g[key]
-                self.path = None
-            msg("set path: " + str(self.path))
+            msg("get path: " + str(path))
+            t = self.root[path][idx]
+            msg("returning t")
         except Exception as e:
-            print("EXCEPTION in getitem(): " + str(e))
+            print("EXCEPTION in getvalue(%s): " % key + str(e))
             t = None
-        msg("getitem result: " + str(t))
+        msg("getvalue result: " + str(t))
         return t
 
     def tree(self):
@@ -96,26 +90,9 @@ class NXFileService:
         print(self.nexusFile.getentries())
         return True
 
-    def exit(self,code):
+    def exit(self, code):
         msg("Daemon exiting...")
         thread = threading.Thread(target=shutdown)
         thread.setDaemon(True)
         thread.start()
 
-nxfileservice = NXFileService()
-
-# Make an empty Pyro daemon
-Pyro4.config.SERIALIZERS_ACCEPTED.add("pickle")
-daemon = Pyro4.Daemon(port=port)
-# Register the object as a Pyro object in the daemon
-# We set the objectId to the user name
-# This means a user can only have 1 daemon object
-uri = daemon.register(nxfileservice, objectId=whoami)
-
-# Print the URI so we can use it in the client later
-print("URI: " + str(uri))
-sys.stdout.flush()
-
-# Start the event loop of the server to wait for calls
-daemon.requestLoop()
-msg("Daemon exited.")

@@ -20,8 +20,7 @@ import time
 
 import Pyro4
 
-import nexpyro.nexus as nx
-from nexpyro.nexus import NXFile
+from nexpyro.nexus import nxload, NXFile
 
 def msg(msg):
     print("pyro server: " + msg)
@@ -34,7 +33,7 @@ def shutdown():
     daemon.shutdown()
 
 
-class NXFileService:
+class NXFileService(object):
     name = ""
     nexusFile = None
     root = None
@@ -42,13 +41,10 @@ class NXFileService:
 
     def initfile(self, name):
         msg("Initializing NXFileService: " + name)
-        self.name = name
+        self.filename = name
         try:
             msgv("opening", name)
-            self.nexusFile = NXFile(name, 'r')
-            self.root = nx.load(self.name) # , close=False
-            self.root._proxy = True
-            nx.setserver(True)
+            self.root = nxload(self.filename)
         except Exception as e:
             m = "Caught exception while opening: " + name + "\n" + \
                 "Exception msg: " + str(e)
@@ -70,10 +66,11 @@ class NXFileService:
         msgv("getvalue", idx)
         try:
             msg("get path: " + str(path))
-            t = self.root[path][idx]
+            t = self.root[path][idx].nxdata
+            msgv('t', t)
             msg("returning t")
         except Exception as e:
-            print("EXCEPTION in getvalue(%s): " % key + str(e))
+            print("EXCEPTION in getvalue(%s): " % idx + str(e))
             t = None
         msg("getvalue result: " + str(t))
         return t
@@ -84,10 +81,10 @@ class NXFileService:
         return self.root
 
     def filename(self):
-        return self.nexusFile.filename()
+        return self.root._filename()
 
     def getentries(self):
-        print(self.nexusFile.getentries())
+        print(self.root.getentries())
         return True
 
     def exit(self, code):

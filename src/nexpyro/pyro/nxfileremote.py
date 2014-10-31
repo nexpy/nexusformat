@@ -8,9 +8,7 @@ Contains a Pyro proxy
 import sys
 import Pyro4
 
-import nexpyro.nexus as nx
-from nexpyro.nexus import NXFile
-from nexpy.api.nexus import NXfield
+from nexpy.api.nexus import NXFile
 
 import numpy as np
 
@@ -35,7 +33,6 @@ class NXFileRemote(NXFile):
         self._mode = 'r'
         self._file = proxy
         self._filename = name
-        NXFile.__init__(self, name, proxy=proxy)
         assert(b)
 
     def __getitem__(self, key):
@@ -45,24 +42,23 @@ class NXFileRemote(NXFile):
         return self
 
     def __exit__(self, *args):
-        self._file.exit(0)
+        pass
 
-    def _readvalue(self, path, key=None):
-        return self._file.getvalue(path, key)
+    def open(self, **kwds):
+        return self
+
+    def close(self):
+        pass
+
+    def _readvalue(self, path, idx=()):
+        return self._file.getvalue(path, idx=idx)
 
     def readfile(self):
         tree = self._file.tree()
         tree._file = self
+        tree._filename = self._filename
         return tree
         
-
-def setserver(value):
-    global _global_server
-    _global_server = value
-    
-def getserver():
-    global _global_server
-    return _global_server 
 
 def nxloadremote(filename, uri):
     """
@@ -70,9 +66,9 @@ def nxloadremote(filename, uri):
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    nxrfile = NXFileRemote(filename, uri)
-    tree = nxrfile.readfile()
-    print "nx.load done."
+    with NXFileRemote(filename, uri) as f:
+        tree = f.readfile()
+        print tree.__class__
     return tree
 
 

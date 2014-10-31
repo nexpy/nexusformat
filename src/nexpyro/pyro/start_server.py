@@ -20,7 +20,7 @@ import time
 
 import Pyro4
 
-from pyro.nxfileservice import NXFileService
+from nxfileservice import NXFileService
 
 
 def main():

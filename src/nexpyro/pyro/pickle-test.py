@@ -3,7 +3,7 @@
 # Test pickling NeXus objects 
 
 import nexpy.api.nexus as nx
-from nexpy.api.nexus import NXFile, NXroot, NXentry, NXdata, NXfield
+from nexpyro.nexus import NXFile, NXroot, NXentry, NXdata, NXfield
 from numpy import array
 
 import pickle

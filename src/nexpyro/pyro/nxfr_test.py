@@ -38,6 +38,7 @@ def t():
     msgv("TEST", test_count)
 
 nxfr=nxloadremote(name, uri)
+print nxfr.tree
 while 1:
 # print("file: ") #  + str(nxfr._file))
     t()
@@ -48,7 +49,7 @@ while 1:
     msgv("f", f)
     t()
     print "Class of f is ", f.__class__
-    v = f[0,0,0]
+    v = f[0]
     msgv("v", v)
     t()
     v = f[0,0]

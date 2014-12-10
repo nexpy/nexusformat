@@ -244,8 +244,8 @@ import h5py as h5
 NX_MEMORY = 2000
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'nxclasses',
-           'NX_MEMORY', 'setmemory', 'load', 'save', 'tree', 'centers',
-           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'SDS', 'NXlinkdata',
+           'NX_MEMORY', 'setmemory', 'load', 'save', 'tree', 'centers', 'SDS', 
+           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
            'NeXusError']
 
 #List of defined base classes (later added to __all__)
@@ -321,6 +321,10 @@ class NXFile(object):
         self._filename = self._file.filename                             
         self._path = ''
 
+    def __repr__(self):
+        return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
+                                                 self._mode)
+
     def __getitem__(self, key):
         """Returns an object from the NeXus file."""
         return self._file[key]
@@ -337,7 +341,7 @@ class NXFile(object):
         return self.open()
 
     def __exit__(self, *args):
-        self.close()
+        self._file.close()
 
     def get(self, *args, **kwds):
         return self._file.get(*args, **kwds)
@@ -351,6 +355,7 @@ class NXFile(object):
                 self._file = h5.File(self._filename, 'r+', **kwds)
             else:
                 self._file = h5.File(self._filename, self._mode, **kwds)
+            self.nxpath = '/'
         return self
 
     def close(self):
@@ -382,30 +387,16 @@ class NXFile(object):
         if 'target' in attrs and attrs['target'] != self.nxpath:
             data = NXlinkfield(target=attrs['target'], name=name)
         else:
-            shape, dtype = self[self.nxpath].shape, self[self.nxpath].dtype
-            if shape == (1,):
-                shape = ()
-            #Read in the data if it's not too large
-            if np.prod(shape) < 1000:# i.e., less than 1k dims
-                try:
-                    value = self._readvalue(self.nxpath)
-                    #Variable length strings are returned from h5py with dtype 'O'
-                    if h5.check_dtype(vlen=self[self.nxpath].dtype) in (str, unicode):
-                        value = np.string_(value)
-                        dtype = value.dtype
-                    if shape == ():
-                        value = np.asscalar(value)
-                except ValueError:
-                    value = None
+            value, shape, dtype, attrs = self.readvalues(attrs=attrs)
+            if self._isexternal():
+                external_link = self.get(self.nxpath, getlink=True)
+                _target, _file = external_link.path, external_link.filename
+                data = NXlink(value=value, name=name, dtype=dtype, shape=shape,
+                              attrs=attrs, target=_target, file=_file)
             else:
-                value = None
-            data = NXfield(value=value, name=name, dtype=dtype, shape=shape,
-                           attrs=attrs)
-        data._changed = True
+                data = NXfield(value=value, name=name, dtype=dtype, shape=shape,
+                               attrs=attrs)
         return data
-
-    def _readvalue(self, path, idx=()):
-        return self[path][idx]
 
     def _readnxclass(self, obj):        # see issue #33
         nxclass = obj.attrs.get('NX_class', None)
@@ -486,8 +477,12 @@ class NXFile(object):
         self.nxpath = parent + '/' + data.nxname
 
         # If the data is linked then
-        if hasattr(data, '_target'):
-            return [(self.nxpath, data._target)]
+        if data._target is not None:
+            if data._filename is not None:
+                self.linkexternal(data)
+                return []
+            else:
+                return [(self.nxpath, data._target)]
 
         if data._uncopied_data:
             _file, _path = data._uncopied_data
@@ -542,13 +537,13 @@ class NXFile(object):
 
         links = []
         self._writeattrs(group.attrs)
-        if hasattr(group, '_target'):
+        if group._target is not None:
             links += [(self.nxpath, group._target)]
         for child in group.values():
             if child.nxclass == 'NXfield':
                 links += self._writedata(child)
-            elif hasattr(child,'_target'):
-                links += [(self.nxpath+"/"+child.nxname,child._target)]
+            elif child._target is not None:
+                links += [(self.nxpath+"/"+child.nxname, child._target)]
             else:
                 links += self._writegroup(child)
         self.nxpath = parent
@@ -561,17 +556,61 @@ class NXFile(object):
         These are defined by the set of pairs returned by _writegroup.
         """
         # link sources to targets
-        for path,target in links:
+        for path, target in links:
             if path != target:
                 # ignore self-links
                 if path not in self['/']:
                     parent = "/".join(path.split("/")[:-1])
                     self[parent]._id.link(target, path, h5.h5g.LINK_HARD)
 
+    def readvalues(self, attrs=None):
+        shape, dtype = self[self.nxpath].shape, self[self.nxpath].dtype
+        if shape == (1,):
+            shape = ()
+        #Read in the data if it's not too large
+        if np.prod(shape) < 1000:# i.e., less than 1k dims
+            try:
+                value = self.readvalue(self.nxpath)
+                #Variable length strings are returned from h5py with dtype 'O'
+                if h5.check_dtype(vlen=self[self.nxpath].dtype) in (str, unicode):
+                    value = np.string_(value)
+                    dtype = value.dtype
+                if shape == ():
+                    value = np.asscalar(value)
+            except ValueError:
+                value = None
+        else:
+            value = None
+        if attrs is None:
+            attrs = self._getattrs()
+        return value, shape, dtype, attrs
+
+    def readvalue(self, path, idx=()):
+        return self[path][idx]
+
+    def writevalue(self, path, value, idx=()):
+        self[path][idx] = value
+
     def copyfile(self, the_file):
         for entry in the_file['/']:
             the_file.copy(entry, self['/']) 
         self._setattrs()
+
+    def linkexternal(self, link):
+        if os.path.isabs(link.nxfilename):
+            link.nxfilename = os.path.relpath(link.nxfilename, 
+                                              os.path.dirname(self.filename))
+        if self._isexternal():
+            current_link = self.get(self.nxpath, getlink=True)
+            if current_link.filename == link.nxfilename and \
+               current_link.path == link.nxtarget:
+               return
+            else:
+                del self[self.nxpath]
+        self[self.nxpath] = h5.ExternalLink(link.nxfilename, link.nxtarget)
+
+    def _isexternal(self):
+        return self.get(self.nxpath, getclass=True, getlink=True) == h5.ExternalLink
 
     def _setattrs(self):
         from datetime import datetime
@@ -580,6 +619,24 @@ class NXFile(object):
         self._file.attrs['NeXus_version'] = '4.3.0'
         self._file.attrs['HDF5_Version'] = h5.version.hdf5_version
         self._file.attrs['h5py_version'] = h5.version.version
+
+    def update(self, item, path=None):
+        if path is not None:
+            self.nxpath = path
+        else:
+            self.nxpath = item.nxgroup.nxpath
+        if isinstance(item, AttrDict):
+            self._writeattrs(item)
+        elif isinstance(item, NXlinkfield) or isinstance(item, NXlinkgroup):
+            self._writelinks([(item.nxpath, item._target)])
+        elif isinstance(item, NXfield):
+            self._writedata(item)
+        elif isinstance(item, NXgroup):
+            links = self._writegroup(item)
+            self._writelinks(links)
+
+    def rename(self, old_path, new_path):
+        self._file['/'].move(old_path, new_path)
 
     @property
     def filename(self):
@@ -663,14 +720,34 @@ class AttrDict(dict):
     A dictionary class to assign all attributes to the NXattr class.
     """
 
+    def __init__(self, parent=None):
+        super(AttrDict, self).__init__()
+        self.parent = parent
+
     def __getitem__(self, key):
         return super(AttrDict, self).__getitem__(key).nxdata
 
     def __setitem__(self, key, value):
         if isinstance(value, NXattr):
-            dict.__setitem__(self, key, value)
+            super(AttrDict, self).__setitem__(key, value)
         else:
-            dict.__setitem__(self, key, NXattr(value))
+            super(AttrDict, self).__setitem__(key, NXattr(value))
+        try:
+            if self.parent.nxfilemode == 'rw':
+                with self.parent.nxfile as f:
+                    f.update(self, self.parent.nxpath)
+        except Exception:
+            pass
+
+    def __delitem__(self, key):
+        super(AttrDict, self).__delitem__(key)
+        try:
+            if self.parent.nxfilemode == 'rw':
+                with self.parent.nxfile as f:
+                    f.nxpath = self.parent.nxpath
+                    del f[f.nxpath].attrs[key]
+        except Exception:
+            pass
 
 
 class NXattr(object):
@@ -837,6 +914,7 @@ class NXobject(object):
     _file = None
     _filename = None
     _mode = None
+    _target = None
     _memfile = None
     _uncopied_data = None
     _changed = True
@@ -915,9 +993,6 @@ class NXobject(object):
                     result.append(entries[k]._str_name(indent=indent+2))
         return "\n".join(result)
 
-    def update(self):
-        pass
-
     def walk(self):
         if False: 
             yield
@@ -951,22 +1026,15 @@ class NXobject(object):
             axes = self.nxgroup.nxaxes
         path = self.nxpath
         self.nxname = name
-        group_changed = False
         if self.nxgroup is not None:
             if self is self.nxgroup.nxsignal:
                 self.nxgroup.nxsignal = self
-                group_changed = True
             elif axes is not None:
                 if [x for x in axes if x is self]:
                     self.nxgroup.nxaxes = axes
-                    group_changed = True
         if self.nxfilemode == 'rw':
             with self.nxfile as f:
-                f[self.nxpath] = f[path]
-                del f[path]
-                if group_changed:
-                    f.nxpath = self.nxgroup.nxpath
-                    f._writeattrs(self.nxgroup.attrs)
+                f.rename(path, self.nxpath)
 
     def save(self, filename=None, mode='w'):
         """
@@ -1023,6 +1091,12 @@ class NXobject(object):
         else:
             raise NeXusError("No output file specified")
 
+    def update(self):
+        if self.nxfilemode == 'rw':
+            with self.nxfile as f:
+                f.update(self)
+        self.set_changed()
+
     @property
     def changed(self):
         """
@@ -1060,7 +1134,6 @@ class NXobject(object):
         if issubclass(class_, NXobject):
             self.__class__ = class_
             self._class = self.__class__.__name__
-            self.set_changed()
             self.update()                   
 
     def _getname(self):
@@ -1098,6 +1171,14 @@ class NXobject(object):
         else:
             return self._group._getroot()
 
+    def _getentry(self):
+        if self.nxgroup is None or isinstance(self, NXentry):
+            return self
+        elif isinstance(self._group, NXentry):
+            return self._group
+        else:
+            return self._group._getentry()
+
     def _getfile(self):
         if self._file:
             return self._file.open()
@@ -1110,10 +1191,16 @@ class NXobject(object):
             return None
 
     def _getfilename(self):
-        return self.nxroot._filename
+        if self.nxroot._filename:
+            return self.nxroot._filename
+        else:
+            return ''
 
     def _getfilemode(self):
         return self.nxroot._mode
+
+    def _gettarget(self):
+        return self._target
 
     def _getattrs(self):
         return self._attrs
@@ -1126,6 +1213,8 @@ class NXobject(object):
     nxfilename = property(_getfilename, doc="Property: Filename of NeXus object")
     nxfilemode = property(_getfilemode, doc="Property: File mode of root object")
     nxroot = property(_getroot, doc="Property: Root group of NeXus object's tree")
+    nxentry = property(_getentry, doc="Property: Parent NXentry of NeXus object")
+    nxtarget = property(_gettarget, doc="Property: Target of NeXus object")
     attrs = property(_getattrs, doc="Property: NeXus attributes for an object")
 
 
@@ -1388,6 +1477,8 @@ class NXfield(NXobject):
                 self._dtype = np.dtype(dtype)
             except Exception:
                 raise NeXusError("Invalid data type: %s" % dtype)
+        if isinstance(shape, int):
+            shape = [shape]
         self._shape = tuple(shape)
         # Append extra keywords to the attribute list
         if not attrs:
@@ -1416,13 +1507,15 @@ class NXfield(NXobject):
         for key in attr.keys():
             attrs[key] = attr[key]
         # Convert NeXus attributes to python attributes
-        self._attrs = AttrDict()
+        self._attrs = AttrDict(self)
         self._setattrs(attrs)
         del attrs
         self._masked = False
         self._filename = None
         self._memfile = None
-        self._setdata(value)
+        if value is not None:
+            self._value, self._dtype, self._shape = \
+                _getvalue(value, self._dtype, self._shape)
         self.set_changed()
 
     def __repr__(self):
@@ -1462,10 +1555,14 @@ class NXfield(NXobject):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
         self._attrs[name] = value
-        if self.nxfilemode == 'rw':
-            with self.nxfile as f:
-                f.nxpath = self.nxpath
-                f._writeattrs(self.attrs)
+        self.set_changed()
+
+    def __delattr__(self, name):
+        """
+        Deletes an attribute in the NXfield 'attrs' dictionary.
+        """
+        if name in self.attrs:
+            del self.attrs[name]
         self.set_changed()
 
     def __getitem__(self, idx):
@@ -1484,6 +1581,8 @@ class NXfield(NXobject):
         if len(self) == 1:
             result = self
         elif self._value is None:
+            if self._uncopied_data:
+                self._get_uncopied_data()
             if self.nxfilemode:
                 result = self._get_filedata(idx)
             elif self._memfile:
@@ -1524,12 +1623,12 @@ class NXfield(NXobject):
 
     def _get_filedata(self, idx=()):
         with self.nxfile as f:
-            result = f._readvalue(self.nxpath, idx=idx)
+            result = f.readvalue(self.nxpath, idx=idx)
             if 'mask' in self.attrs:
                 try:
                     mask = self.nxgroup[self.attrs['mask']]
                     result = np.ma.array(result, 
-                                         mask=f._readvalue(mask.nxpath, idx=idx))
+                                         mask=f.readvalue(mask.nxpath, idx=idx))
                 except KeyError:
                     pass
         return result
@@ -1539,10 +1638,10 @@ class NXfield(NXobject):
             if isinstance(value, np.ma.MaskedArray):
                 if self.mask is None:
                     self._create_mask()
-                f[self.nxpath][idx] = value.data
-                f[self.mask.nxpath][idx] = value.mask
+                f.writevalue(self.nxpath, value.data, idx=idx)
+                f.writevalue(self.mask.nxpath, value.mask, idx=idx)
             else:
-                f[self.nxpath][idx] = value
+                f.writevalue(self.nxpath, value, idx=idx)
 
     def _get_memdata(self, idx=()):
         result = self._memfile['data'][idx]
@@ -1608,7 +1707,6 @@ class NXfield(NXobject):
             self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=np.bool, 
                                               fillvalue=False)
             self.attrs['mask'] = mask_name
-            self.mask.update()
             return mask_name
         return None      
 
@@ -1627,7 +1725,6 @@ class NXfield(NXobject):
             if not isinstance(self._value, np.ma.MaskedArray):
                 self._value = np.ma.array(self._value)
             self._value[idx] = np.ma.masked
-        self.update()
 
     def _get_uncopied_data(self):
         _file, _path = self._uncopied_data
@@ -1663,15 +1760,6 @@ class NXfield(NXobject):
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
         return dpcpy
-
-    def update(self):
-        """
-        Writes the NXfield, including attributes, to the NeXus file.
-        """
-        if self.nxfilemode == 'rw':
-            with self.nxfile as f:
-                f.nxpath = self.nxgroup.nxpath
-                f._writedata(self)
 
     def __len__(self):
         """
@@ -1964,7 +2052,7 @@ class NXfield(NXobject):
         """
         if self._value is not None:
             if self.dtype.kind == 'S' and self.shape <> ():
-                return ''.join(self._value)
+                return '\n'.join([t for t in self._value.flatten()])
             else:
                 return str(self._value)
         return ""
@@ -1975,7 +2063,7 @@ class NXfield(NXobject):
             v = '\n'.join([(" "*indent)+s for s in v.split('\n')])
         return v
 
-    def _str_tree(self,indent=0,attrs=False,recursive=False):
+    def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([str(n) for n in self.shape])
         s = unicode(str(self), 'utf-8')
         if '\n' in s or s == "":
@@ -2034,7 +2122,7 @@ class NXfield(NXobject):
     def _setdata(self, value):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file is locked')
-        if value is not None:
+        else:
             self._value, self._dtype, self._shape = \
                 _getvalue(value, self._dtype, self._shape)
             self.update()
@@ -2097,11 +2185,11 @@ class NXfield(NXobject):
     def _setdtype(self, value):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file is locked')
+        elif self.nxfilemode == 'rw':
+            raise NeXusError('Cannot change the dtype of a field already stored in a file')
         self._dtype = np.dtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
-        self.update()
-        self.set_changed()
 
     def _getshape(self):
         return self._shape
@@ -2109,13 +2197,13 @@ class NXfield(NXobject):
     def _setshape(self, value):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file is locked')
+        elif self.nxfilemode == 'rw':
+            raise NeXusError('Cannot change the shape of a field already stored in a file')
         if self._value is not None:
             if self._value.size != np.prod(value):
                 raise ValueError('Total size of new array must be unchanged')
             self._value.shape = tuple(value)
         self._shape = tuple(value)
-        self.update()
-        self.set_changed()
 
     def _getndim(self):
         return len(self.shape)
@@ -2136,7 +2224,7 @@ class NXfield(NXobject):
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              zmin=None, zmax=None, **opts):
         """
-        Plot data if the signal and axes attributes are defined.
+        Plot data if the signal attribute is defined.
 
         The format argument is used to set the color and type of the
         markers or lines for one-dimensional plots, using the standard 
@@ -2158,10 +2246,13 @@ class NXfield(NXobject):
         from nexpy.gui.plotview import plotview
 
         # Check there is a plottable signal
-        if 'signal' in self.attrs.keys() and 'axes' in self.attrs.keys():
-            axes = [getattr(self.nxgroup, name) 
-                    for name in _readaxes(self.axes)]
-            data = NXdata(self, axes, title=self.nxtitle)
+        if 'signal' in self.attrs.keys():
+            if 'axes' in self.attrs.keys():
+                axes = [getattr(self.nxgroup, name) 
+                        for name in _readaxes(self.axes)]
+                data = NXdata(self, axes, title=self.nxtitle)
+            else:
+                data = NXdata(self, title=self.nxtitle)
         else:
             raise NeXusError('No plottable signal defined')
 
@@ -2182,7 +2273,6 @@ class NXfield(NXobject):
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
                   zmin=zmin, zmax=zmax, **opts)
-
 
 SDS = NXfield # For backward compatibility
 
@@ -2396,7 +2486,7 @@ class NXgroup(NXobject):
             for k,v in opts["entries"].items():
                 self._entries[k] = v
             del opts["entries"]
-        self._attrs = AttrDict()
+        self._attrs = AttrDict(self)
         if "attrs" in opts.keys():
             self._setattrs(opts["attrs"])
             del opts["attrs"]
@@ -2479,11 +2569,6 @@ class NXgroup(NXobject):
             if self.nxfilemode == 'r':
                 raise NeXusError('NeXus file opened as readonly')
             self._attrs[name] = value
-            self.set_changed()
-            if self.nxfilemode == 'rw':
-                with self.nxfile as f:
-                    f.nxpath = self.nxpath
-                    f._writeattrs(self.attrs)
         else:
             self[name] = value
 
@@ -2537,7 +2622,7 @@ class NXgroup(NXobject):
             idx = key
         else:
             raise NeXusError("Invalid index")
-        if not hasattr(self,"nxclass"):
+        if not hasattr(self, "nxclass"):
             raise NeXusError("Indexing not allowed for groups of unknown class")
         if isinstance(idx, int) or isinstance(idx, slice):
             axes = self.nxaxes
@@ -2585,6 +2670,10 @@ class NXgroup(NXobject):
                 raise NeXusError("Cannot assign values to an NXlink object")
             if isinstance(value, NXroot):
                 raise NeXusError("Cannot assign an NXroot group to another group")
+            elif isinstance(value, NXlinkexternal):
+                value._group = group
+                value._name = key
+                group._entries[key] = value
             elif isinstance(value, NXlink) and group.nxroot is value.nxroot:
                 group._entries[key] = copy(value)
             elif isinstance(value, NXlink) and key != value.nxname:
@@ -2707,9 +2796,7 @@ class NXgroup(NXobject):
         """
         if self.nxfilemode == 'rw':
             with self.nxfile as f:
-                f.nxpath = self.nxgroup.nxpath
-                links = f._writegroup(self)
-                f._writelinks(links)
+                f.update(self)
         elif self.nxfilemode is None:
             for node in self.walk():
                 if isinstance(node, NXfield) and node._uncopied_data:
@@ -2800,11 +2887,10 @@ class NXgroup(NXobject):
                     if target.nxname in self:
                         raise NeXusError("Object with the same name already exists in '%s'" % self.nxpath)
                     self[target.nxname] = NXlink(target=target)
-                    self[target.nxname].update()
                 else:
                     raise NeXusError("Link target must be an NXobject")
             else:
-                raise NeXusError("Cannot link an object to a group with a different root")
+                self[target.nxname] = NXlink(target=target.nxpath, file=target.nxfilename)
         else:
             raise NeXusError("The group must have a root object of class NXroot")                
 
@@ -2896,9 +2982,9 @@ class NXgroup(NXobject):
         if projection_axes:
             result = result.sum(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
-            result.nxsignal = result.nxsignal.transpose()
+            result[result.nxsignal.nxname] = result.nxsignal.transpose()
             if result.nxerrors:
-                result["errors"] = result["errors"].transpose()            
+                result[result.nxerrors.nxname] = result.nxerrors.transpose()
             result.nxaxes = result.nxaxes[::-1]            
         return result        
 
@@ -3085,8 +3171,6 @@ class NXgroup(NXobject):
         # Check there is a plottable signal
         if data.nxsignal is None:
             raise NeXusError('No plotting signal defined')
-        elif data.nxaxes is None:
-            raise NeXusError('No plotting axes defined')
 
         # Plot with the available plotter
         plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
@@ -3116,7 +3200,7 @@ class NXlink(NXobject):
 
     _class = "NXlink"
 
-    def __init__(self, target=None, name=None, **opts):
+    def __init__(self, target=None, name=None, file=None, **opts):
         self._class = "NXlink"
         if isinstance(target, NXobject):
             self._name = target.nxname
@@ -3128,11 +3212,16 @@ class NXlink(NXobject):
             else:
                 self.__class__ = NXlinkgroup
         else:
-            if name:
-                self._name = name
+            if file:
+                self.__class__ = NXlinkexternal
+                NXlinkexternal.__init__(self, name=name, target=target, 
+                                        file=file, **opts)
             else:
-                self._name = target.rsplit('/', 1)[1]
-            self._target = target
+                if name:
+                    self._name = name
+                else:
+                    self._name = target.rsplit('/', 1)[1]
+                self._target = target
 
     def __getattr__(self, key):
         try:
@@ -3161,20 +3250,14 @@ class NXlink(NXobject):
         else:
             return " "*indent+self.nxname+' -> '+self._target
 
+    def rename(self, name):
+        raise NeXusError("Cannot rename a linked object")
+
     def _getlink(self):
         return self.nxroot[self._target]
 
     def _getattrs(self):
         return self.nxlink.attrs
-
-    def _str_tree(self, indent=0, attrs=False, recursive=False):
-        if self.nxlink:
-            return self.nxlink._str_tree(indent, attrs, recursive)
-        else:
-            return " "*indent+self.nxname+' -> '+self._target
-
-    def rename(self, name):
-        raise NeXusError("Cannot rename a linked object")
 
     nxlink = property(_getlink, "Linked object")
     attrs = property(_getattrs,doc="NeXus attributes for object")
@@ -3203,6 +3286,126 @@ class NXlinkgroup(NXlink, NXgroup):
         return self.nxlink._entries
 
     entries = property(_getentries,doc="Dictionary of NeXus objects within group")
+
+class NXlinkexternal(NXlink, NXfield):
+
+    """
+    Class for a link to a field in an external file.
+
+    Since the field is stored in another file, the field names don't have to be 
+    the same. There is no need to redirect requests for linked attributes, since 
+    they are handled automatically by h5py. Currently, external fields are 
+    read-only.
+    """
+    def __init__(self, name=None, target=None, file=None, **opts):               
+        NXfield.__init__(self, **opts)
+        if name:
+            self._name = name
+        if target:
+            self._target = target
+        self._filename = file
+        self._mode = 'r'
+        if 'value' not in opts:
+            try:
+                self.readvalues()
+            except NeXusError:
+                pass
+        
+    def __repr__(self):
+        if self._value is not None:
+            if self.dtype.type == np.string_:
+                return "NXlink('%s', file='%s')" % (str(self), self._filename)
+            else:
+                return "NXlink(%s, file='%s')" % \
+                    (NXfield._str_value(self), self._filename)
+        else:
+            return "NXlink(target='%s', file='%s')" % (self._target, self._filename)
+
+    def __getattr__(self, key):
+        return NXfield.__getattr__(self, key)
+
+    def __setattr__(self, name, value):
+        if name.startswith('_') or name.startswith('nx'):
+            object.__setattr__(self, name, value)
+        else:
+            raise NeXusError("Cannot currently assign attributes to an external link")
+
+    def __setitem__(self, key, value):
+        raise NeXusError("Cannot currently assign slabs to an external link")
+
+    def __str__(self):
+        if self._value is not None:
+            return str(NXfield.__str__(self))
+        else:
+            return repr(self)
+
+    def _str_tree(self, indent=0, attrs=False, recursive=False):
+        if self._value is not None:
+            return NXfield._str_tree(self, indent, attrs, recursive)
+        else:
+            return " " * indent + "%s = %s" % (self.nxname, repr(self))
+
+    def readvalues(self):
+        if os.path.exists(self.nxfilename):
+            with self.nxfile as f:
+                f.nxpath = self._target
+                self._value, self._shape, self._dtype, self._attrs = f.readvalues()
+        else:
+            raise NeXusError("External link '%s' does not exist" % 
+                              os.path.abspath(self.nxfilename))
+
+    def update(self):
+        if self.nxroot.nxfile and self.nxroot.nxfilename != self.nxfilename:
+            with self.nxroot.nxfile as f:
+                f.nxpath = self.nxpath
+                f.linkexternal(self)
+        self.set_changed()
+
+    def _getlink(self):
+        return self
+
+    def _getdata(self):
+        if self._value is None:
+            self.readvalues()
+        return self._value
+
+    def _getdtype(self):
+        if self._dtype is None:
+            self.readvalues()
+        return self._dtype
+
+    def _getshape(self):
+        if self._dtype is None:
+            self.readvalues()
+        return self._shape
+
+    def _getattrs(self):
+        return self._attrs
+
+    def _getfile(self):
+        return NXFile(self.nxfilename, self.nxfilemode).open()
+
+    def _getfilename(self):
+        if os.path.isabs(self._filename) or self.nxroot is self:
+            return self._filename
+        else:
+            return os.path.join(os.path.dirname(self.nxroot.nxfilename),
+                                self._filename)
+ 
+    def _setfilename(self, name):
+        self._filename = name
+
+    def _getfilemode(self):
+        return 'r'
+
+    nxlink = property(_getlink, doc="Linked object")
+    nxdata = property(_getdata, doc="Property: The data values")
+    dtype = property(_getdtype, doc="Property: Data type of NeXus field")
+    shape = property(_getshape, doc="Property: Shape of NeXus field")
+    attrs = property(_getattrs,doc="NeXus attributes for object")
+    nxfile = property(_getfile, doc="Property: File handle of NeXus link")
+    nxfilename = property(_getfilename, _setfilename, doc="Property: Filename of external link")
+    nxfilemode = property(_getfilemode, doc="Property: File mode of external link")
 
 
 class NXroot(NXgroup):
@@ -3417,15 +3620,12 @@ class NXdata(NXgroup):
                 if signal.nxname == "unknown" or signal.nxname in self:
                     signal.nxname = "signal"
                 self[signal.nxname] = signal
-                self[signal.nxname].signal = 1
                 signal_name = signal.nxname
             else:
                 self["signal"] = signal
                 self["signal"].signal = 1
                 signal_name = "signal"
             self.attrs["signal"] = signal_name
-            if axes is not None:
-                self[signal_name].axes = ":".join(axis_names.values())
         if errors is not None:
             self["errors"] = errors
 
@@ -3626,7 +3826,8 @@ def convert_index(idx, axis):
     if len(axis) == 1:
         idx = 0
     elif isinstance(idx, slice) and \
-         isinstance(idx.start, int) and isinstance(idx.stop, int):
+            (idx.start is None or isinstance(idx.start, int)) and \
+            (idx.stop is None or isinstance(idx.stop, int)):
         if idx.start is not None and idx.stop is not None:
             if idx.stop == idx.start or idx.stop == idx.start + 1:
                 idx = idx.start

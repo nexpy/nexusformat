@@ -5,6 +5,7 @@ The wrapper class representing a remote NX file
 Contains a Pyro proxy
 """
 
+import os
 import sys
 import Pyro4
 
@@ -35,6 +36,10 @@ class NXFileRemote(NXFile):
         self._filename = name
         assert(b)
 
+    def __repr__(self):
+        return '<NXFileRemote "%s" (mode %s)>' % (os.path.basename(self._filename),
+                                                  self._mode)
+
     def __getitem__(self, key):
         return self._file.getitem(key)
 
@@ -50,7 +55,7 @@ class NXFileRemote(NXFile):
     def close(self):
         pass
 
-    def _readvalue(self, path, idx=()):
+    def readvalue(self, path, idx=()):
         return self._file.getvalue(path, idx=idx)
 
     def readfile(self):

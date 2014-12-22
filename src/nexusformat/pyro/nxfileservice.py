@@ -20,7 +20,7 @@ import time
 
 import Pyro4
 
-from nexpyro.nexus import nxload, NXFile
+from nexusformat.nexus import nxload, NXFile
 
 def msg(msg):
     print("pyro server: " + msg)

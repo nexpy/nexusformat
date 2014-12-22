@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Dummy client for prototyping NexPyro
+Dummy client for prototyping the Pyro4 interface to NeXus
 """
 
 import sys

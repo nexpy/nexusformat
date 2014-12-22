@@ -9,7 +9,7 @@
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
 
-__package_name__ = u'NeXpy-RO'
+__package_name__ = u'nexusformat'
 __version__ = u'0.1.0'
 
 __documentation_author__ = u'Ray Osborn'
@@ -21,16 +21,17 @@ __author_email__ = u'nexpydev@gmail.com'
 __author__ = __author_name__ + u' <' + __author_email__ + u'>'
 
 __url__          = u'http://nexpy.github.io/nexpy/'
-__download_url__ = u'https://github.com/nexpy/nexpy/'
+__download_url__ = u'https://github.com/nexpy/nexusformat/'
 
 __description__ = u'NeXpy-RO: Remote access to NeXus data'
 __long_description__ = \
 u"""
-NeXpy provides a high-level python interface to `NeXus data 
-<http://www.nexusformat.org/>`_ contained within a simple GUI. NeXpy-RO is 
-a package that is designed to work in conjunction with NeXPy to provide remote 
-access across a network.
+This package provides a Python API to open, create, and manipulate `NeXus data 
+<http://www.nexusformat.org/>`_ written in the HDF5 format. It also includes a 
+server to allow files to be opened on a remote server across a network. The 
+'nexusformat' package provides the underlying API for `NeXpy 
+<http://nexpy.github.io.nexpy>`_, which provides a GUI interface. 
 
 The latest development version is always available from `NeXpy's GitHub
-site <https://github.com/nexpy/nexpyro>`_.
+site <https://github.com/nexpy/nexusformat>`_.
 """

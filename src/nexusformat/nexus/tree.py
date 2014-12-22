@@ -997,7 +997,7 @@ class NXobject(object):
         if False: 
             yield
 
-    def dir(self,attrs=False,recursive=False):
+    def dir(self, attrs=False, recursive=False):
         """
         Prints the object directory.
 
@@ -1006,7 +1006,7 @@ class NXobject(object):
         displayed. If 'recursive' is True, the contents of child groups are
         also displayed.
         """
-        print self._str_tree(attrs=attrs,recursive=recursive)
+        print self._str_tree(attrs=attrs, recursive=recursive)
 
     @property
     def tree(self):
@@ -1017,7 +1017,7 @@ class NXobject(object):
         It invokes the 'dir' method with both 'attrs' and 'recursive' set
         to True.
         """
-        return self._str_tree(attrs=True,recursive=True)
+        return self._str_tree(attrs=True, recursive=True)
 
     def rename(self, name):
         if self.nxfilemode == 'r':
@@ -2262,7 +2262,10 @@ class NXfield(NXobject):
         Raises NeXusError if the data could not be plotted.
         """
 
-        from nexpy.gui.plotview import plotview
+        try:
+            from nexpy.gui.plotview import plotview
+        except ImportError:
+            from nexusformat.nexus.plot import plotview
 
         if self.is_plottable():
             if 'axes' in self.attrs.keys():
@@ -3042,17 +3045,12 @@ class NXgroup(NXobject):
         The argument should be a valid NXfield within the group.
         """
         current_signal = self._signal()
-        if current_signal is not None:
-            if current_signal is not signal:
-                current_signal.attrs['signal'] = 2
-                if 'axes' in self.attrs and 'axes' not in current_signal.attrs:
-                    current_signal.attrs['axes'] = self.attrs['axes']
-                if 'axes' not in self.attrs and 'axes' in current_signal.attrs:
-                    self.attrs['signal'] = current_signal.attrs['axes']
+        if current_signal is not None and current_signal is not signal:
+            if 'signal' in current_signal.attrs:
+                del current_signal.attrs['signal']
         self.attrs['signal'] = signal.nxname
         if signal.nxname not in self:
             self[signal.nxname] = signal
-        self[signal.nxname].attrs['signal'] = 1
         return self[signal.nxname]
 
     def _axes(self):
@@ -3168,8 +3166,13 @@ class NXgroup(NXobject):
         Raises NeXusError if the data could not be plotted.
         """
 
-        from nexpy.gui.plotview import plotview
-
+        try:
+            from nexpy.gui.plotview import plotview
+            if plotview is None:
+                raise ImportError
+        except ImportError:
+            from nexusformat.nexus.plot import plotview
+            
         data = self
         if self.nxclass == "NXroot":
             try:

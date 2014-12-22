@@ -12,7 +12,5 @@
 
 pkg_requirements = [
     'numpy>=1.6.0',
-    'scipy',
     'h5py',
-    'pyro4',
 ]

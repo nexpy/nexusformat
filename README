@@ -11,20 +11,20 @@ Released versions of NeXpy-RO are available on PyPI. If you have the Python
 Setup Tools <https://pypi.python.org/pypi/setuptools> installed, then you can 
 install using either::
 
-    $ pip install nexpyro
+    $ pip install nexusformat
 
 or:: 
 
-    $ easy_install nexpyro 
+    $ easy_install nexusformat 
 
 The latest development versions of nexpy-api can be downloaded from the NeXpy 
-Git repository <https://github.com/nexpy/nexpyro>.
+Git repository <https://github.com/nexpy/nexusformat>.
 
-    $ git clone http://github.com/nexpy/nexpyro.git
+    $ git clone http://github.com/nexpy/nexusformat.git
 
 To install in the standard Python location:
 
-    $ cd nexpyro
+    $ cd nexusformat
     $ python setup.py install
 
 To install in an alternate location:
@@ -54,4 +54,4 @@ Consult the NeXpy documentation at http://nexpy.github.io/nexpy for details
 of both the Python command-line API and how to use the NeXpy GUI. 
 
 If you discover any bugs, please submit a Github issue to
-https://github.com/nexpy/nexpyro/issues, preferably with relevant tracebacks.
+https://github.com/nexpy/nexusformat/issues, preferably with relevant tracebacks.

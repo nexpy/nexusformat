@@ -8,19 +8,19 @@ Installing and Running
 Released versions of NeXpy-RO can be installed using either
 
 ```
-    $ pip install nexpyro
+    $ pip install nexusformat
 ```
 
 or
 
 ```
-    $ easy_install nexpyro
+    $ easy_install nexusformat
 ```
 
 The source code can be downloaded from the NeXpy Git repository:
 
 ```
-    $ git clone http://github.com/nexpy/nexpyro.git
+    $ git clone http://github.com/nexpy/nexusformat.git
 ```
 
 To install in the standard Python location:
@@ -58,5 +58,5 @@ any general questions concerning the use of NeXpy, please address
 them to the 
 [NeXus Mailing List](http://download.nexusformat.org/doc/html/mailinglist.html). 
 If you discover any bugs, please submit a 
-[Github issue](https://github.com/nexpy/nexpyro/issues), preferably with 
+[Github issue](https://github.com/nexpy/nexusformat/issues), preferably with 
 relevant tracebacks.

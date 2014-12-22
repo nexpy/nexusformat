@@ -16,26 +16,26 @@ import numpy
 
 # pull in some definitions from the package's __init__.py file
 sys.path.insert(0, os.path.join('src', ))
-import nexpyro
-import nexpyro.requires
+import nexusformat
+import nexusformat.requires
 
 verbose=1
 
-setup (name =  nexpyro.__package_name__,        # NeXpy
-       version = nexpyro.__version__,
-       license = nexpyro.__license__,
-       description = nexpyro.__description__,
-       long_description = nexpyro.__long_description__,
-       author=nexpyro.__author_name__,
-       author_email=nexpyro.__author_email__,
-       url=nexpyro.__url__,
-       download_url=nexpyro.__download_url__,
+setup (name =  nexusformat.__package_name__,        # NeXpy
+       version = nexusformat.__version__,
+       license = nexusformat.__license__,
+       description = nexusformat.__description__,
+       long_description = nexusformat.__long_description__,
+       author=nexusformat.__author_name__,
+       author_email=nexusformat.__author_email__,
+       url=nexusformat.__url__,
+       download_url=nexusformat.__download_url__,
        platforms='any',
-       install_requires = nexpyro.requires.pkg_requirements,
+       install_requires = nexusformat.requires.pkg_requirements,
        package_dir = {'': 'src'},
        packages = find_packages('src'),
        entry_points={
-            'command_line_scripts': ['nxstartserver = nexpyro.start_server:main',],
+            'command_line_scripts': ['nxstartserver = nexusformat.start_server:main',],
        },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',

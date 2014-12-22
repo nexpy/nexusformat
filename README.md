@@ -49,11 +49,15 @@ more details of the nature of these dependencies in the
 [NeXpy documentation](http://nexpy.github.io/nexpy).
 
 * h5py                 http://www.h5py.org
-* numpy,scipy          http://numpy.scipy.org
+* numpy                http://numpy.org
+
+The remote server requires the Pyro4 package.
+
 * pyro4                http://pythonhosted.org//Pyro4/
 
 The following environment variable may need to be set
-PYTHONPATH --> paths to numpy,scipy if installed in a nonstandard place
+
+PYTHONPATH --> paths to numpy if installed in a nonstandard place
 
 All of the above are included in the Enthought Python Distribution v7.3.
 

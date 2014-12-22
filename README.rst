@@ -30,23 +30,23 @@ To install in an alternate location::
 Required Libraries
 ==================
 
-=================  =================================================
+=================  ===================================================
 Library            URL
-=================  =================================================
+=================  ===================================================
 h5py               http://www.h5py.org
 numpy              http://numpy.scipy.org/
-pyro4              http://pythonhosted.org//Pyro4/
-=================  =================================================
+pyro4              http://pythonhosted.org//Pyro4/ (for remote server)
+=================  ===================================================
 
-Semantic Versioning
+Versioning
 -------------------
-NeXpy-RO is using `Semantic Versioning <http://semver.org/spec/v2.0.0.html>`_.
+This package uses `Semantic Versioning <http://semver.org/spec/v2.0.0.html>`_.
 
 User Support
 ------------
-Consult the `NeXpy documentation <http://nexpy.github.io/nexpy/>`_ for details 
-of both NeXpy and NeXpy-RO. If you have any general questions concerning the use 
-of NeXpy, please address them to the `NeXus Mailing List 
+Consult the `NeXpy documentation <http://nexpy.github.io/nexpy/>`_ for help. If 
+you have any general questions concerning the use of this module, please address 
+them to the `NeXus Mailing List 
 <http://download.nexusformat.org/doc/html/mailinglist.html>`_. If you discover
 any bugs, please submit a `Github issue 
 <https://github.com/nexpy/nexusformat/issues>`_, preferably with relevant 
@@ -58,7 +58,4 @@ The `NeXus format <http://www.nexusformat.org>`_ for neutron, x-ray and muon
 data is developed by an international collaboration under the supervision of the 
 `NeXus International Advisory Committee <http://wiki.nexusformat.org/NIAC>`_. 
 The Python tree API used in NeXpy was originally developed by Paul Kienzle, who
-also wrote the standard Python interface to the NeXus C-API. The original 
-version of NeXpy was initially developed by Boyana Norris, Jason Sarich, and 
-Daniel Lowell, and Ray Osborn using wxPython, and formed the inspiration
-for the current PySide version.
+also wrote the standard Python interface to the NeXus C-API.

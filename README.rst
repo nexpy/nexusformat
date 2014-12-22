@@ -1,9 +1,9 @@
 Installation
 ============
-Released versions of NeXpy-RO are available on `PyPI 
-<https://pypi.python.org/pypi/nexusformat/>`_. If you have the `Python Setup Tools 
-<https://pypi.python.org/pypi/setuptools>`_ installed, then you can install 
-using either::
+Released versions of the NeXus Python API are available on `PyPI 
+<https://pypi.python.org/pypi/nexusformat/>`_. If you have the `Python Setup 
+Tools <https://pypi.python.org/pypi/setuptools>`_ installed, then you can 
+install using either::
 
     $ pip install nexusformat
 
@@ -13,11 +13,11 @@ or::
 
 If you have trouble with the pip or easy_install installations, you can install
 the package from the source code either by downloading one of the 
-`Github releases <https://github.com/nexpy/nexpy/releases>`_ or by cloning the
-latest development version in the `NeXpy Git 
-repository <https://github.com/nexpy/nexusformat>`_::
+`Github releases <https://github.com/nexpy/nexusformat/releases>`_ or by cloning 
+the latest development version in the 
+`NeXpy Git repository <https://github.com/nexpy/nexusformat>`_::
 
-    $ git clone http://github.com/nexpy/nexusformat.git
+    $ git clone https://github.com/nexpy/nexusformat.git
 
 You can then install NeXpy by changing to the source directory and typing::
 

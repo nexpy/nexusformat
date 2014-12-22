@@ -23,7 +23,7 @@ __author__ = __author_name__ + u' <' + __author_email__ + u'>'
 __url__          = u'http://nexpy.github.io/nexpy/'
 __download_url__ = u'https://github.com/nexpy/nexusformat/'
 
-__description__ = u'NeXpy-RO: Remote access to NeXus data'
+__description__ = u'nexusformat: Python API to access NeXus data'
 __long_description__ = \
 u"""
 This package provides a Python API to open, create, and manipulate `NeXus data 

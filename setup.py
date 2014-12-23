@@ -21,7 +21,7 @@ import nexusformat.requires
 
 verbose=1
 
-setup (name =  nexusformat.__package_name__,        # NeXpy
+setup (name =  nexusformat.__package_name__, # NeXpy
        version = nexusformat.__version__,
        license = nexusformat.__license__,
        description = nexusformat.__description__,
@@ -35,7 +35,8 @@ setup (name =  nexusformat.__package_name__,        # NeXpy
        package_dir = {'': 'src'},
        packages = find_packages('src'),
        entry_points={
-            'command_line_scripts': ['nxstartserver = nexusformat.start_server:main',],
+            # create & install scripts in <python>/bin
+            'console_scripts': ['nxstartserver=nexusformat.pyro.start_server:main'],
        },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',

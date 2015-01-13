@@ -486,8 +486,8 @@ class NXFile(object):
 
         if data._uncopied_data:
             _file, _path = data._uncopied_data
-            with _file as f:
-                f.copy(_path, self[parent], self.nxpath)
+            with _file as run:
+                run.copy(_path, self[parent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[parent], self.nxpath)
@@ -734,8 +734,8 @@ class AttrDict(dict):
             super(AttrDict, self).__setitem__(key, NXattr(value))
         try:
             if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as f:
-                    f.update(self, self.parent.nxpath)
+                with self.parent.nxfile as run:
+                    run.update(self, self.parent.nxpath)
         except Exception:
             pass
 
@@ -743,9 +743,9 @@ class AttrDict(dict):
         super(AttrDict, self).__delitem__(key)
         try:
             if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as f:
-                    f.nxpath = self.parent.nxpath
-                    del f[f.nxpath].attrs[key]
+                with self.parent.nxfile as run:
+                    run.nxpath = self.parent.nxpath
+                    del run[run.nxpath].attrs[key]
         except Exception:
             pass
 
@@ -1033,8 +1033,8 @@ class NXobject(object):
                 if [x for x in axes if x is self]:
                     self.nxgroup.nxaxes = axes
         if self.nxfilemode == 'rw':
-            with self.nxfile as f:
-                f.rename(path, self.nxpath)
+            with self.nxfile as run:
+                run.rename(path, self.nxpath)
 
     def save(self, filename=None, mode='w'):
         """
@@ -1093,8 +1093,8 @@ class NXobject(object):
 
     def update(self):
         if self.nxfilemode == 'rw':
-            with self.nxfile as f:
-                f.update(self)
+            with self.nxfile as run:
+                run.update(self)
         self.set_changed()
 
     @property
@@ -1622,26 +1622,26 @@ class NXfield(NXobject):
         self.set_changed()
 
     def _get_filedata(self, idx=()):
-        with self.nxfile as f:
-            result = f.readvalue(self.nxpath, idx=idx)
+        with self.nxfile as run:
+            result = run.readvalue(self.nxpath, idx=idx)
             if 'mask' in self.attrs:
                 try:
                     mask = self.nxgroup[self.attrs['mask']]
                     result = np.ma.array(result, 
-                                         mask=f.readvalue(mask.nxpath, idx=idx))
+                                         mask=run.readvalue(mask.nxpath, idx=idx))
                 except KeyError:
                     pass
         return result
 
     def _put_filedata(self, idx, value):
-        with self.nxfile as f:
+        with self.nxfile as run:
             if isinstance(value, np.ma.MaskedArray):
                 if self.mask is None:
                     self._create_mask()
-                f.writevalue(self.nxpath, value.data, idx=idx)
-                f.writevalue(self.mask.nxpath, value.mask, idx=idx)
+                run.writevalue(self.nxpath, value.data, idx=idx)
+                run.writevalue(self.mask.nxpath, value.mask, idx=idx)
             else:
-                f.writevalue(self.nxpath, value, idx=idx)
+                run.writevalue(self.nxpath, value, idx=idx)
 
     def _get_memdata(self, idx=()):
         result = self._memfile['data'][idx]
@@ -1728,12 +1728,12 @@ class NXfield(NXobject):
 
     def _get_uncopied_data(self):
         _file, _path = self._uncopied_data
-        with _file as f:
+        with _file as run:
             if self.nxfilemode == 'rw':
-                f.copy(_path, self.nxpath)
+                run.copy(_path, self.nxpath)
             else:
                 self._create_memfile()
-                f.copy(_path, self._memfile, 'data')
+                run.copy(_path, self._memfile, 'data')
         self._uncopied_data = None
 
     def __deepcopy__(self, memo):
@@ -2756,10 +2756,10 @@ class NXgroup(NXobject):
             if key not in group:
                 raise NeXusError(key+" not in "+group.nxpath)
             if group.nxfilemode == 'rw':
-                with group.nxfile as f:
+                with group.nxfile as run:
                     if 'mask' in group._entries[key].attrs:
-                        del f[group._entries[key].mask.nxpath]
-                    del f[group._entries[key].nxpath]
+                        del run[group._entries[key].mask.nxpath]
+                    del run[group._entries[key].nxpath]
             if 'mask' in group._entries[key].attrs:
                 del group._entries[group._entries[key].mask.nxname]
             del group._entries[key]
@@ -2812,8 +2812,8 @@ class NXgroup(NXobject):
         Updates the NXgroup, including its children, to the NeXus file.
         """
         if self.nxfilemode == 'rw':
-            with self.nxfile as f:
-                f.update(self)
+            with self.nxfile as run:
+                run.update(self)
         elif self.nxfilemode is None:
             for node in self.walk():
                 if isinstance(node, NXfield) and node._uncopied_data:
@@ -3371,18 +3371,18 @@ class NXlinkexternal(NXlink, NXfield):
 
     def readvalues(self):
         if os.path.exists(self.nxfilename):
-            with self.nxfile as f:
-                f.nxpath = self._target
-                self._value, self._shape, self._dtype, self._attrs = f.readvalues()
+            with self.nxfile as run:
+                run.nxpath = self._target
+                self._value, self._shape, self._dtype, self._attrs = run.readvalues()
         else:
             raise NeXusError("External link '%s' does not exist" % 
                               os.path.abspath(self.nxfilename))
 
     def update(self):
         if self.nxroot.nxfile and self.nxroot.nxfilename != self.nxfilename:
-            with self.nxroot.nxfile as f:
-                f.nxpath = self.nxpath
-                f.linkexternal(self)
+            with self.nxroot.nxfile as run:
+                run.nxpath = self.nxpath
+                run.linkexternal(self)
         self.set_changed()
 
     def _getlink(self):
@@ -3922,8 +3922,8 @@ def load(filename, mode='r'):
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    with NXFile(filename, mode) as f:
-        tree = f.readfile()
+    with NXFile(filename, mode) as run:
+        tree = run.readfile()
     return tree
 
 #Definition for when there are name clashes with Numpy
@@ -3940,10 +3940,10 @@ def save(filename, group, mode='w'):
         tree = NXroot(group)
     else:
         tree = NXroot(NXentry(group))
-    with NXFile(filename, mode) as f:
-        f = NXFile(filename, mode)
-        f.writefile(tree)
-        f.close()
+    with NXFile(filename, mode) as run:
+        run = NXFile(filename, mode)
+        run.writefile(tree)
+        run.close()
 
 def tree(filename):
     """
@@ -3966,7 +3966,7 @@ def demo(argv):
     else:
         op = 'help'
     if op == 'ls':
-        for f in argv[2:]: dir(f)
+        for run in argv[2:]: dir(run)
     elif op == 'copy' and len(argv)==4:
         tree = load(argv[2])
         save(argv[3], tree)

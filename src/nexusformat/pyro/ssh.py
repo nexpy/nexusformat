@@ -1,7 +1,6 @@
 
 import os, time
 import select
-import signal
 from select import POLLIN
 from multiprocessing import Process, Queue
 from subprocess import Popen, PIPE, STDOUT
@@ -33,7 +32,7 @@ class NeXpyroSSH:
             self.command = "sleep " + duration
 
         self.queue = Queue()
-        self.process = Process(target=self.f, args=(self.queue,))
+        self.process = Process(target=self.run, args=(self.queue,))
         self.process.start()
         if getURI:
             result = self.queue.get(block=True, timeout=20)
@@ -44,10 +43,9 @@ class NeXpyroSSH:
     def account(self):
         return "%s@%s" % (self.user, self.host)
 
-    def f(self, queue):
-        self.msg("PID: " + str(os.getpid()));
-        self.msg("connecting " + self.command)
-        argv = ["ssh", "-tt", self.account()]
+    def run(self, queue):
+        self.dbg("Process PID: " + str(os.getpid()));
+        argv = ["/usr/bin/ssh", "-tt", self.account()]
         if self.localPort != 0:
             argv.append("-L %i:localhost:%i" % 
                         (self.localPort, self.remotePort))
@@ -58,42 +56,50 @@ class NeXpyroSSH:
         poller.register(pipe.stdout.fileno(), POLLIN)
         while True:
             try:
-                L = poller.poll(500)
+                L = poller.poll(100)
             except KeyboardInterrupt:
                 self.msg("Interrupted!")
             if len(L) > 0:
                 if L[0][1] != POLLIN: 
-                    self.msg("poll found error")
+                    self.dbg("poll found error")
                     break
                 line = pipe.stdout.readline()
-                self.msg("read: " + line.rstrip())
+                self.dbg("read: " + line.rstrip())
                 self.output += line
                 if queue != None and line.startswith("URI: "):
-                    print("found URI %s" % line)
                     queue.put(line)
             if not queue.empty():
                 item = queue.get()
                 if item == "TERMINATE":
                     break
-        self.msg("terminating pipe")
+        self.dbg("terminating pipe")
         pipe.terminate()
         exitcode = pipe.wait()
         result = "exited with code: %i" % exitcode
-        self.msg(result)
+        self.dbg(result)
         queue.put(result)
 
     def make_pipe(self, argv):
         command = " ".join(argv)
-        self.msg("running: " + command)
-        return Popen(command, bufsize=0, 
+        self.dbg("running: " + command)
+        pipe = Popen(argv, bufsize=0, 
                      stdin=PIPE, stdout=PIPE, stderr=STDOUT, 
-                     close_fds=True, shell=True)
+                     close_fds=True)
+        self.dbg("Pipe PID: %i" % pipe.pid)
+        return pipe
 
     def msg(self, m):
         print "NeXpyroSSH(%i) %s: %s" % (self.id, self.account(), str(m))
 
+    # Enable debugging messages?
+    debug = True
+
+    def dbg(self, m):
+        if self.debug == True:
+            print "NeXpyroSSH(%i) %s: DBG: %s" % (self.id, self.account(), str(m))
+
     def terminate(self):
-        self.msg("killing")
+        self.dbg("terminate()")
         self.queue.put("TERMINATE")
         time.sleep(1)
         self.process.terminate()

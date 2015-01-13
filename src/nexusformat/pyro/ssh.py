@@ -7,7 +7,7 @@ from subprocess import Popen, PIPE, STDOUT
 
 _ssh_process_id = 0
 
-class NeXpyroSSH:
+class NeXPyroSSH:
 
     def __init__(self, user, host,
                  hours=1, localPort=0, remotePort=0,
@@ -89,14 +89,14 @@ class NeXpyroSSH:
         return pipe
 
     def msg(self, m):
-        print "NeXpyroSSH(%i) %s: %s" % (self.id, self.account(), str(m))
+        print "NeXPyroSSH(%i) %s: %s" % (self.id, self.account(), str(m))
 
     # Enable debugging messages?
     debug = True
 
     def dbg(self, m):
         if self.debug == True:
-            print "NeXpyroSSH(%i) %s: DBG: %s" % (self.id, self.account(), str(m))
+            print "NeXPyroSSH(%i) %s: DBG: %s" % (self.id, self.account(), str(m))
 
     def terminate(self):
         self.dbg("terminate()")

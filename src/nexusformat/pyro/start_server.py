@@ -15,8 +15,6 @@ Daemon process presenting NeXus file over Pyro
 
 import os
 import sys
-import threading
-import time
 
 import Pyro4
 

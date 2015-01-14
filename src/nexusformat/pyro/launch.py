@@ -45,7 +45,7 @@ def run_parser():
     (options, args) = parser.parse_args()
     user        = options.user
     hostname    = options.hostname
-    localPort   = options.localPort
+    localPort   = int(options.localPort)
     sessionTime = options.sessionTime
     if len(args) > 0:
         crash("does not accept positional arguments!")

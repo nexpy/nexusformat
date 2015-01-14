@@ -5,6 +5,12 @@ SESSION.PY
 Created on Jan 13, 2015
 
 @author: wozniak
+
+Creates two SSH connections: one to start the service and
+one to create an SSH tunnel forwarding the user-provided
+local port to the Pyro-selected remote port.  The first
+SSH connection allows Pyro to select a free port on the
+remote machine, safely reserving it.
 '''
 
 from nexusformat.pyro.ssh import NeXPyroSSH
@@ -15,9 +21,6 @@ class NeXPyroSession(object):
     '''
 
     def __init__(self, user, hostname, localPort):
-        '''
-        Constructor
-        '''
         self.user = user
         self.hostname = hostname
         self.localPort = localPort

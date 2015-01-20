@@ -27,7 +27,8 @@ class NeXPyroSession(object):
         
     def run(self):
         command = "/home/wozniak/proj/nexusformat/src/nexusformat/pyro/start_server.py"
-        self.sshService = NeXPyroSSH(self.user, self.hostname, command=command, getURI=True)
+        self.sshService = NeXPyroSSH(self.user, self.hostname,
+                                     command=command, getURI=True)
         uri = self.sshService.uri
         if (uri == "UNSET"):
             print("SSH could not start NeXpyro service!")

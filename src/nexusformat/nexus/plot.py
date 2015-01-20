@@ -16,7 +16,7 @@ This module provides a standard Matplotlib plotting option to the NeXus Python
 API
 """
 import numpy as np
-from nexusformat.nexus import NXfield
+from nexusformat.nexus import NXfield, NeXusError
 
 
 def _fixaxes(signal, axes):

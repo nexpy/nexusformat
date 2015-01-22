@@ -709,10 +709,13 @@ def _readaxes(axes):
 
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
-    axes = str(axes)
-    import re
-    sep=re.compile('[\[]*(\s*,*:*)+[\]]*')
-    return filter(lambda x: len(x)>0, sep.split(axes))
+    if axes.shape == ():
+        axes = str(axes)
+        import re
+        sep=re.compile('[\[]*(\s*,*:*)+[\]]*')
+        return filter(lambda x: len(x)>0, sep.split(axes))
+    else:
+        return list(axes)
 
 
 class AttrDict(dict):

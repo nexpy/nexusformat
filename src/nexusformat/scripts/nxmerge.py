@@ -21,11 +21,6 @@ import numpy as np
 
 from nexusformat.nexus import *
 
-try:
-    from nexpy.readers.tifffile import tifffile as TIFF
-    import pycbf
-except ImportError:
-
 
 prefix_pattern = re.compile('^([^.]+)(?:(?<!\d)|(?=_))')
 index_pattern = re.compile('^(.*?)([0-9]*)[.](.*)$')
@@ -91,7 +86,12 @@ def read_image(filename):
             from nexpy.readers.tifffile import tifffile as TIFF
         except ImportError:
             raise NeXusError('Reading TIFF files requires the TIFF reader installed with NeXpy')
-        return TIFF.imread(filename)
+        if filename.endswith('.bz2'):
+            import bz2
+            tiff_file = TIFF.TiffFile(bz2.BZ2File(filename))
+        else:
+            tiff_file = TIFF.TiffFile(filename)
+        return tiff_file.asarray()
 
 
 def read_images(filenames, shape):
@@ -112,13 +112,17 @@ def read_images(filenames, shape):
 
 
 def read_metadata(filename):
-    if os.path.splitext(filename)[1] == '.cbf':
+    if filename.endswith('bz2'):
+        fname = os.path.splitext(filename)[0]
+    else:
+        fname = filename
+    if os.path.splitext(fname)[1] == '.cbf':
         try:
             import pycbf
         except ImportError:
             raise NeXusError('Reading CBF files requires the pycbf module')
         cbf = pycbf.cbf_handle_struct()
-        cbf.read_file(filename, pycbf.MSG_DIGEST)
+        cbf.read_file(fname, pycbf.MSG_DIGEST)
         cbf.select_datablock(0)
         cbf.select_category(0)
         cbf.select_column(1)
@@ -128,9 +132,9 @@ def read_metadata(filename):
         exposure = float(meta_text[5].split()[2])
         summed_exposures = 1
         return time_stamp, exposure, summed_exposures
-    elif os.path.exists(filename+'.metadata'):
+    elif os.path.exists(fname+'.metadata'):
         parser = ConfigParser()
-        parser.read(filename+'.metadata')
+        parser.read(fname+'.metadata')
         return (parser.getfloat('metadata', 'timeStamp'),
                 parser.getfloat('metadata', 'exposureTime'),
                 parser.getint('metadata', 'summedExposures'))
@@ -293,7 +297,11 @@ def main():
         elif opt in ('-r', '--reversed'):
             reverse = True
     if background:
-        background_file = glob.glob(background+'*'+extension)[-1]
+        try:
+            background_file = glob.glob(background+'*'+extension)[-1]
+        except IndexError:
+            if extension.endswith('bz2'):
+                background_file = glob.glob(background+'*'+extension[:-4])[-1]
     else:
         background_file = None
     if prefix:

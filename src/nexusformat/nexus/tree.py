@@ -2950,6 +2950,49 @@ class NXgroup(NXobject):
                 plottable = True
         return plottable        
 
+    @property
+    def plottable_data(self):
+        """
+        Returns the first NXdata group within the group's tree.
+        """
+        data = self
+        if self.nxclass == "NXroot":
+            try:
+                data = data.NXdata[0]
+            except Exception:
+                if data.NXentry:
+                    data = data.NXentry[0]
+                else:
+                    raise NeXusError('No NXdata group found')
+        if data.nxclass == "NXentry":
+            if data.NXdata:
+                data = data.NXdata[0]
+            elif data.NXmonitor:
+                data = data.NXmonitor[0]
+            elif data.NXlog:
+                data = data.NXlog[0]
+            else:
+                raise NeXusError('No NXdata group found')
+        return data
+
+    def plot(self, **opts):
+        """
+        Plot data contained within the group.
+        """
+        self.plottable_data.plot(**opts)
+    
+    def oplot(self, **opts):
+        """
+        Plots the data contained within the group over the current figure.
+        """
+        self.plottable_data.oplot(**opts)
+
+    def logplot(self, **opts):
+        """
+        Plots the data intensity contained within the group on a log scale.
+        """
+        self.plottable_data.logplot(**opts)
+
     def component(self, nxclass):
         """
         Finds all child objects that have a particular class.
@@ -3669,31 +3712,12 @@ class NXdata(NXgroup):
         except ImportError:
             from nexusformat.nexus.plot import plotview
             
-        data = self
-        if self.nxclass == "NXroot":
-            try:
-                data = data.NXdata[0]
-            except Exception:
-                if data.NXentry:
-                    data = data.NXentry[0]
-                else:
-                    raise NeXusError('No NXdata group found')
-        if data.nxclass == "NXentry":
-            if data.NXdata:
-                data = data.NXdata[0]
-            elif data.NXmonitor:
-                data = data.NXmonitor[0]
-            elif data.NXlog:
-                data = data.NXlog[0]
-            else:
-                raise NeXusError('No NXdata group found')
-
         # Check there is a plottable signal
-        if data.nxsignal is None:
+        if self.nxsignal is None:
             raise NeXusError('No plotting signal defined')
 
         # Plot with the available plotter
-        plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
+        plotview.plot(self, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
     
     def oplot(self, fmt='', **opts):
         """

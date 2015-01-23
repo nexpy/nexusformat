@@ -158,7 +158,7 @@ def get_background(filename):
     return data, frame_time
 
 
-def initialize_nexus_file(directory, output, filenames, z_start, step):
+def initialize_nexus_file(directory, output_file, filenames, z_start, step):
     z_size = get_index(filenames[-1]) - get_index(filenames[0]) + 1
     v0 = read_image(filenames[0])
     x = NXfield(range(v0.shape[1]), dtype=np.uint16, name='x_pixel')
@@ -166,17 +166,17 @@ def initialize_nexus_file(directory, output, filenames, z_start, step):
     if z_size > 1:
         z = z_start + step * np.arange(z_size)
         z = NXfield(z, dtype=np.uint16, name='frame_number', maxshape=(5000,))
-        v = NXfield(name='v',shape=(z_size, v0.shape[0], v0.shape[1]),
+        v = NXfield(name='data',shape=(z_size, v0.shape[0], v0.shape[1]),
                     dtype=np.float32, maxshape=(5000, v0.shape[0], v0.shape[1]))
         data = NXdata(v, (z,y,x))
     else:
-        v = NXfield(name='v',shape=(v0.shape[0], v0.shape[1]), dtype=np.float32)
+        v = NXfield(name='data',shape=(v0.shape[0], v0.shape[1]), dtype=np.float32)
         data = NXdata(v, (y, x))
     root = NXroot(NXentry(data, NXsample(), NXinstrument(NXdetector())))
     root.entry.instrument.detector.frame_start = \
         NXfield(shape=(z_size,), maxshape=(5000,), units='s',
                 dtype=np.float32)
-    root.save(output, 'w')
+    root.save(output_file, 'w')
     return root
 
 
@@ -193,12 +193,12 @@ def write_data(root, filenames, background_file=None):
         root.entry.instrument.detector.flatfield_applied = True
     else:
         background = 0.0
-    if len(root.entry.data.v.shape) == 2:
-        root.entry.data.v[:,:] = read_image(filenames[0])
+    if len(root.entry.data.data.shape) == 2:
+        root.entry.data.data[:,:] = read_image(filenames[0])
     else:
-        z_size = root.entry.data.v.shape[0]
-        image_shape = root.entry.data.v.shape[1:3]
-        chunk_size = root.nxfile['/entry/data/v'].chunks[0]
+        z_size = root.entry.data.data.shape[0]
+        image_shape = root.entry.data.data.shape[1:3]
+        chunk_size = root.nxfile['/entry/data/data'].chunks[0]
         min_index = get_index(filenames[0])
         max_index = get_index(filenames[-1])
         k = 0
@@ -219,7 +219,7 @@ def write_data(root, filenames, background_file=None):
                         files.append(None)
                     else:
                         break
-                root.entry.data.v[i-min_index:i+chunk_size-min_index,:,:] = (
+                root.entry.data.data[i-min_index:i+chunk_size-min_index,:,:] = (
                     read_images(files, image_shape) - background)
             except IndexError:
                 pass
@@ -306,8 +306,6 @@ def main():
         background_file = None
     if prefix:
         prefixes = [prefix]
-        if output is None:
-            output = prefix + '.nxs' 
     else:
         prefixes = get_prefixes(directory)
         if len(prefixes) > 1 and output is not None:
@@ -315,7 +313,11 @@ def main():
     for prefix in prefixes:
         tic = timeit.default_timer()
         data_files = get_files(directory, prefix, extension, first, last, reverse)
-        root = initialize_nexus_file(directory, output, data_files, zstart, step)       
+        if output is None:
+            output_file = prefix + '.nxs'
+        else:
+            output_file = output
+        root = initialize_nexus_file(directory, output_file, data_files, zstart, step)
         write_data(root, data_files, background_file)
         write_metadata(root, directory, prefix)
         toc = timeit.default_timer()

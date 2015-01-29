@@ -75,22 +75,12 @@ class PylabPlotter(object):
         except ImportError:
             raise NeXusError("Default plotting package (matplotlib) not available.")
 
-        over = False
-        if "over" in opts.keys():
-            if opts["over"]: 
-                over = True
-            del opts["over"]
+        over = opts.pop("over", False)
+        image = opts.pop("image", False)
+        log = opts.pop("log", False)
+        logx = opts.pop("logx", False)
+        logy = opts.pop("logy", False)
 
-        log = logx = logy = False
-        if "log" in opts.keys():
-            if opts["log"]: log = True
-            del opts["log"]
-        if "logy" in opts.keys():
-            if opts["logy"]: logy = True
-            del opts["logy"]
-        if "logx" in opts.keys():
-            if opts["logx"]: logx = True
-            del opts["logx"]
         if fmt == '': 
             fmt = 'o'
 
@@ -146,56 +136,75 @@ class PylabPlotter(object):
             from matplotlib.colors import LogNorm, Normalize
 
             if len(data.shape) > 2:
-                slab = [slice(None), slice(None)]
-                for _dim in data.shape[2:]:
-                    slab.append(0)
-                data = data[slab].view().reshape(data.shape[:2])
-                print "Warning: Only the top 2D slice of the data is plotted"
+                slab = []
+                if image:
+                    for _dim in data.shape[:-3]:
+                        slab.append(0)
+                    slab.extend([slice(None), slice(None), slice(None)])
+                else:
+                    for _dim in data.shape[:-2]:
+                        slab.append(0)
+                    slab.extend([slice(None), slice(None)])
+                data = data[slab]
+                if 0 in slab:
+                    print "Warning: Only the top 2D slice of the data is plotted"
 
-            x = axis_data[1]
-            y = axis_data[0]
+            if image:
+                x, y = axis_data[-2], axis_data[-3]
+                xlabel, ylabel = label(axes[-2]), label(axes[-3])
+            else:
+                x, y = axis_data[-1], axis_data[-2]
+                xlabel, ylabel = label(axes[-1]), label(axes[-2])
+
             if not zmin: 
                 zmin = np.nanmin(data)
             if not zmax: 
                 zmax = np.nanmax(data)
             
-            if log:
-                zmin = max(zmin, 0.01)
-                zmax = max(zmax, 0.01)
-                opts["norm"] = LogNorm(zmin, zmax)
-            else:
-                opts["norm"] = Normalize(zmin, zmax)
+            if not image:
+                if log:
+                    zmin = max(zmin, 0.01)
+                    zmax = max(zmax, 0.01)
+                    opts["norm"] = LogNorm(zmin, zmax)
+                else:
+                    opts["norm"] = Normalize(zmin, zmax)
 
             ax = plt.gca()
-            extent = (x[0],x[-1],y[0],y[-1])
-            im = NonUniformImage(ax, extent=extent, origin=None, **opts)
-            im.set_data(x, y, data)
-            im.get_cmap().set_bad('k', 1.0)
+            if image:
+                im = ax.imshow(data, **opts)
+                ax.set_aspect('equal')
+            else:
+                extent = (x[0],x[-1],y[0],y[-1])
+                im = NonUniformImage(ax, extent=extent, **opts)
+                im.set_data(x, y, data)
+                im.get_cmap().set_bad('k', 1.0)
+                ax.set_xlim(x[0], x[-1])
+                ax.set_ylim(y[0], y[-1])
+                ax.set_aspect('auto')
             ax.images.append(im)
-            xlo, xhi = ax.set_xlim(x[0], x[-1])
-            ylo, yhi = ax.set_ylim(y[0], y[-1])
+            if not image:
+                plt.colorbar(im)
+	
+            if 'origin' in opts and opts['origin'] == 'lower':
+                image = False
             if xmin: 
-                xlo = xmin
-            else:
-                xlo = x[0]
+                ax.set_xlim(left=xmin)
             if xmax: 
-                xhi = xmax
-            else:
-                xhi = x[-1]
+                ax.set_xlim(right=xmax)
             if ymin: 
-                yhi = ymin
-            else:
-                yhi = y[0]
+                if image:
+                    ax.set_ylim(top=ymin)
+                else:
+                    ax.set_ylim(bottom=ymin)
             if ymax: 
-                yhi = ymax
-            else:
-                yhi = y[-1]
-            ax.set_xlim(xlo, xhi)
-            ax.set_ylim(ylo, yhi)
-            plt.xlabel(label(axes[0]))
-            plt.ylabel(label(axes[1]))
+                if image:
+                    ax.set_ylim(bottom=ymax)
+                else:
+                    ax.set_ylim(top=ymax)
+
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
             plt.title(title)
-            plt.colorbar(im)
 
         plt.gcf().canvas.draw_idle()
         plt.ion()

@@ -370,7 +370,7 @@ class NXFile(object):
         Large datasets are not read until they are needed.
         """
         self.nxpath = '/'
-        root = self._readgroup('/')
+        root = self._readgroup('root')
         root._group = None
         root._file = self
         root._filename = self.filename
@@ -486,8 +486,8 @@ class NXFile(object):
 
         if data._uncopied_data:
             _file, _path = data._uncopied_data
-            with _file as run:
-                run.copy(_path, self[parent], self.nxpath)
+            with _file as f:
+                f.copy(_path, self[parent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[parent], self.nxpath)
@@ -737,8 +737,8 @@ class AttrDict(dict):
             super(AttrDict, self).__setitem__(key, NXattr(value))
         try:
             if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as run:
-                    run.update(self, self.parent.nxpath)
+                with self.parent.nxfile as f:
+                    f.update(self, self.parent.nxpath)
         except Exception:
             pass
 
@@ -746,9 +746,9 @@ class AttrDict(dict):
         super(AttrDict, self).__delitem__(key)
         try:
             if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as run:
-                    run.nxpath = self.parent.nxpath
-                    del run[run.nxpath].attrs[key]
+                with self.parent.nxfile as f:
+                    f.nxpath = self.parent.nxpath
+                    del f[f.nxpath].attrs[key]
         except Exception:
             pass
 
@@ -1036,8 +1036,8 @@ class NXobject(object):
                 if [x for x in axes if x is self]:
                     self.nxgroup.nxaxes = axes
         if self.nxfilemode == 'rw':
-            with self.nxfile as run:
-                run.rename(path, self.nxpath)
+            with self.nxfile as f:
+                f.rename(path, self.nxpath)
 
     def save(self, filename=None, mode='w'):
         """
@@ -1096,8 +1096,8 @@ class NXobject(object):
 
     def update(self):
         if self.nxfilemode == 'rw':
-            with self.nxfile as run:
-                run.update(self)
+            with self.nxfile as f:
+                f.update(self)
         self.set_changed()
 
     @property
@@ -1470,7 +1470,7 @@ class NXfield(NXobject):
                  attrs=None, **attr):
         self._class = 'NXfield'
         self._value = value
-        self._name = name.replace(' ','_')
+        self._name = name
         self._group = group
         self._dtype = dtype
         if dtype:
@@ -1625,26 +1625,26 @@ class NXfield(NXobject):
         self.set_changed()
 
     def _get_filedata(self, idx=()):
-        with self.nxfile as run:
-            result = run.readvalue(self.nxpath, idx=idx)
+        with self.nxfile as f:
+            result = f.readvalue(self.nxpath, idx=idx)
             if 'mask' in self.attrs:
                 try:
                     mask = self.nxgroup[self.attrs['mask']]
                     result = np.ma.array(result, 
-                                         mask=run.readvalue(mask.nxpath, idx=idx))
+                                         mask=f.readvalue(mask.nxpath, idx=idx))
                 except KeyError:
                     pass
         return result
 
     def _put_filedata(self, idx, value):
-        with self.nxfile as run:
+        with self.nxfile as f:
             if isinstance(value, np.ma.MaskedArray):
                 if self.mask is None:
                     self._create_mask()
-                run.writevalue(self.nxpath, value.data, idx=idx)
-                run.writevalue(self.mask.nxpath, value.mask, idx=idx)
+                f.writevalue(self.nxpath, value.data, idx=idx)
+                f.writevalue(self.mask.nxpath, value.mask, idx=idx)
             else:
-                run.writevalue(self.nxpath, value, idx=idx)
+                f.writevalue(self.nxpath, value, idx=idx)
 
     def _get_memdata(self, idx=()):
         result = self._memfile['data'][idx]
@@ -1731,12 +1731,12 @@ class NXfield(NXobject):
 
     def _get_uncopied_data(self):
         _file, _path = self._uncopied_data
-        with _file as run:
+        with _file as f:
             if self.nxfilemode == 'rw':
-                run.copy(_path, self.nxpath)
+                f.copy(_path, self.nxpath)
             else:
                 self._create_memfile()
-                run.copy(_path, self._memfile, 'data')
+                f.copy(_path, self._memfile, 'data')
         self._uncopied_data = None
 
     def __deepcopy__(self, memo):
@@ -2140,13 +2140,16 @@ class NXfield(NXobject):
         If there is no title attribute in the parent group, the group's path is 
         returned.
         """
-        if self.nxgroup and 'title' in self.nxgroup:
-            return str(self.nxgroup.title)
+        parent = self.nxgroup
+        if parent and 'title' in parent:
+            return str(parent.title)
+        elif parent.nxgroup and 'title' in parent.nxgroup:
+            return str(parent.nxgroup.title)        
         else:
-            if self.nxroot.nxname != '':
+            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
                 return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxpath
+                return self.nxfilename + ':' + self.nxpath
 
     def _getmask(self):
         """
@@ -2262,6 +2265,7 @@ class NXfield(NXobject):
             logy = True    - plot the y-axis on a log scale
             logx = True    - plot the x-axis on a log scale
             over = True    - plot on the current figure
+            image = True   - plot as an RGB(A) image
 
         Raises NeXusError if the data could not be plotted.
         """
@@ -2296,6 +2300,18 @@ class NXfield(NXobject):
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
                   zmin=zmin, zmax=zmax, **opts)
+
+    def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
+                zmin=None, zmax=None, **opts):
+        """
+        Plots the data intensity as an RGB(A) image.
+        """
+        if self.plot_rank > 2 and (self.shape[-1] == 3 or self.shape[-1] == 4):
+            self.plot(fmt=fmt, image=True,
+                      xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
+                      zmin=zmin, zmax=zmax, **opts)
+        else:
+            raise NeXusError('Invalid shape for RGB(A) image')
 
 SDS = NXfield # For backward compatibility
 
@@ -2502,7 +2518,7 @@ class NXgroup(NXobject):
 
     def __init__(self, *items, **opts):
         if "name" in opts.keys():
-            self._name = opts["name"].replace(' ','_')
+            self._name = opts["name"]
             del opts["name"]
         self._entries = {}
         if "entries" in opts.keys():
@@ -2693,10 +2709,10 @@ class NXgroup(NXobject):
             if key not in group:
                 raise NeXusError(key+" not in "+group.nxpath)
             if group.nxfilemode == 'rw':
-                with group.nxfile as run:
+                with group.nxfile as f:
                     if 'mask' in group._entries[key].attrs:
-                        del run[group._entries[key].mask.nxpath]
-                    del run[group._entries[key].nxpath]
+                        del f[group._entries[key].mask.nxpath]
+                    del f[group._entries[key].nxpath]
             if 'mask' in group._entries[key].attrs:
                 del group._entries[group._entries[key].mask.nxname]
             del group._entries[key]
@@ -2749,8 +2765,8 @@ class NXgroup(NXobject):
         Updates the NXgroup, including its children, to the NeXus file.
         """
         if self.nxfilemode == 'rw':
-            with self.nxfile as run:
-                run.update(self)
+            with self.nxfile as f:
+                f.update(self)
         elif self.nxfilemode is None:
             for node in self.walk():
                 if isinstance(node, NXfield) and node._uncopied_data:
@@ -2926,7 +2942,8 @@ class NXgroup(NXobject):
         result = self[slab]
         slab_axes = list(projection_axes)
         for slab_axis in slab_axes:
-            slab[slab_axis] = convert_index(slab[slab_axis],self.nxaxes[slab_axis])
+            slab[slab_axis] = convert_index(slab[slab_axis],
+                                            self.nxaxes[slab_axis])
             if isinstance(slab[slab_axis], int):
                 slab.pop(slab_axis)
                 projection_axes.pop(projection_axes.index(slab_axis))
@@ -2962,7 +2979,7 @@ class NXgroup(NXobject):
                 if data.NXentry:
                     data = data.NXentry[0]
                 else:
-                    raise NeXusError('No NXdata group found')
+                    return None
         if data.nxclass == "NXentry":
             if data.NXdata:
                 data = data.NXdata[0]
@@ -2971,26 +2988,36 @@ class NXgroup(NXobject):
             elif data.NXlog:
                 data = data.NXlog[0]
             else:
-                raise NeXusError('No NXdata group found')
+                return None
         return data
 
     def plot(self, **opts):
         """
         Plot data contained within the group.
         """
-        self.plottable_data.plot(**opts)
+        if self.plottable_data:
+            self.plottable_data.plot(**opts)
     
     def oplot(self, **opts):
         """
         Plots the data contained within the group over the current figure.
         """
-        self.plottable_data.oplot(**opts)
+        if self.plottable_data:
+            self.plottable_data.oplot(**opts)
 
     def logplot(self, **opts):
         """
         Plots the data intensity contained within the group on a log scale.
         """
-        self.plottable_data.logplot(**opts)
+        if self.plottable_data:
+            self.plottable_data.logplot(**opts)
+
+    def implot(self, **opts):
+        """
+        Plots the data intensity as an RGB(A) image.
+        """
+        if self.plottable_data:
+            self.plottable_data.implot(**opts)
 
     def component(self, nxclass):
         """
@@ -3022,10 +3049,10 @@ class NXgroup(NXobject):
         elif self.nxgroup and 'title' in self.nxgroup:
             return str(self.nxgroup.title)
         else:
-            if self.nxroot.nxname != '':
+            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
                 return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxpath
+                return self.nxfilename + ':' + self.nxpath
 
     def _getentries(self):
         return self._entries
@@ -3193,18 +3220,18 @@ class NXlinkexternal(NXlink, NXfield):
 
     def readvalues(self):
         if os.path.exists(self.nxfilename):
-            with self.nxfile as run:
-                run.nxpath = self._target
-                self._value, self._shape, self._dtype, self._attrs = run.readvalues()
+            with self.nxfile as f:
+                f.nxpath = self._target
+                self._value, self._shape, self._dtype, self._attrs = f.readvalues()
         else:
             raise NeXusError("External link '%s' does not exist" % 
                               os.path.abspath(self.nxfilename))
 
     def update(self):
         if self.nxroot.nxfile and self.nxroot.nxfilename != self.nxfilename:
-            with self.nxroot.nxfile as run:
-                run.nxpath = self.nxpath
-                run.linkexternal(self)
+            with self.nxroot.nxfile as f:
+                f.nxpath = self.nxpath
+                f.linkexternal(self)
         self.set_changed()
 
     def _getlink(self):
@@ -3502,8 +3529,8 @@ class NXdata(NXgroup):
             return NXgroup.__getitem__(self, key)
         elif self.nxsignal:
             idx = key
+            axes = self.nxaxes
             if isinstance(idx, int) or isinstance(idx, slice):
-                axes = self.nxaxes
                 idx = convert_index(idx, axes[0])
                 axes[0] = axes[0][idx]
                 result = NXdata(self.nxsignal[idx], axes)
@@ -3514,7 +3541,6 @@ class NXdata(NXgroup):
             else:
                 i = 0
                 slices = []
-                axes = self.nxaxes
                 for ind in idx:
                     ind = convert_index(ind, axes[i])
                     axes[i] = axes[i][ind]
@@ -3700,6 +3726,7 @@ class NXdata(NXgroup):
             logy = True    - plot the y-axis on a log scale
             logx = True    - plot the x-axis on a log scale
             over = True    - plot on the current figure
+            image = True   - plot as an RGB(A) image
 
         Raises NeXusError if the data could not be plotted.
         """
@@ -3732,6 +3759,19 @@ class NXdata(NXgroup):
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
                   zmin=zmin, zmax=zmax, **opts)
+
+    def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
+                zmin=None, zmax=None, **opts):
+        """
+        Plots the data intensity as an image.
+        """
+        if (self.nxsignal.plot_rank > 2 and 
+            (self.nxsignal.shape[-1] == 3 or self.nxsignal.shape[-1] == 4)):
+            self.plot(fmt=fmt, image=True,
+                      xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
+                      zmin=zmin, zmax=zmax, **opts)
+        else:
+            raise NeXusError('Invalid shape for RGB(A) image')
 
     def _signal(self):
         """
@@ -3785,7 +3825,8 @@ class NXdata(NXgroup):
             if axes:
                 return [axes[key] for key in sorted(axes.keys())]
             else:
-                return None
+                return [NXfield(np.arange(self.nxsignal.shape[i]), 
+                        name='Axis%s'%i) for i in range(self.nxsignal.ndim)]
 
     def _set_axes(self, axes):
         """
@@ -3963,8 +4004,8 @@ def load(filename, mode='r'):
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    with NXFile(filename, mode) as run:
-        tree = run.readfile()
+    with NXFile(filename, mode) as f:
+        tree = f.readfile()
     return tree
 
 #Definition for when there are name clashes with Numpy
@@ -3981,10 +4022,10 @@ def save(filename, group, mode='w'):
         tree = NXroot(group)
     else:
         tree = NXroot(NXentry(group))
-    with NXFile(filename, mode) as run:
-        run = NXFile(filename, mode)
-        run.writefile(tree)
-        run.close()
+    with NXFile(filename, mode) as f:
+        f = NXFile(filename, mode)
+        f.writefile(tree)
+        f.close()
 
 def tree(filename):
     """
@@ -4007,7 +4048,7 @@ def demo(argv):
     else:
         op = 'help'
     if op == 'ls':
-        for run in argv[2:]: dir(run)
+        for f in argv[2:]: dir(f)
     elif op == 'copy' and len(argv)==4:
         tree = load(argv[2])
         save(argv[3], tree)

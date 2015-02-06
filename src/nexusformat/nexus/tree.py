@@ -243,10 +243,10 @@ import h5py as h5
 #Memory in MB
 NX_MEMORY = 2000
 
-__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'nxclasses',
-           'NX_MEMORY', 'setmemory', 'load', 'save', 'tree', 'centers', 'SDS', 
-           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
-           'NeXusError']
+__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink', 
+           'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
+           'NeXusError', 'NX_MEMORY', 'nxsetmemory', 'nxclasses',
+           'nxload', 'nxsave', 'nxtree', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
@@ -4000,6 +4000,8 @@ def setmemory(value):
     global NX_MEMORY
     NX_MEMORY = value
 
+nxsetmemory = setmemory
+
 # File level operations
 def load(filename, mode='r'):
     """
@@ -4011,9 +4013,7 @@ def load(filename, mode='r'):
         tree = f.readfile()
     return tree
 
-#Definition for when there are name clashes with Numpy
 nxload = load
-__all__.append('nxload')
 
 def save(filename, group, mode='w'):
     """
@@ -4029,6 +4029,9 @@ def save(filename, group, mode='w'):
         f = NXFile(filename, mode)
         f.writefile(tree)
         f.close()
+ 
+nxsave = save
+
 
 def tree(filename):
     """
@@ -4036,6 +4039,8 @@ def tree(filename):
     """
     root = load(filename)
     print root.tree
+
+nxtree = tree
 
 def demo(argv):
     """
@@ -4071,8 +4076,9 @@ usage: %s cmd [args]
         """%(argv[0],)
         print usage
 
+nxdemo = demo
 
 if __name__ == "__main__":
     import sys
-    demo(sys.argv)
+    nxdemo(sys.argv)
 

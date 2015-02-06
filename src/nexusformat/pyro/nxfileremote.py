@@ -9,7 +9,7 @@ import os
 import sys
 import Pyro4
 
-from nexpy.api.nexus import NXFile
+from nexusformat.nexus import NXFile
 
 import numpy as np
 
@@ -43,6 +43,9 @@ class NXFileRemote(NXFile):
     def __getitem__(self, key):
         return self._file.getitem(key)
 
+    def __setitem__(self, key, value):
+        return self._file.setitem(key, value)
+
     def __enter__(self):
         return self
 
@@ -57,6 +60,9 @@ class NXFileRemote(NXFile):
 
     def readvalue(self, path, idx=()):
         return self._file.getvalue(path, idx=idx)
+
+    def writevalue(self, path, idx=(), value):
+        return self._file.setvalue(path, value, idx=idx)
 
     def readfile(self):
         tree = self._file.tree()

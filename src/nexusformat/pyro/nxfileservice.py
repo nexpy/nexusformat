@@ -75,6 +75,22 @@ class NXFileService(object):
         msg("getvalue result: " + str(t))
         return t
 
+    def setitem(self, key, value):
+        """Sets an object value in the NeXus file."""
+        msgv("setitem", key)
+        self.root[key] = value
+        msgv("value", str(value))
+
+    # Two-step call sequence
+    def setvalue(self, path, value, idx=()):
+        msgv("setvalue", idx)
+        try:
+            msg("set path: " + str(path))
+            self.root[path][idx] = value
+        except Exception as e:
+            print("EXCEPTION in getvalue(%s): " % idx + str(e))
+        msgv("setvalue value: " + str(value))
+
     def tree(self):
         print("tree...")
         print "tree root: " , str(self.root)

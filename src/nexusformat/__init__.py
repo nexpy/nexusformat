@@ -10,7 +10,7 @@
 #-----------------------------------------------------------------------------
 
 __package_name__ = u'nexusformat'
-__version__ = u'0.1.2'
+__version__ = u'0.1.3'
 
 __documentation_author__ = u'Ray Osborn'
 __documentation_copyright__ = u'2013-2015, Ray Osborn'
@@ -30,7 +30,7 @@ This package provides a Python API to open, create, and manipulate `NeXus data
 <http://www.nexusformat.org/>`_ written in the HDF5 format. It also includes a 
 server to allow files to be opened on a remote server across a network. The 
 'nexusformat' package provides the underlying API for `NeXpy 
-<http://nexpy.github.io.nexpy>`_, which provides a GUI interface. 
+<http://nexpy.github.io/nexpy>`_, which provides a GUI interface. 
 
 The latest development version is always available from `NeXpy's GitHub
 site <https://github.com/nexpy/nexusformat>`_.

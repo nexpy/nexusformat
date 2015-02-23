@@ -61,7 +61,7 @@ class NXFileRemote(NXFile):
     def readvalue(self, path, idx=()):
         return self._file.getvalue(path, idx=idx)
 
-    def writevalue(self, path, idx=(), value):
+    def writevalue(self, path, value, idx=()):
         return self._file.setvalue(path, value, idx=idx)
 
     def readfile(self):

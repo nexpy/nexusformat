@@ -391,7 +391,7 @@ class NXFile(object):
             if self._isexternal():
                 external_link = self.get(self.nxpath, getlink=True)
                 _target, _file = external_link.path, external_link.filename
-                if value:
+                if value is not None:
                     data = NXlink(value=value, name=name, 
                                   dtype=dtype, shape=shape, attrs=attrs, 
                                   target=_target, file=_file)
@@ -594,8 +594,8 @@ class NXFile(object):
 
     def readvalue(self, path, idx=()):
         field = self.get(path)
-        if field:
-            return self[path][idx]
+        if field is not None:
+            return field[idx]
         else:
             return None
 
@@ -658,7 +658,7 @@ class NXFile(object):
 
     def _getattrs(self):
         item = self.get(self.nxpath)
-        if item:
+        if item is not None:
             return dict(item.attrs)
         else:
             return {}

@@ -327,7 +327,7 @@ class NXFile(object):
 
     def __getitem__(self, key):
         """Returns an object from the NeXus file."""
-        return self._file[key]
+        return self._file.get(key)
 
     def __setitem__(self, key, value):
         """Sets an object value in the NeXus file."""
@@ -391,8 +391,12 @@ class NXFile(object):
             if self._isexternal():
                 external_link = self.get(self.nxpath, getlink=True)
                 _target, _file = external_link.path, external_link.filename
-                data = NXlink(value=value, name=name, dtype=dtype, shape=shape,
-                              attrs=attrs, target=_target, file=_file)
+                if value:
+                    data = NXlink(value=value, name=name, 
+                                  dtype=dtype, shape=shape, attrs=attrs, 
+                                  target=_target, file=_file)
+                else:
+                    data = NXlink(name=name, target=_target, file=_file)
             else:
                 data = NXfield(value=value, name=name, dtype=dtype, shape=shape,
                                attrs=attrs)
@@ -419,7 +423,7 @@ class NXFile(object):
         """
         Reads the group with the current path and returns it as an NXgroup.
         """
-        attrs = dict(self[self.nxpath].attrs)
+        attrs = self._getattrs()
         nxclass = self._readnxclass(self[self.nxpath])
         if nxclass is not None:
             del attrs['NX_class']
@@ -564,7 +568,10 @@ class NXFile(object):
                     self[parent]._id.link(target, path, h5.h5g.LINK_HARD)
 
     def readvalues(self, attrs=None):
-        shape, dtype = self[self.nxpath].shape, self[self.nxpath].dtype
+        field = self.get(self.nxpath)
+        if field is None:
+            return None, None, None, {}
+        shape, dtype = field.shape, field.dtype
         if shape == (1,):
             shape = ()
         #Read in the data if it's not too large
@@ -572,7 +579,7 @@ class NXFile(object):
             try:
                 value = self.readvalue(self.nxpath)
                 #Variable length strings are returned from h5py with dtype 'O'
-                if h5.check_dtype(vlen=self[self.nxpath].dtype) in (str, unicode):
+                if h5.check_dtype(vlen=field.dtype) in (str, unicode):
                     value = np.string_(value)
                     dtype = value.dtype
                 if shape == ():
@@ -586,7 +593,11 @@ class NXFile(object):
         return value, shape, dtype, attrs
 
     def readvalue(self, path, idx=()):
-        return self[path][idx]
+        field = self.get(path)
+        if field:
+            return self[path][idx]
+        else:
+            return None
 
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value
@@ -646,7 +657,11 @@ class NXFile(object):
         return self._file
 
     def _getattrs(self):
-        return dict(self[self.nxpath].attrs)
+        item = self.get(self.nxpath)
+        if item:
+            return dict(item.attrs)
+        else:
+            return {}
 
     def _getpath(self):
         return self._path.replace('//','/')
@@ -3251,7 +3266,7 @@ class NXlinkexternal(NXlink, NXfield):
         return self._dtype
 
     def _getshape(self):
-        if self._dtype is None:
+        if self._shape is None:
             self.readvalues()
         return self._shape
 
@@ -3503,7 +3518,6 @@ class NXdata(NXgroup):
                 signal_name = signal.nxname
             else:
                 self["signal"] = signal
-                self["signal"].signal = 1
                 signal_name = "signal"
             self.attrs["signal"] = signal_name
         if errors is not None:

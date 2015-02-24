@@ -561,11 +561,8 @@ class NXFile(object):
         """
         # link sources to targets
         for path, target in links:
-            if path != target:
-                # ignore self-links
-                if path not in self['/']:
-                    parent = "/".join(path.split("/")[:-1])
-                    self[parent]._id.link(target, path, h5.h5g.LINK_HARD)
+            if path != target and path not in self['/'] and target in self['/']:
+                self[path] = self[target]
 
     def readvalues(self, attrs=None):
         field = self.get(self.nxpath)
@@ -1684,7 +1681,7 @@ class NXfield(NXobject):
         """
         import tempfile
         self._memfile = h5.File(tempfile.mktemp(suffix='.nxs'),
-                               driver='core', backing_store=False).file
+                                driver='core', backing_store=False).file
 
     def _create_memdata(self):
         """
@@ -2903,6 +2900,8 @@ class NXgroup(NXobject):
             axis = tuple(axis)
             signal = NXfield(self.nxsignal.sum(axis), name=self.nxsignal.nxname,
                              attrs=self.nxsignal.attrs)
+            if 'axes' in signal.attrs:
+                del signal.attrs['axes']
             axes = self.nxaxes
             averages = []
             for ax in axis:
@@ -3266,7 +3265,7 @@ class NXlinkexternal(NXlink, NXfield):
         return self._dtype
 
     def _getshape(self):
-        if self._shape is None:
+        if self._dtype is None:
             self.readvalues()
         return self._shape
 

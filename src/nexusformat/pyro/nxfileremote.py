@@ -58,6 +58,9 @@ class NXFileRemote(NXFile):
     def close(self):
         pass
 
+    def get(self, key):
+        return self._file.getitem(key)
+
     def readvalue(self, path, idx=()):
         return self._file.getvalue(path, idx=idx)
 

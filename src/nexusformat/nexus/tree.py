@@ -3236,14 +3236,10 @@ class NXlinkexternal(NXlink, NXfield):
             return " " * indent + "%s = %s" % (self.nxname, repr(self))
 
     def readvalues(self):
-        if os.path.exists(self.nxfilename):
-            with self.nxfile as f:
-                f.nxpath = self._target
-                self._value, self._shape, self._dtype, self._attrs = f.readvalues()
-        else:
-            raise NeXusError("External link '%s' does not exist" % 
-                              os.path.abspath(self.nxfilename))
-
+        with self.nxfile as f:
+            f.nxpath = self.nxpath
+            self._value, self._shape, self._dtype, self._attrs = f.readvalues()
+ 
     def update(self):
         if self.nxroot.nxfile and self.nxroot.nxfilename != self.nxfilename:
             with self.nxroot.nxfile as f:
@@ -3273,10 +3269,16 @@ class NXlinkexternal(NXlink, NXfield):
         return self._attrs
 
     def _getpath(self):
-        return self._target
+        if os.path.exists(self.nxfilename):
+            return self._target
+        else:
+            return self.nxgroup.nxpath + '/' + self.nxname
 
     def _getfile(self):
-        return NXFile(self.nxfilename, self.nxfilemode).open()
+        if os.path.exists(self.nxfilename):
+            return NXFile(self.nxfilename, self.nxfilemode).open()
+        elif self.nxroot is not self:
+            return self.nxroot.nxfile
 
     def _getfilename(self):
         if os.path.isabs(self._filename) or self.nxroot is self:
@@ -3296,8 +3298,8 @@ class NXlinkexternal(NXlink, NXfield):
     dtype = property(_getdtype, doc="Property: Data type of NeXus field")
     shape = property(_getshape, doc="Property: Shape of NeXus field")
     attrs = property(_getattrs,doc="NeXus attributes for object")
-    nxpath = property(_getpath, doc="Property: Path to NeXus object")
-    nxfile = property(_getfile, doc="Property: File handle of NeXus link")
+    nxpath = property(_getpath, doc="Property: Path of external link")
+    nxfile = property(_getfile, doc="Property: File handle of external link")
     nxfilename = property(_getfilename, _setfilename, doc="Property: Filename of external link")
     nxfilemode = property(_getfilemode, doc="Property: File mode of external link")
 

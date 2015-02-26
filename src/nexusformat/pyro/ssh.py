@@ -13,10 +13,11 @@ Features:
 3) a mechanism to get the URI from a NeXPyro service
 '''
 
-import os, time
+import os, sys, time
 import select
 from select import POLLIN
 from multiprocessing import Process, Queue
+from Queue import Empty
 from subprocess import Popen, PIPE, STDOUT
 
 _ssh_process_id = 0
@@ -27,8 +28,9 @@ class NeXPyroSSH:
     Automated termination: good for use with port forwarding.
        Set hours and leave command unset
     Local port forwarding: just set localPort and remotePort
-    Retrieve Pyro URI: set getURI=True, then access the
-    NeXPyroSSH.uri variable
+    Retrieve Pyro URI: set getURI=True, then call
+       getURIfromQueue(), the result is cached in the
+       NeXPyroSSH.uri variable
     '''
     def __init__(self, user, host,
                  hours=1, localPort=0, remotePort=0,
@@ -40,6 +42,7 @@ class NeXPyroSSH:
         self.localPort = localPort
         self.remotePort = remotePort
         self.command = command
+        self.getURI = getURI
 
         self.output = ""
         self.uri = "UNSET"
@@ -52,19 +55,31 @@ class NeXPyroSSH:
             duration = str(self.hours * 60 * 60)
             self.command = "sleep " + duration
 
-        self.queue = Queue()
-        self.process = Process(target=self.run, args=(self.queue,))
+        # Sends messages down to subprocess
+        self.queueDown = Queue()
+        # Sends messages up from subprocess
+        self.queueUp = Queue()
+        self.process = Process(target=self.run,
+                               args=(self.queueUp,
+                                     self.queueDown,
+                                     self.getURI))
         self.process.start()
-        if getURI:
-            result = self.queue.get(block=True, timeout=20)
-            self.msg("result: " + result)
-            if result.startswith("URI: "):
-                self.uri = result.split(" ")[1]
+
+    def getURIfromQueue(self):
+        try:
+            result = self.queueUp.get(block=True, timeout=20)
+        except Empty:
+            raise NeXPyroError("Could not start Pyro service!")
+        self.msg("result: " + result)
+        if result.startswith("URI: "):
+            self.uri = result.split(" ")[1]
+            return self.uri
+        return None
 
     def account(self):
         return "%s@%s" % (self.user, self.host)
 
-    def run(self, queue):
+    def run(self, queueUp, queueDown, getURI=False):
         self.dbg("Process PID: " + str(os.getpid()));
         argv = ["/usr/bin/ssh", "-tt", self.account()]
         if self.localPort != 0:
@@ -76,8 +91,9 @@ class NeXPyroSSH:
         poller = select.poll()
         poller.register(pipe.stdout.fileno(), POLLIN)
         while True:
+            L = []
             try:
-                L = poller.poll(100)
+                L = poller.poll(450)
             except KeyboardInterrupt:
                 self.msg("Interrupted!")
             if len(L) > 0:
@@ -87,18 +103,21 @@ class NeXPyroSSH:
                 line = pipe.stdout.readline()
                 self.dbg("read: " + line.rstrip())
                 self.output += line
-                if queue != None and line.startswith("URI: "):
-                    queue.put(line)
-            if not queue.empty():
-                item = queue.get()
+                if getURI and line.startswith("URI: "):
+                    queueUp.put(line)
+            if not queueDown.empty():
+                item = queueDown.get()
                 if item == "TERMINATE":
                     break
+                else:
+                    print "Strange queue item: ", item
+                    sys.exit(1)
         self.dbg("terminating pipe")
         pipe.terminate()
         exitcode = pipe.wait()
         result = "exited with code: %i" % exitcode
         self.dbg(result)
-        queue.put(result)
+        queueUp.put(result)
 
     def make_pipe(self, argv):
         command = " ".join(argv)
@@ -121,6 +140,9 @@ class NeXPyroSSH:
 
     def terminate(self):
         self.dbg("terminate()")
-        self.queue.put("TERMINATE")
+        self.queueDown.put("TERMINATE")
         time.sleep(1)
         self.process.terminate()
+
+class NeXPyroError(Exception):
+    pass

@@ -1,11 +1,11 @@
 
 import sys, time
-from nexusformat.pyro.ssh import NeXpyroSSH
+from nexusformat.pyro.ssh import NeXPyroSSH, NeXPyroError
 
 _terminated = False
 
 hostname = "nxrs.msd.anl.gov"
-hostname = "130.202.115.40"
+# hostname = "130.202.115.40"
 
 user = "wozniak"
 
@@ -20,16 +20,23 @@ def sleep_safe(seconds):
         sys.exit(1)
 
 command = "python /home/wozniak/proj/nexusformat/src/nexusformat/pyro/start_server.py"
-sshService = NeXpyroSSH(user, hostname, command=command, getURI=True)
-uri = sshService.uri
-if (uri == "UNSET"):
+sshService = NeXPyroSSH(user, hostname, command=command, getURI=True)
+try:
+    uri = sshService.getURIfromQueue()
+except NeXPyroError as e:
+    print e
+    sshService.terminate()
+    sleep_safe(2)
+    sys.exit(1)
+
+if (uri == None or uri == "UNSET"):
     print("SSH could not start NeXpyro service!")
     sys.exit(1)
 print("uri: " + uri)
 tokens = uri.split(":")
 port = int(tokens[2])
-print(port)
-sshTunnel = NeXpyroSSH("wozniak", hostname, localPort=9090, remotePort=port)
+print("remote port: ", port)
+sshTunnel = NeXPyroSSH("wozniak", hostname, localPort=9090, remotePort=port)
 
 sleep_safe(2)
 print("terminator")

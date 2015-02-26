@@ -16,7 +16,8 @@ Features:
 import os, sys, time
 import select
 from select import POLLIN
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Value
+from ctypes import c_bool, c_int
 from Queue import Empty
 from subprocess import Popen, PIPE, STDOUT
 
@@ -59,11 +60,18 @@ class NeXPyroSSH:
         self.queueDown = Queue()
         # Sends messages up from subprocess
         self.queueUp = Queue()
+        self.done = Value(c_bool, False, lock=True)
+        self.exitcode = Value(c_int, 0, lock=True)
         self.process = Process(target=self.run,
                                args=(self.queueUp,
                                      self.queueDown,
+                                     self.done,
+                                     self.exitcode,                                         
                                      self.getURI))
         self.process.start()
+
+    def isDone(self):
+        return (self.done.value, self.exitcode.value)
 
     def getURIfromQueue(self):
         try:
@@ -72,14 +80,14 @@ class NeXPyroSSH:
             raise NeXPyroError("Could not start Pyro service!")
         self.msg("result: " + result)
         if result.startswith("URI: "):
-            self.uri = result.split(" ")[1]
+            self.uri = result.split()[1]
             return self.uri
         return None
 
     def account(self):
         return "%s@%s" % (self.user, self.host)
 
-    def run(self, queueUp, queueDown, getURI=False):
+    def run(self, queueUp, queueDown, done, exitcode, getURI=False):
         self.dbg("Process PID: " + str(os.getpid()));
         argv = ["/usr/bin/ssh", "-tt", self.account()]
         if self.localPort != 0:
@@ -114,10 +122,10 @@ class NeXPyroSSH:
                     sys.exit(1)
         self.dbg("terminating pipe")
         pipe.terminate()
-        exitcode = pipe.wait()
-        result = "exited with code: %i" % exitcode
+        exitcode.value = pipe.wait()
+        result = "exited with code: %i" % exitcode.value
         self.dbg(result)
-        queueUp.put(result)
+        done.value = True
 
     def make_pipe(self, argv):
         command = " ".join(argv)

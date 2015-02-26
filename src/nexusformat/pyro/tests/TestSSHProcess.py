@@ -39,6 +39,11 @@ print("remote port: ", port)
 sshTunnel = NeXPyroSSH("wozniak", hostname, localPort=9090, remotePort=port)
 
 sleep_safe(2)
-print("terminator")
+print "done", sshTunnel.done.value
 sshTunnel.terminate()
 sshService.terminate()
+
+print "sshTunnel  done      ", sshTunnel.done.value
+print "sshTunnel  exit code:", sshTunnel.exitcode.value
+print "sshService done      ", sshService.done.value
+print "sshService exit code:", sshService.exitcode.value

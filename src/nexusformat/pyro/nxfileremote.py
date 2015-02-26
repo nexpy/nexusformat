@@ -6,7 +6,6 @@ Contains a Pyro proxy
 """
 
 import os
-import sys
 import Pyro4
 
 from nexusformat.nexus import NXFile
@@ -18,7 +17,7 @@ def message(msg):
 
 class NXFileRemote(NXFile):
 
-    def __init__(self, name, uri):
+    def __init__(self, name, uri, hostname=None):
         # Get a Pyro proxy to the remote object
         Pyro4.config.SERIALIZER = "pickle"
         message("proxy connect")
@@ -28,12 +27,12 @@ class NXFileRemote(NXFile):
         b = proxy.initfile(name)
         if b != True:
             print "\nERROR OCCURRED IN SERVICE"
-            print b
             return
         message("file init")
         self._mode = 'r'
         self._file = proxy
         self._filename = name
+        self.hostname = hostname
         assert(b)
 
     def __repr__(self):
@@ -74,13 +73,13 @@ class NXFileRemote(NXFile):
         return tree
         
 
-def nxloadremote(filename, uri):
+def nxloadremote(filename, uri, hostname=None):
     """
     Reads a NeXus file returning a tree of objects.
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    with NXFileRemote(filename, uri) as run:
+    with NXFileRemote(filename, uri, hostname=hostname) as run:
         tree = run.readfile()
         print tree.__class__
     return tree

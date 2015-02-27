@@ -62,13 +62,13 @@ class NeXPyroSSH:
         self.queueUp = Queue()
         self.done = Value(c_bool, False, lock=True)
         self.exitcode = Value(c_int, 0, lock=True)
-        self.process = Process(target=self.run,
+        self.monitor = Process(target=self.run,
                                args=(self.queueUp,
                                      self.queueDown,
                                      self.done,
                                      self.exitcode,                                         
                                      self.getURI))
-        self.process.start()
+        self.monitor.start()
 
     def isDone(self):
         return (self.done.value, self.exitcode.value)

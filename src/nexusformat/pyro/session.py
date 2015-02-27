@@ -24,6 +24,8 @@ class NeXPyroSession(object):
         self.user = user
         self.hostname = hostname
         self.localPort = localPort
+        self.sshService = None
+        self.sshTunnel = None
         
     def run(self):
         command = "/home/wozniak/proj/nexusformat/src/nexusformat/pyro/start_server.py"
@@ -42,5 +44,7 @@ class NeXPyroSession(object):
         
     def terminate(self):
         print("session terminating ssh connections...")
-        self.sshTunnel.terminate()
-        self.sshService.terminate()
+        if self.sshTunnel != None:
+            self.sshTunnel.terminate()
+        if self.sshService != None:
+            self.sshService.terminate()

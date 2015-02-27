@@ -73,6 +73,15 @@ class NeXPyroSSH:
     def isDone(self):
         return (self.done.value, self.exitcode.value)
 
+    def getOutput(self):
+        if not self.done.value:
+            self.queueDown.put("GET_OUTPUT")
+        try:
+            result = self.queueUp.get(block=True, timeout=1)
+        except Empty:
+            raise NeXPyroError("Could not retrieve output!")
+        return result
+
     def getURIfromQueue(self):
         try:
             result = self.queueUp.get(block=True, timeout=20)
@@ -101,7 +110,7 @@ class NeXPyroSSH:
         while True:
             L = []
             try:
-                L = poller.poll(450)
+                L = poller.poll(100)
             except KeyboardInterrupt:
                 self.msg("Interrupted!")
             if len(L) > 0:
@@ -117,6 +126,8 @@ class NeXPyroSSH:
                 item = queueDown.get()
                 if item == "TERMINATE":
                     break
+                elif item == "GET_OUTPUT":
+                    queueUp.put(self.output)
                 else:
                     print "Strange queue item: ", item
                     sys.exit(1)
@@ -125,6 +136,7 @@ class NeXPyroSSH:
         exitcode.value = pipe.wait()
         result = "exited with code: %i" % exitcode.value
         self.dbg(result)
+        queueUp.put(self.output)
         done.value = True
 
     def make_pipe(self, argv):

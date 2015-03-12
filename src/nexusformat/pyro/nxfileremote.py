@@ -71,7 +71,12 @@ class NXFileRemote(NXFile):
         tree._file = self
         tree._filename = self._filename
         return tree
-        
+
+    @property
+    def filename(self):
+        """File name on disk"""
+        return self._filename
+
 
 def nxloadremote(filename, uri, hostname=None):
     """

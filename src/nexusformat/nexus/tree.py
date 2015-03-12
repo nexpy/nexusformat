@@ -3237,9 +3237,10 @@ class NXlinkexternal(NXlink, NXfield):
             return " " * indent + "%s = %s" % (self.nxname, repr(self))
 
     def readvalues(self):
-        with self.nxfile as f:
-            f.nxpath = self.nxpath
-            self._value, self._shape, self._dtype, self._attrs = f.readvalues()
+        if self.nxfile:
+            with self.nxfile as f:
+                f.nxpath = self.nxpath
+                self._value, self._shape, self._dtype, self._attrs = f.readvalues()
  
     def update(self):
         if self.nxroot.nxfile and self.nxroot.nxfilename != self.nxfilename:
@@ -3270,16 +3271,20 @@ class NXlinkexternal(NXlink, NXfield):
         return self._attrs
 
     def _getpath(self):
-        if os.path.exists(self.nxfilename):
+        if self.nxroot is not self and self.nxroot.nxfile is not None:
+            return self.nxgroup.nxpath + '/' + self.nxname
+        elif os.path.exists(self.nxfilename):
             return self._target
         else:
-            return self.nxgroup.nxpath + '/' + self.nxname
+            return NXobject._getpath(self) 
 
     def _getfile(self):
-        if os.path.exists(self.nxfilename):
-            return NXFile(self.nxfilename, self.nxfilemode).open()
-        elif self.nxroot is not self:
+        if self.nxroot is not self and self.nxroot.nxfile is not None:
             return self.nxroot.nxfile
+        elif os.path.exists(self.nxfilename):
+            return NXFile(self.nxfilename, self.nxfilemode).open()
+        else:
+            return None
 
     def _getfilename(self):
         if os.path.isabs(self._filename) or self.nxroot is self:

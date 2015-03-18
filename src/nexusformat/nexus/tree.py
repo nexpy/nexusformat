@@ -1784,33 +1784,64 @@ class NXfield(NXobject):
 
     def index(self, value, max=False):
         """
-        Returns the index of the NXfield array that is greater than or equal to 
-        the value.
+        Returns the index of a one-dimensional NXfield element that is less
+        than (greater than) or equal to the given value for a monotonically 
+        increasing (decreasing) array.
 
-        If max, then return the index that is less than or equal to the value.
-        This should only be used on one-dimensional monotonically increasing 
-        arrays.
+        If max=True, then it returns the index that is greater than (less than) 
+        or equal to the value for a monotonically increasing (decreasing) array.
+        
+        >>> field
+        NXfield([ 0.   0.1  0.2 ...,  0.8  0.9  1. ])
+        >>> field.index(0.1)
+        1
+        >>> field.index(0.11)
+        1
+        >>> field.index(0.11, max=True)
+        2
+        >>> reverse_field
+        NXfield([ 1.   0.9  0.8 ...,  0.2  0.1  0. ])
+        >>> reverse_field.index(0.89)
+        1
+        >>> reverse_field.index(0.89, max=True)
+        2
+
+        The value is considered to be equal to an NXfield element's value if it
+        differs by less than 1% of the step size to the neighboring element. 
+        
+        This raises a NeXusError if the array is not one-dimensional.
         """
+        if self.ndim != 1:
+            raise NeXusError('NXfield must be one-dimensional to use the index function')
+        if self.nxdata[-1] < self.nxdata[0]:
+            flipped = True
+        else:
+            flipped = False
         if max:
-            idx = np.max(len(self.nxdata)-len(self.nxdata[self.nxdata>value])-1,0)
+            if flipped:
+                idx = np.max(len(self.nxdata)-len(self.nxdata[self.nxdata<value])-1,0)
+            else:
+                idx = np.max(len(self.nxdata)-len(self.nxdata[self.nxdata>value])-1,0)
             try:
                 diff = value - self.nxdata[idx]
                 step = self.nxdata[idx+1] - self.nxdata[idx]
-                if diff/step > 0.01:
+                if abs(diff/step) > 0.01:
                     idx = idx + 1
             except IndexError:
                 pass
-            return idx
         else:
-            idx = len(self.nxdata[self.nxdata<value])
+            if flipped:
+                idx = len(self.nxdata[self.nxdata>value])
+            else:
+                idx = len(self.nxdata[self.nxdata<value])
             try:
                 diff = value - self.nxdata[idx-1]
                 step = self.nxdata[idx] - self.nxdata[idx-1]
-                if diff/step < 0.99:
+                if abs(diff/step) < 0.99:
                     idx = idx - 1
             except IndexError:
                 pass
-            return idx
+        return np.clip(idx, 0, len(self.nxdata)-1)
 
     def __array__(self):
         """
@@ -2889,7 +2920,7 @@ class NXgroup(NXobject):
         The result contains a copy of all the metadata contained in
         the NXdata group.
         """
-        if not self.nxsignal:
+        if self.nxsignal is None:
             raise NeXusError("No signal to sum")
         if not hasattr(self,"nxclass"):
             raise NeXusError("Summing not allowed for groups of unknown class")

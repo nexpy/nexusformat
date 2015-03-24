@@ -64,7 +64,14 @@ class NXFileRemote(NXFile):
         return self._file.getvalue(path, idx=idx)
 
     def writevalue(self, path, value, idx=()):
-        return self._file.setvalue(path, value, idx=idx)
+        self._file.setvalue(path, value, idx=idx)
+
+    def update(self, item, path=None):
+        if path is not None:
+            self.nxpath = path
+        else:
+            self.nxpath = item.nxgroup.nxpath
+        self._file.update(item, path)
 
     def readfile(self):
         tree = self._file.tree()

@@ -242,11 +242,13 @@ import h5py as h5
 
 #Memory in MB
 NX_MEMORY = 2000
+NX_COMPRESSION = 'lzf'
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink', 
            'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
-           'NeXusError', 'NX_MEMORY', 'nxsetmemory', 'nxclasses',
-           'nxload', 'nxsave', 'nxtree', 'nxdemo']
+           'NeXusError', 
+           'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
+           'nxclasses', 'nxload', 'nxsave', 'nxtree', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
@@ -504,7 +506,7 @@ class NXFile(object):
                     if not data._chunks:
                         data._chunks = True
                     if not data._compression:
-                        data._compression = 'gzip'
+                        data._compression = NX_COMPRESSION
                 self[parent].create_dataset(data.nxname, 
                                             dtype=data.dtype, shape=data.shape,
                                             compression=data._compression,
@@ -1692,7 +1694,8 @@ class NXfield(NXobject):
                 self._create_memfile()
             self._memfile.create_dataset('data', shape=self._shape, 
                                          dtype=self._dtype, 
-                                         compression='gzip', chunks=True)
+                                         compression=NX_COMPRESSION, 
+                                         chunks=True)
         else:
             raise NeXusError('Cannot allocate to field before setting shape and dtype')       
 
@@ -1705,7 +1708,8 @@ class NXfield(NXobject):
                 self._create_memfile()
             self._memfile.create_dataset('mask', shape=self._shape, 
                                          dtype=np.bool, 
-                                         compression='gzip', chunks=True)
+                                         compression=NX_COMPRESSION, 
+                                         chunks=True)
         else:
             raise NeXusError('Cannot allocate mask before setting shape')       
 
@@ -4053,6 +4057,15 @@ def setmemory(value):
     NX_MEMORY = value
 
 nxsetmemory = setmemory
+
+def setcompression(value):
+    """
+    Sets the memory limit for data arrays (in MB).
+    """
+    global NX_COMPRESSION
+    NX_COMPRESSION = value
+
+nxsetcompression = setcompression
 
 # File level operations
 def load(filename, mode='r'):

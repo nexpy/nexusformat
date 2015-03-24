@@ -193,8 +193,8 @@ def write_data(root, filenames, background_file=None):
         root.entry.instrument.detector.flatfield_applied = True
     else:
         background = 0.0
-    if len(root.entry.data.v.shape) == 2:
-        root.entry.data.v[:,:] = read_image(filenames[0])
+    if len(root.entry.data.data.shape) == 2:
+        root.entry.data.data[:,:] = read_image(filenames[0])
     else:
         z_size = root.entry.data.data.shape[0]
         image_shape = root.entry.data.data.shape[1:3]

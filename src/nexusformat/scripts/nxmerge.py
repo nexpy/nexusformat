@@ -170,7 +170,7 @@ def initialize_nexus_file(directory, output_file, filenames, z_start, step):
                     dtype=np.float32, maxshape=(5000, v0.shape[0], v0.shape[1]))
         data = NXdata(v, (z,y,x))
     else:
-        v = NXfield(name='data',shape=(v0.shape[0], v0.shape[1]), dtype=np.float32)
+        v = NXfield(name='data', shape=(v0.shape[0], v0.shape[1]), dtype=np.float32)
         data = NXdata(v, (y, x))
     root = NXroot(NXentry(data, NXsample(), NXinstrument(NXdetector())))
     root.entry.instrument.detector.frame_start = \
@@ -193,8 +193,8 @@ def write_data(root, filenames, background_file=None):
         root.entry.instrument.detector.flatfield_applied = True
     else:
         background = 0.0
-    if len(root.entry.data.data.shape) == 2:
-        root.entry.data.data[:,:] = read_image(filenames[0])
+    if len(root.entry.data.v.shape) == 2:
+        root.entry.data.v[:,:] = read_image(filenames[0])
     else:
         z_size = root.entry.data.data.shape[0]
         image_shape = root.entry.data.data.shape[1:3]

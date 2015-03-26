@@ -244,6 +244,8 @@ import h5py as h5
 NX_MEMORY = 2000
 NX_COMPRESSION = 'lzf'
 
+string_dtype = h5.special_dtype(vlen=unicode)
+
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink', 
            'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
            'NeXusError', 
@@ -577,12 +579,10 @@ class NXFile(object):
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-                #Variable length strings are returned from h5py with dtype 'O'
-                if h5.check_dtype(vlen=field.dtype) in (str, unicode):
-                    value = np.string_(value)
-                    dtype = value.dtype
-                if shape == ():
+                if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
+                if isinstance(value, str):
+                    value = unicode(value, encoding='utf-8')
             except ValueError:
                 value = None
         else:
@@ -686,10 +686,17 @@ def _getvalue(value, dtype=None, shape=None):
     """
     if isinstance(value, basestring):
         if value == '':
-            value = ' '
-        _value = np.string_(value)
+            value = u' '
+        if isinstance(value, unicode):
+            _value = value
+        else:
+            _value = value.decode('utf-8')
+        _dtype = string_dtype
+        _shape = ()
     elif not isinstance(value, np.ndarray):
         _value = np.asarray(value)
+        _dtype = _value.dtype
+        _shape = _value.shape
     else:
         if isinstance(value, np.ma.MaskedArray):
             if value.count() < value.size:
@@ -698,21 +705,21 @@ def _getvalue(value, dtype=None, shape=None):
                 _value = np.asarray(value)
         else:
             _value = value
+        _dtype = _value.dtype
+        _shape = _value.shape
     if dtype is not None:
         if isinstance(dtype, basestring) and dtype == 'char':
-            dtype = np.string_
+            dtype = string_dtype
         elif isinstance(value, np.bool_) and dtype != np.bool_:
             raise NeXusError("Cannot assign a Boolean value to a non-Boolean NXobject")
-        _value = _value.astype(dtype)
-    _dtype = _value.dtype
+        elif isinstance(_value, np.ndarray):
+            _value = _value.astype(dtype)
     if shape:
         try:
             _value = _value.reshape(shape)
         except ValueError:
             raise NeXusError("The shape of the assigned value is incompatible with the NXobject")
         _shape = tuple(shape)
-    else:
-        _shape = _value.shape
     return _value, _dtype, _shape
 
 
@@ -722,8 +729,7 @@ def _readaxes(axes):
 
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
-    if axes.shape == ():
-        axes = str(axes)
+    if isinstance(axes, basestring):
         import re
         sep=re.compile('[\[]*(\s*,*:*)+[\]]*')
         return filter(lambda x: len(x)>0, sep.split(axes))
@@ -815,22 +821,22 @@ class NXattr(object):
         if isinstance(value, NXattr):
             value = value.nxdata
         elif isinstance(value, NXfield):
-            if value.shape == ():
-                value = value.nxdata
-            else:
-                raise NeXusError("A data attribute cannot be a NXfield or NXgroup")
+            value = value.nxdata
         elif isinstance(value, NXgroup):
             raise NeXusError("A data attribute cannot be a NXgroup")
         self._value, self._dtype, _ = _getvalue(value, dtype)
 
     def __str__(self):
-        return str(self.nxdata)
+        return unicode(self.nxdata).encode('utf-8')
+
+    def __unicode__(self):
+        return unicode(self.nxdata)
 
     def __repr__(self):
-        if self.dtype.type == np.string_:
-            return "NXattr('%s')"%self.nxdata
+        if self.dtype.type == np.string_ or self.dtype == string_dtype:
+            return "NXattr('%s')" % self.nxdata
         else:
-            return "NXattr(%s)"%self.nxdata
+            return "NXattr(%s)" % self.nxdata
 
     def __eq__(self, other):
         """
@@ -845,7 +851,7 @@ class NXattr(object):
         """
         Returns the attribute value.
         """
-        if isinstance(self._value, np.string_):
+        if self.dtype.type == np.string_ or self.dtype == string_dtype:
             return self._value
         else:
             return self._value[()]
@@ -951,10 +957,10 @@ class NXobject(object):
         self.__dict__ = dict
 
     def __str__(self):
-        return "%s:%s"%(self.nxclass,self.nxname)
+        return "%s:%s" % (self.nxclass, self.nxname)
 
     def __repr__(self):
-        return "NXobject('%s','%s')"%(self.nxclass,self.nxname)
+        return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
 
     def __contains__(self):
         return None
@@ -981,10 +987,10 @@ class NXobject(object):
             txt1 = u" "*indent
             txt2 = u"@" + unicode(k)
             try:
-                txt3 = u" = " + unicode(str(self.attrs[k]))
+                txt3 = u" = " + unicode(self.attrs[k])
             except UnicodeDecodeError, err:
                 # this is a wild assumption to read non-compliant strings from Soleil
-                txt3 = u" = " + unicode(str(self.attrs[k]), "ISO-8859-1")
+                txt3 = u" = " + unicode(self.attrs[k], "utf-8")
             txt = txt1 + txt2 + txt3
             result.append(txt)
         return "\n".join(result)
@@ -1489,7 +1495,7 @@ class NXfield(NXobject):
         self._dtype = dtype
         if dtype:
             if dtype == 'char':
-                dtype = 'S'
+                dtype = string_dtype
             try:
                 self._dtype = np.dtype(dtype)
             except Exception:
@@ -1537,8 +1543,8 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            if self.dtype.type == np.string_:
-                return "NXfield('%s')" % str(self)
+            if self.dtype.type == np.string_ or self.dtype == string_dtype:
+                return "NXfield('%s')" % self._value.encode('ascii', 'replace')
             else:
                 return "NXfield(%s)" % self._str_value()
         else:
@@ -2101,11 +2107,30 @@ class NXfield(NXobject):
         for large arrays will be printed.
         """
         if self._value is not None:
-            if self.dtype.kind == 'S' and self.shape <> ():
-                return '\n'.join([t for t in self._value.flatten()])
+            if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
+                and self.shape <> ():
+                return '\n'.join([t for t in self._value.flatten()]).decode('utf-8')
+            elif isinstance(self._value, unicode):
+                return self._value.encode('utf-8')
             else:
                 return str(self._value)
         return ""
+
+    def __unicode__(self):
+        """
+        If value is loaded, return the value as a unicode string.  If value is
+        not loaded, return the empty string.  Only the first view values
+        for large arrays will be printed.
+        """
+        if self._value is not None:
+            if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
+                and self.shape <> ():
+                return '\n'.join([t for t in self._value.flatten()])
+            elif isinstance(self._value, str):
+                return self._value.decode('utf-8')
+            else:
+                return unicode(self._value)
+        return u""
 
     def _str_value(self,indent=0):
         v = str(self)
@@ -2115,7 +2140,7 @@ class NXfield(NXobject):
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([str(n) for n in self.shape])
-        s = unicode(str(self), 'utf-8')
+        s = str(self)
         if '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
         elif len(s) > 80:
@@ -3098,9 +3123,9 @@ class NXgroup(NXobject):
         path is returned.
         """
         if 'title' in self:
-            return str(self.title)
+            return unicode(self.title)
         elif self.nxgroup and 'title' in self.nxgroup:
-            return str(self.nxgroup.title)
+            return unicode(self.nxgroup.title)
         else:
             if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
                 return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
@@ -3169,6 +3194,9 @@ class NXlink(NXobject):
 
     def __str__(self):
         return str(self.nxlink)
+
+    def __unicode__(self):
+        return unicode(self.nxlink)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         if self.nxlink:
@@ -3239,8 +3267,8 @@ class NXlinkexternal(NXlink, NXfield):
         
     def __repr__(self):
         if self._value is not None:
-            if self.dtype.type == np.string_:
-                return "NXlink('%s', file='%s')" % (str(self), self._filename)
+            if self.dtype.type == np.string_ or self.dtype == string_dtype:
+                return "NXlink('%s', file='%s')" % (unicode(self), self._filename)
             else:
                 return "NXlink(%s, file='%s')" % \
                     (NXfield._str_value(self), self._filename)
@@ -3261,7 +3289,7 @@ class NXlinkexternal(NXlink, NXfield):
 
     def __str__(self):
         if self._value is not None:
-            return str(NXfield.__str__(self))
+            return NXfield.__str__(self)
         else:
             return repr(self)
 
@@ -3963,6 +3991,48 @@ class NXlog(NXgroup):
         if 'start' in self.time.attrs:
             title = title + ' - starting at ' + self.time.attrs['start']
         NXdata(self.value, self.time, title=title).plot(**opts)
+
+
+class NXprocess(NXgroup):
+
+    """
+    NXprocess group. This is a subclass of the NXgroup class.
+
+    See the NXgroup documentation for more details.
+    """
+
+    def __init__(self, *items, **opts):
+        self._class = "NXprocess"
+        NXgroup.__init__(self, *items, **opts)
+        if "date" not in self:
+            from datetime import datetime as dt
+            self.date = dt.isoformat(dt.today())
+
+
+class NXnote(NXgroup):
+
+    """
+    NXnote group. This is a subclass of the NXgroup class.
+
+    See the NXgroup documentation for more details.
+    """
+
+    def __init__(self, *items, **opts):
+        self._class = "NXnote"
+        NXgroup.__init__(self, **opts)
+        for item in items:
+            if isinstance(item, basestring):
+                if "description" not in self:
+                    self.description = item
+                elif "data" not in self:
+                    self.data = item
+            elif isinstance(item, NXobject):
+                setattr(self, item.nxname, item)
+            else:
+                raise NeXusError("Non-keyword arguments must be valid NXobjects")
+        if "date" not in self:
+            from datetime import datetime as dt
+            self.date = dt.isoformat(dt.today())
 
 
 #-------------------------------------------------------------------------

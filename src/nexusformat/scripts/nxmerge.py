@@ -6,11 +6,13 @@
 #
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
+import argparse
 import datetime
 import getopt
 import glob
 import os
 import re
+import socket
 import sys
 import time
 import timeit
@@ -20,6 +22,7 @@ from datetime import datetime
 import numpy as np
 
 from nexusformat.nexus import *
+from nexusformat import __version__
 
 
 prefix_pattern = re.compile('^([^.]+)(?:(?<!\d)|(?=_))')
@@ -44,7 +47,7 @@ def get_prefixes(directory):
 def get_files(directory, prefix, extension, first=None, last=None,
               reverse=False):
     if not extension.startswith('.'):
-        extension = '.'+extension
+        extension = '.' + extension
     filenames = sorted(glob.glob(os.path.join(directory, prefix+'*'+extension)),
                        key=natural_sort, reverse=reverse)
     if len(filenames) == 0:
@@ -158,15 +161,15 @@ def get_background(filename):
     return data, frame_time
 
 
-def initialize_nexus_file(directory, output_file, filenames, z_start, step):
+def initialize_nexus_file(directory, output_file, filenames, first):
     z_size = get_index(filenames[-1]) - get_index(filenames[0]) + 1
     v0 = read_image(filenames[0])
     x = NXfield(range(v0.shape[1]), dtype=np.uint16, name='x_pixel')
     y = NXfield(range(v0.shape[0]), dtype=np.uint16, name='y_pixel')
     if z_size > 1:
-        z = z_start + step * np.arange(z_size)
+        z = first + np.arange(z_size)
         z = NXfield(z, dtype=np.uint16, name='frame_number', maxshape=(5000,))
-        v = NXfield(name='data',shape=(z_size, v0.shape[0], v0.shape[1]),
+        v = NXfield(name='data', shape=(z_size, v0.shape[0], v0.shape[1]),
                     dtype=np.float32, maxshape=(5000, v0.shape[0], v0.shape[1]))
         data = NXdata(v, (z,y,x))
     else:
@@ -248,68 +251,57 @@ def natural_sort(key):
 
 
 def main():
-    help_text = ("nxmerge -d <directory> -p <prefix> -e <extension> "+
-                 "-o <output> -b <background> -f <first> -l <last> "+
-                 "-z <zstart> -s <step> -r")
-    try:
-        opts, args = getopt.getopt(sys.argv[1:],"hd:p:e:o:b:f:l:z:s:r",
-                        ["directory=", "prefix=", "extension=", "output=",
-                         "background=", "first=", "last=",
-                         "zstart=", "step=", "reversed"])
-    except getopt.GetoptError:
-        print help_text
-        sys.exit(2)
-    directory = os.getcwd()
-    extension = 'tif'
-    prefix = None
-    output = None
-    background = None
-    first = last = None
-    zstart = 0
-    step = 1
-    reverse = False
-    for opt, arg in opts:
-        if opt == '-h':
-            print help_text
-            sys.exit()
-        elif opt in ('-d', '--directory'):
-            directory = arg
-        elif opt in ('-p', '--prefix'):
-            prefix = arg
-        elif opt in ('-e', '--extension'):
-            extension = arg
-            if not extension.startswith('.'):
-                extension = '.' + extension
-        elif opt in ('-o', '--output'):
-            output = arg
-            if os.path.splitext(output)[1] == '':
-                output = output + '.nxs'
-        elif opt in ('-b', '--background'):
-            background = arg
-        elif opt in ('-f', '--first'):
-            first = np.int(arg)
-        elif opt in ('-l', '--last'):
-            last = np.int(arg)
-        elif opt in ('-z', '--zstart'):
-            zstart = np.float(arg)
-        elif opt in ('-s', '--step'):
-            step = np.float(arg)
-        elif opt in ('-r', '--reversed'):
-            reverse = True
+
+    parser = argparse.ArgumentParser(
+        description="Merge images into a single NeXus file")
+    parser.add_argument('-d', '--directory', default=os.getcwd(),
+                        help="directory containing the raw images")
+    parser.add_argument('-p', '--prefix', nargs='+',
+                        help="common prefix to all images")
+    parser.add_argument('-e', '--extension', default='.tif',
+                        help="file extension of raw images")
+    parser.add_argument('-o', '--output', help="name of NeXus output file")
+    parser.add_argument('-b', '--background',
+                        help="Name of background (dark) image to be subtracted")
+    parser.add_argument('-f', '--first', default=0, type=int,
+                        help="first frame to be included in the merged data")
+    parser.add_argument('-l', '--last', type=int,
+                        help="last frame to be included in the merged data")
+    parser.add_argument('-r', '--reverse', action='store_true',
+                        help="store images in reverse order")
+    parser.add_argument('-v', '--version', action='version', 
+                        version='nxmerge v%s' % __version__)
+
+    args = parser.parse_args()
+    directory = args.directory
+    extension = args.extension
+    if not extension.startswith('.'):
+        extension = '.' + extension
+    output = args.output
+    if output is not None and os.path.splitext(output)[1] == '':
+        output = output + '.nxs'
+    background = args.background
     if background:
         try:
-            background_file = glob.glob(background+'*'+extension)[-1]
+            background_file = glob.glob(os.path.join(directory, background+'*'+extension))[-1]
         except IndexError:
             if extension.endswith('bz2'):
-                background_file = glob.glob(background+'*'+extension[:-4])[-1]
+                background_file = glob.glob(os.path.join(directory, background+'*'+extension[:-4]))[-1]
+            else:
+                background_file = None
     else:
         background_file = None
-    if prefix:
-        prefixes = [prefix]
-    else:
+    first = args.first
+    last = args.last
+    reverse = args.reverse
+
+    if args.prefix is None:
         prefixes = get_prefixes(directory)
         if len(prefixes) > 1 and output is not None:
-            raise getopt.GetoptError("Only one prefix allowed if the output file is specified")
+            raise NeXusError("Only one prefix allowed if the output file is specified")
+    else:
+        prefixes = args.prefix
+
     for prefix in prefixes:
         tic = timeit.default_timer()
         data_files = get_files(directory, prefix, extension, first, last, reverse)
@@ -317,11 +309,23 @@ def main():
             output_file = prefix + '.nxs'
         else:
             output_file = output
-        root = initialize_nexus_file(directory, output_file, data_files, zstart, step)
+        root = initialize_nexus_file(directory, output_file, data_files, first)
         write_data(root, data_files, background_file)
         write_metadata(root, directory, prefix)
+        note = NXnote('nxmerge '+' '.join(sys.argv[1:]), 
+                      ('Current machine: %s\n'
+                       'Current working directory: %s\n'
+                       'Data files: %s to %s\n'
+                       'Background file: %s')
+                      % (socket.gethostname(), os.getcwd(), 
+                         data_files[0], data_files[-1], background_file))
+        root.entry.process_1 = NXprocess(program='nxmerge', 
+                                         sequence_index=1, 
+                                         version=__version__, 
+                                         note=note)
+                                 
         toc = timeit.default_timer()
-        print toc-tic, 'seconds for', '%s.nxs' % prefix
+        print toc-tic, 'seconds for', output_file
 
 
 if __name__ == "__main__":

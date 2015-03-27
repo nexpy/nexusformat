@@ -28,7 +28,7 @@ class NeXPyroSession(object):
         self.sshTunnel = None
         
     def run(self):
-        command = "/home/wozniak/proj/nexusformat/src/nexusformat/pyro/start_server.py"
+        command = "nxstartserver"
         self.sshService = NeXPyroSSH(self.user, self.hostname,
                                      command=command, getURI=True)
         uri = self.sshService.getURIfromQueue()

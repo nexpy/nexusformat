@@ -13,6 +13,7 @@ import glob
 import os
 import re
 import socket
+import subprocess
 import sys
 import time
 import timeit
@@ -145,6 +146,21 @@ def read_metadata(filename):
         return time.time(), 1.0, 1
 
 
+def read_specfile(spec_file):
+    subprocess.call('spec2nexus --quiet '+spec_file, shell=True)
+    subentries = []
+    prefix = os.path.splitext(os.path.basename(spec_file))[0]
+    directory = os.path.dirname(spec_file)
+    try:
+        spec = nxload(os.path.join(directory, prefix+'.hdf5'))
+        for entry in spec.NXentry:
+            entry.nxclass = NXsubentry
+            subentries.append(entry)
+    except:
+        pass
+    return subentries
+
+
 def isotime(time_stamp):
     return datetime.fromtimestamp(time_stamp).isoformat()
 
@@ -227,6 +243,7 @@ def write_data(root, filenames, background_file=None):
             except IndexError:
                 pass
 
+
 def write_metadata(root, directory, prefix):
     if 'dark' in prefix:
         root.entry.sample.name = 'dark'
@@ -244,6 +261,13 @@ def write_metadata(root, directory, prefix):
             except Exception:
                 pass
     root.entry.filename = root.nxfilename
+
+
+def write_specfile(root, spec_file):
+     subentries = read_specfile(spec_file)
+     for subentry in subentries:
+         root.entry[subentry.nxname] = subentry
+
 
 def natural_sort(key):
     import re
@@ -263,6 +287,8 @@ def main():
     parser.add_argument('-o', '--output', help="name of NeXus output file")
     parser.add_argument('-b', '--background',
                         help="Name of background (dark) image to be subtracted")
+    parser.add_argument('-s', '--spec',
+                        help="Name of SPEC file used in collecting images")
     parser.add_argument('-f', '--first', default=0, type=int,
                         help="first frame to be included in the merged data")
     parser.add_argument('-l', '--last', type=int,
@@ -280,6 +306,7 @@ def main():
     output = args.output
     if output is not None and os.path.splitext(output)[1] == '':
         output = output + '.nxs'
+
     background = args.background
     if background:
         try:
@@ -291,6 +318,16 @@ def main():
                 background_file = None
     else:
         background_file = None
+
+    spec = args.spec
+    if spec:
+        try:
+            spec_file = glob.glob(os.path.join(directory, spec))[-1]
+        except IndexError:
+            spec_file = None
+    else:
+        spec_file = None
+
     first = args.first
     last = args.last
     reverse = args.reverse
@@ -312,13 +349,16 @@ def main():
         root = initialize_nexus_file(directory, output_file, data_files, first)
         write_data(root, data_files, background_file)
         write_metadata(root, directory, prefix)
+        write_specfile(root, spec_file)
         note = NXnote('nxmerge '+' '.join(sys.argv[1:]), 
                       ('Current machine: %s\n'
                        'Current working directory: %s\n'
                        'Data files: %s to %s\n'
-                       'Background file: %s')
+                       'Background file: %s\n'
+                       'SPEC file: %s')
                       % (socket.gethostname(), os.getcwd(), 
-                         data_files[0], data_files[-1], background_file))
+                         data_files[0], data_files[-1], 
+                         background_file, spec_file))
         root.entry.process_1 = NXprocess(program='nxmerge', 
                                          sequence_index=1, 
                                          version=__version__, 

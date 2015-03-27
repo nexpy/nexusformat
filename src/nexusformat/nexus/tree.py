@@ -675,7 +675,9 @@ class NXFile(object):
 
 def _getvalue(value, dtype=None, shape=None):
     """
-    Returns a Numpy variable, dtype and shape based on the input Python value
+    Returns a value, dtype and shape based on the input Python value. If the
+    value is a string, it is converted to unicode. Otherwise, the value is 
+    converted to a valid Numpy object.
     
     If the value is a masked array, the returned value is only returned as a 
     masked array if some of the elements are masked.
@@ -695,6 +697,8 @@ def _getvalue(value, dtype=None, shape=None):
         _shape = ()
     elif not isinstance(value, np.ndarray):
         _value = np.asarray(value)
+        if _value.dtype.kind == 'S':
+            _value = _value.astype(string_dtype)
         _dtype = _value.dtype
         _shape = _value.shape
     else:
@@ -984,10 +988,10 @@ class NXobject(object):
         result = []
         for k in names:
             txt1, txt2, txt3 = ('', '', '') # only useful in source-level debugging
-            txt1 = u" "*indent
-            txt2 = u"@" + unicode(k)
+            txt1 = " " * indent
+            txt2 = "@" + k
             try:
-                txt3 = u" = " + unicode(self.attrs[k])
+                txt3 = " = " + unicode(self.attrs[k])
             except UnicodeDecodeError, err:
                 # this is a wild assumption to read non-compliant strings from Soleil
                 txt3 = u" = " + unicode(self.attrs[k], "utf-8")
@@ -1543,7 +1547,8 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            if self.dtype.type == np.string_ or self.dtype == string_dtype:
+            if (self.dtype.type == np.string_ or self.dtype == string_dtype) \
+               and self._shape == ():
                 return "NXfield('%s')" % self._value.encode('ascii', 'replace')
             else:
                 return "NXfield(%s)" % self._str_value()
@@ -2140,13 +2145,13 @@ class NXfield(NXobject):
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([str(n) for n in self.shape])
-        s = str(self)
+        s = unicode(self)
         if '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
         elif len(s) > 80:
             s = s[0:77]+'...'
         try:
-            v=[" "*indent + "%s = %s"%(self.nxname, s)]
+            v=[" "*indent + self.nxname + " = " + s]
         except Exception:
             v=[" "*indent + self.nxname]
         if attrs and self.attrs:

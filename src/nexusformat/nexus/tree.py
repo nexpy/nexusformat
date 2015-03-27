@@ -235,6 +235,7 @@ title is the title of the group or the parent :class:`NXentry`, if available.
 
 from __future__ import with_statement
 import os
+import sys
 from copy import copy, deepcopy
 
 import numpy as np
@@ -243,6 +244,7 @@ import h5py as h5
 #Memory in MB
 NX_MEMORY = 2000
 NX_COMPRESSION = 'lzf'
+NX_ENCODING = sys.stdin.encoding
 
 string_dtype = h5.special_dtype(vlen=unicode)
 
@@ -250,6 +252,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink',
            'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
            'NeXusError', 
            'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
+           'NX_ENCODING', 'nxsetencoding',
            'nxclasses', 'nxload', 'nxsave', 'nxtree', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
@@ -488,9 +491,12 @@ class NXFile(object):
         if data._target is not None:
             if data._filename is not None:
                 self.linkexternal(data)
+                self.nxpath = parent
                 return []
             else:
-                return [(self.nxpath, data._target)]
+                path = self.nxpath
+                self.nxpath = parent
+                return [(path, data._target)]
 
         if data._uncopied_data:
             _file, _path = data._uncopied_data
@@ -692,7 +698,7 @@ def _getvalue(value, dtype=None, shape=None):
         if isinstance(value, unicode):
             _value = value
         else:
-            _value = value.decode('utf-8')
+            _value = value.decode(NX_ENCODING)
         _dtype = string_dtype
         _shape = ()
     elif not isinstance(value, np.ndarray):
@@ -831,7 +837,7 @@ class NXattr(object):
         self._value, self._dtype, _ = _getvalue(value, dtype)
 
     def __str__(self):
-        return unicode(self.nxdata).encode('utf-8')
+        return unicode(self.nxdata).encode(NX_ENCODING)
 
     def __unicode__(self):
         return unicode(self.nxdata)
@@ -1547,13 +1553,9 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            if (self.dtype.type == np.string_ or self.dtype == string_dtype) \
-               and self._shape == ():
-                return "NXfield('%s')" % self._value.encode('ascii', 'replace')
-            else:
-                return "NXfield(%s)" % self._str_value()
+            return "NXfield(%s)" % repr(self._value)
         else:
-            return "NXfield(dtype=%s,shape=%s)" % (self.dtype,self.shape)
+            return "NXfield(dtype=%s, shape=%s)" % (self.dtype, self.shape)
 
     def __getattr__(self, name):
         """
@@ -2116,7 +2118,7 @@ class NXfield(NXobject):
                 and self.shape <> ():
                 return '\n'.join([t for t in self._value.flatten()]).decode('utf-8')
             elif isinstance(self._value, unicode):
-                return self._value.encode('utf-8')
+                return self._value.encode(NX_ENCODING)
             else:
                 return str(self._value)
         return ""
@@ -2132,7 +2134,7 @@ class NXfield(NXobject):
                 and self.shape <> ():
                 return '\n'.join([t for t in self._value.flatten()])
             elif isinstance(self._value, str):
-                return self._value.decode('utf-8')
+                return self._value.decode(NX_ENCODING)
             else:
                 return unicode(self._value)
         return u""
@@ -4135,12 +4137,21 @@ nxsetmemory = setmemory
 
 def setcompression(value):
     """
-    Sets the memory limit for data arrays (in MB).
+    Sets default compression filter.
     """
     global NX_COMPRESSION
     NX_COMPRESSION = value
 
 nxsetcompression = setcompression
+
+def setencoding(value):
+    """
+    Sets the default encoding for input strings (usually 'utf-8').
+    """
+    global NX_ENCODING
+    NX_ENCODING = value
+
+nxsetencoding = setencoding
 
 # File level operations
 def load(filename, mode='r'):

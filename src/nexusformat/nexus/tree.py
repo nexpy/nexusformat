@@ -244,7 +244,7 @@ import h5py as h5
 #Memory in MB
 NX_MEMORY = 2000
 NX_COMPRESSION = 'lzf'
-NX_ENCODING = sys.stdin.encoding
+NX_ENCODING = 'utf-8'
 
 string_dtype = h5.special_dtype(vlen=unicode)
 
@@ -1005,7 +1005,7 @@ class NXobject(object):
             result.append(txt)
         return "\n".join(result)
 
-    def _str_tree(self,indent=0,attrs=False,recursive=False):
+    def _str_tree(self, indent=0, attrs=False, recursive=False):
         """
         Prints the current object and children (if any).
         """
@@ -1020,7 +1020,8 @@ class NXobject(object):
             if recursive:
                 for k in names:
                     result.append(entries[k]._str_tree(indent=indent+2,
-                                                       attrs=attrs, recursive=True))
+                                                       attrs=attrs, 
+                                                       recursive=True))
             else:
                 for k in names:
                     result.append(entries[k]._str_name(indent=indent+2))
@@ -2148,10 +2149,12 @@ class NXfield(NXobject):
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([str(n) for n in self.shape])
         s = unicode(self)
-        if '\n' in s or s == "":
+        if self.dtype == string_dtype:
+            s = repr(s)[1:]
+            if len(s) > 60:
+                s = s[0:56] + '...' + "'"
+        elif '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
-        elif len(s) > 80:
-            s = s[0:77]+'...'
         try:
             v=[" "*indent + self.nxname + " = " + s]
         except Exception:

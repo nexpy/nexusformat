@@ -310,10 +310,10 @@ def main():
     background = args.background
     if background:
         try:
-            background_file = glob.glob(os.path.join(directory, background+'*'+extension))[-1]
+            background_file = glob.glob(os.path.join(background+'*'+extension))[-1]
         except IndexError:
             if extension.endswith('bz2'):
-                background_file = glob.glob(os.path.join(directory, background+'*'+extension[:-4]))[-1]
+                background_file = glob.glob(os.path.join(background+'*'+extension[:-4]))[-1]
             else:
                 background_file = None
     else:
@@ -349,7 +349,8 @@ def main():
         root = initialize_nexus_file(directory, output_file, data_files, first)
         write_data(root, data_files, background_file)
         write_metadata(root, directory, prefix)
-        write_specfile(root, spec_file)
+        if spec_file:
+            write_specfile(root, spec_file)
         note = NXnote('nxmerge '+' '.join(sys.argv[1:]), 
                       ('Current machine: %s\n'
                        'Current working directory: %s\n'
@@ -359,10 +360,10 @@ def main():
                       % (socket.gethostname(), os.getcwd(), 
                          data_files[0], data_files[-1], 
                          background_file, spec_file))
-        root.entry.process_1 = NXprocess(program='nxmerge', 
-                                         sequence_index=1, 
-                                         version=__version__, 
-                                         note=note)
+        root.entry['nxmerge'] = NXprocess(program='nxmerge',
+                                          sequence_index=len(root.entry.NXprocess)+1,
+                                          version=__version__,
+                                          note=note)
                                  
         toc = timeit.default_timer()
         print toc-tic, 'seconds for', output_file

@@ -91,6 +91,11 @@ class NXFileService(object):
             print("EXCEPTION in getvalue(%s): " % idx + str(e))
         msgv("setvalue value: " + str(value))
 
+    def readvalues(self, path, attrs):
+        with self.root.nxfile as f:
+            f.nxpath = path
+            return f.readvalues(attrs)
+            
     def update(self, item, path):
         with self.root.nxfile as f:
             self.root.nxfile.update(item, path)

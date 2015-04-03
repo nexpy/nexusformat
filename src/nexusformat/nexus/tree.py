@@ -243,7 +243,7 @@ import h5py as h5
 
 #Memory in MB
 NX_MEMORY = 2000
-NX_COMPRESSION = 'lzf'
+NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
 
 string_dtype = h5.special_dtype(vlen=unicode)
@@ -964,7 +964,8 @@ class NXobject(object):
         hidden_keys = [key for key in result.keys() if key.startswith('_')]
         needed_keys = ['_class', '_name', '_group', '_entries', '_attrs', 
                        '_filename', '_mode', '_target', '_dtype', '_shape', 
-                       '_value']
+                       '_value', '_maxshape', '_chunks', '_fillvalue', 
+                       '_compression', '_changed']
         for key in hidden_keys:
             if key not in needed_keys:
                 del result[key]

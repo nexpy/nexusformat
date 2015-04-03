@@ -109,7 +109,7 @@ class NXFileService(object):
 
     def setmode(self, name, mode):
         self.root[name]._mode = self.root[name]._file.mode = mode
-        msgv("setmode: ", name, mode)
+        msgv("setmode: ", name+' '+mode)
 
     def getentries(self, name):
         print(self.root[name].getentries())

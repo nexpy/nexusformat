@@ -78,7 +78,7 @@ class NXFileService(object):
         """Sets an object value in the NeXus file."""
         msgv("setitem", key)
         self.root[name][key] = value
-        msgv("value", str(value))
+        msgv("value", value)
 
     # Two-step call sequence
     def setvalue(self, name, path, value, idx=()):
@@ -88,7 +88,7 @@ class NXFileService(object):
             self.root[name][path][idx] = value
         except Exception as e:
             print("EXCEPTION in getvalue(%s): " % idx + str(e))
-        msgv("setvalue value: " + str(value))
+        msgv("setvalue value: ", value)
 
     def readvalues(self, name, path, attrs):
         with self.root[name].nxfile as f:
@@ -107,6 +107,10 @@ class NXFileService(object):
     def filename(self, name):
         return self.root[name]._filename()
 
+    def setmode(self, name, mode):
+        self.root[name]._mode = self.root[name]._file.mode = mode
+        msgv("setmode: ", name, mode)
+
     def getentries(self, name):
         print(self.root[name].getentries())
         return True
@@ -116,4 +120,3 @@ class NXFileService(object):
         thread = threading.Thread(target=shutdown)
         thread.setDaemon(True)
         thread.start()
-

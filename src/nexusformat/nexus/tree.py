@@ -321,16 +321,13 @@ class NXFile(object):
             if mode == 'rw':
                 mode = 'r+'
             self._file = h5.File(name, mode, **kwds)
-            if mode == 'rw' or mode == 'r+':
-                self._mode = 'rw'
-            else:
-                self._mode = 'r'   
+            self.mode = mode   
         self._filename = self._file.filename                             
         self._path = ''
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
-                                                 self._mode)
+                                            self._mode)
 
     def __getitem__(self, key):
         """Returns an object from the NeXus file."""
@@ -661,6 +658,15 @@ class NXFile(object):
     def _getfile(self):
         return self._file
 
+    def _getmode(self):
+        return self._mode
+
+    def _setmode(self, mode):
+        if mode == 'rw' or mode == 'r+':
+            self._mode = 'rw'
+        else:
+            self._mode = 'r'   
+
     def _getattrs(self):
         item = self.get(self.nxpath)
         if item is not None:
@@ -675,6 +681,7 @@ class NXFile(object):
         self._path = value.replace('//','/')
 
     file = property(_getfile, doc="Property: File object of NeXus file")
+    mode = property(_getmode, _setmode, doc="Property: Read/write mode of file")
     attrs = property(_getattrs, doc="Property: File object attributes")
     nxpath = property(_getpath, _setpath, doc="Property: Path to NeXus object")
 
@@ -3403,12 +3410,12 @@ class NXroot(NXgroup):
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
-            self._mode = self._file._mode = 'r'
+            self._mode = self._file.mode = 'r'
 
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
-            self._mode = self._file._mode = 'rw'
+            self._mode = self._file.mode = 'rw'
 
 
 class NXentry(NXgroup):

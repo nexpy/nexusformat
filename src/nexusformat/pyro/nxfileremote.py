@@ -87,6 +87,17 @@ class NXFileRemote(NXFile):
         """File name on disk"""
         return self._filename
 
+    def _getmode(self):
+        return self._mode
+
+    def _setmode(self, mode):
+        if mode == 'rw' or mode == 'r+':
+            self._mode = 'rw'
+        else:
+            self._mode = 'r'
+        self._file.setmode(self._filename, self._mode)  
+
+    mode = property(_getmode, _setmode, doc="Property: Read/write mode of remote file")
 
 def nxloadremote(filename, uri, hostname=None):
     """

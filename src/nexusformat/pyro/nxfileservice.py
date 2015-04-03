@@ -36,15 +36,14 @@ def shutdown():
 class NXFileService(object):
     name = ""
     nexusFile = None
-    root = None
+    root = {}
     path = None
 
     def initfile(self, name):
         msg("Initializing NXFileService: " + name)
-        self.filename = name
         try:
             msgv("opening", name)
-            self.root = nxload(self.filename)
+            self.root[name] = nxload(name)
         except Exception as e:
             m = "Caught exception while opening: " + name + "\n" + \
                 "Exception msg: " + str(e)
@@ -55,18 +54,18 @@ class NXFileService(object):
     # We cannot expose __getitem__ via Pyro
     # Cf. pyro-core mailing list, 7/20/2014
 
-    def getitem(self, key):
+    def getitem(self, name, key):
         msgv("getitem", key)
-        result = self.root[key]
+        result = self.root[name][key]
         msgv("result", result)
         return result
 
     # Two-step call sequence
-    def getvalue(self, path, idx=()):
+    def getvalue(self, name, path, idx=()):
         msgv("getvalue", idx)
         try:
             msg("get path: " + str(path))
-            t = self.root[path][idx].nxdata
+            t = self.root[name][path][idx].nxdata
             msgv('t', t)
             msg("returning t")
         except Exception as e:
@@ -75,41 +74,41 @@ class NXFileService(object):
         msg("getvalue result: " + str(t))
         return t
 
-    def setitem(self, key, value):
+    def setitem(self, name, key, value):
         """Sets an object value in the NeXus file."""
         msgv("setitem", key)
-        self.root[key] = value
+        self.root[name][key] = value
         msgv("value", str(value))
 
     # Two-step call sequence
-    def setvalue(self, path, value, idx=()):
+    def setvalue(self, name, path, value, idx=()):
         msgv("setvalue", idx)
         try:
             msg("set path: " + str(path))
-            self.root[path][idx] = value
+            self.root[name][path][idx] = value
         except Exception as e:
             print("EXCEPTION in getvalue(%s): " % idx + str(e))
         msgv("setvalue value: " + str(value))
 
-    def readvalues(self, path, attrs):
-        with self.root.nxfile as f:
+    def readvalues(self, name, path, attrs):
+        with self.root[name].nxfile as f:
             f.nxpath = path
             return f.readvalues(attrs)
             
-    def update(self, item, path):
-        with self.root.nxfile as f:
-            self.root.nxfile.update(item, path)
+    def update(self, name, item, path):
+        with self.root[name].nxfile as f:
+            f.update(item, path)
 
-    def tree(self):
+    def tree(self, name):
         print("tree...")
-        print "tree root: " , str(self.root)
-        return self.root
+        print "tree root: " , str(self.root[name])
+        return self.root[name]
 
-    def filename(self):
-        return self.root._filename()
+    def filename(self, name):
+        return self.root[name]._filename()
 
-    def getentries(self):
-        print(self.root.getentries())
+    def getentries(self, name):
+        print(self.root[name].getentries())
         return True
 
     def exit(self, code):

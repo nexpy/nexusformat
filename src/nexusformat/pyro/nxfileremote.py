@@ -40,10 +40,10 @@ class NXFileRemote(NXFile):
                                                   self._mode)
 
     def __getitem__(self, key):
-        return self._file.getitem(key)
+        return self._file.getitem(self._filename, key)
 
     def __setitem__(self, key, value):
-        return self._file.setitem(key, value)
+        return self._file.setitem(self._filename, key, value)
 
     def __enter__(self):
         return self
@@ -58,26 +58,26 @@ class NXFileRemote(NXFile):
         pass
 
     def get(self, key):
-        return self._file.getitem(key)
+        return self._file.getitem(self._filename, key)
 
     def readvalue(self, path, idx=()):
-        return self._file.getvalue(path, idx=idx)
+        return self._file.getvalue(self._filename, path, idx=idx)
 
     def readvalues(self, attrs=None):
-        return self._file.readvalues(self.nxpath, attrs)
+        return self._file.readvalues(self._filename, self.nxpath, attrs)
 
     def writevalue(self, path, value, idx=()):
-        self._file.setvalue(path, value, idx=idx)
+        self._file.setvalue(self._filename, path, value, idx=idx)
 
     def update(self, item, path=None):
         if path is not None:
             self.nxpath = path
         else:
             self.nxpath = item.nxgroup.nxpath
-        self._file.update(item, path)
+        self._file.update(self._filename, item, path)
 
     def readfile(self):
-        self.tree = self._file.tree()
+        self.tree = self._file.tree(self._filename)
         self.tree._file = self
         self.tree._filename = self._filename
         return self.tree

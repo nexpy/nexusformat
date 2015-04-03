@@ -45,6 +45,9 @@ class NXFileRemote(NXFile):
     def __setitem__(self, key, value):
         return self._file.setitem(self._filename, key, value)
 
+    def __delitem__(self, key):
+        self._file.delitem(self._filename, key)
+
     def __enter__(self):
         return self
 

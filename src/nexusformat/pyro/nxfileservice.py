@@ -99,6 +99,9 @@ class NXFileService(object):
         with self.root[name].nxfile as f:
             f.update(item, path)
 
+    def delitem(self, name, path):
+        del self.root[name][path]
+        
     def tree(self, name):
         print("tree...")
         print "tree root: " , str(self.root[name])

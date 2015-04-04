@@ -108,9 +108,8 @@ def nxloadremote(filename, uri, hostname=None):
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    with NXFileRemote(filename, uri, hostname=hostname) as run:
-        tree = run.readfile()
-        print tree.__class__
+    with NXFileRemote(filename, uri, hostname=hostname) as f:
+        tree = f.readfile()
     return tree
 
 

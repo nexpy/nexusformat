@@ -13,14 +13,10 @@
 Daemon process presenting NeXus file over Pyro
 """
 
-import os
-import sys
 import threading
 import time
 
-import Pyro4
-
-from nexusformat.nexus import nxload, NXFile
+from nexusformat.nexus import nxload
 
 def msg(msg):
     print("pyro server: " + msg)
@@ -57,7 +53,6 @@ class NXFileService(object):
     def getitem(self, name, key):
         msgv("getitem", key)
         result = self.root[name][key]
-        msgv("result", result)
         return result
 
     # Two-step call sequence
@@ -71,14 +66,12 @@ class NXFileService(object):
         except Exception as e:
             print("EXCEPTION in getvalue(%s): " % idx + str(e))
             t = None
-        msg("getvalue result: " + str(t))
         return t
 
     def setitem(self, name, key, value):
         """Sets an object value in the NeXus file."""
         msgv("setitem", key)
         self.root[name][key] = value
-        msgv("value", value)
 
     # Two-step call sequence
     def setvalue(self, name, path, value, idx=()):
@@ -88,7 +81,6 @@ class NXFileService(object):
             self.root[name][path][idx] = value
         except Exception as e:
             print("EXCEPTION in getvalue(%s): " % idx + str(e))
-        msgv("setvalue value: ", value)
 
     def readvalues(self, name, path, attrs):
         with self.root[name].nxfile as f:
@@ -103,8 +95,6 @@ class NXFileService(object):
         del self.root[name][path]
         
     def tree(self, name):
-        print("tree...")
-        print "tree root: " , str(self.root[name])
         return self.root[name]
 
     def filename(self, name):
@@ -112,11 +102,6 @@ class NXFileService(object):
 
     def setmode(self, name, mode):
         self.root[name]._mode = self.root[name]._file.mode = mode
-        msgv("setmode: ", name+' '+mode)
-
-    def getentries(self, name):
-        print(self.root[name].getentries())
-        return True
 
     def exit(self, code):
         msg("Daemon exiting...")

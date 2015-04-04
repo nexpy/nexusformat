@@ -253,7 +253,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink',
            'NeXusError', 
            'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
            'NX_ENCODING', 'nxsetencoding',
-           'nxclasses', 'nxload', 'nxsave', 'nxtree', 'nxdemo']
+           'nxclasses', 'nxload', 'nxsave', 'nxdir', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
@@ -4195,14 +4195,14 @@ def save(filename, group, mode='w'):
 nxsave = save
 
 
-def tree(filename):
+def dir(filename):
     """
     Reads and summarize the named NeXus file.
     """
     root = load(filename)
     print root.tree
 
-nxtree = tree
+nxdir = dir
 
 def demo(argv):
     """

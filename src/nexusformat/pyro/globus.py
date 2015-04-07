@@ -52,8 +52,11 @@ class GlobusCatalog(object):
 
     def get_datasets(self, catalog_name):
         self.get_catalog(catalog_name)
-        _, datasets = self.wrap.catalogClient.get_datasets(self.catalog_id)
-        return sorted(datasets)
+        if self.catalog_id:
+            _, datasets = self.wrap.catalogClient.get_datasets(self.catalog_id)
+            return sorted(datasets)
+        else:
+            return []
 
     def get_dataset(self, dataset_name):
         self.dataset = dataset_name
@@ -65,9 +68,12 @@ class GlobusCatalog(object):
 
     def get_members(self, dataset_name):
         self.get_dataset(dataset_name)
-        _, members = self.wrap.catalogClient.get_members(self.catalog_id,
-                                                         self.dataset_id)
-        return sorted(members)
+        if self.catalog_id and self.dataset_id:
+            _, members = self.wrap.catalogClient.get_members(self.catalog_id,
+                                                             self.dataset_id)
+            return sorted(members)
+        else:
+            return []
 
     def get_member(self, member_name):
         self.member = member_name

@@ -157,9 +157,9 @@ class PylabPlotter(object):
                 xlabel, ylabel = label(axes[-1]), label(axes[-2])
 
             if not zmin: 
-                zmin = np.nanmin(data)
+                zmin = np.nanmin(data[data>-np.inf])
             if not zmax: 
-                zmax = np.nanmax(data)
+                zmax = np.nanmax(data[data<np.inf)
             
             if not image:
                 if log:

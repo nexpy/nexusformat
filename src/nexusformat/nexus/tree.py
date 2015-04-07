@@ -2059,13 +2059,13 @@ class NXfield(NXobject):
         """
         Returns the minimum value of the array ignoring NaNs
         """
-        return np.nanmin(self.nxdata, axis) 
+        return np.nanmin(self.nxdata[self.nxdata>-np.inf], axis) 
 
     def max(self, axis=None):
         """
         Returns the maximum value of the array ignoring NaNs
         """
-        return np.nanmax(self.nxdata, axis) 
+        return np.nanmax(self.nxdata[self.nxdata<np.inf], axis) 
 
     def reshape(self, shape):
         """

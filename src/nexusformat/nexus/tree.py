@@ -4195,14 +4195,15 @@ def save(filename, group, mode='w'):
 nxsave = save
 
 
-def dir(filename):
+def directory(filename):
     """
-    Reads and summarize the named NeXus file.
+    Outputs contents of the named NeXus file.
     """
     root = load(filename)
     print root.tree
 
-nxdir = dir
+nxdir = directory
+
 
 def demo(argv):
     """

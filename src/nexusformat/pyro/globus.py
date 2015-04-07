@@ -113,6 +113,8 @@ class GlobusCatalog(object):
         hostname = self.get_member_annotation("host")
         if self.ssh_session is None:
             self.ssh_start(user, port)
+        import time
+        time.sleep(1)
         return nxloadremote(remote_path, uri, hostname=hostname)
 
     def ssh_start(self, user=None, port=8801):

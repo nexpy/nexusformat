@@ -277,7 +277,7 @@ def natural_sort(key):
 def main():
 
     parser = argparse.ArgumentParser(
-        description="Merge images into a single NeXus file")
+        description="Stack images into a single NeXus file")
     parser.add_argument('-d', '--directory', default=os.getcwd(),
                         help="directory containing the raw images")
     parser.add_argument('-p', '--prefix', nargs='+',
@@ -290,9 +290,9 @@ def main():
     parser.add_argument('-s', '--spec',
                         help="Name of SPEC file used in collecting images")
     parser.add_argument('-f', '--first', default=0, type=int,
-                        help="first frame to be included in the merged data")
+                        help="first frame to be included in the stacked data")
     parser.add_argument('-l', '--last', type=int,
-                        help="last frame to be included in the merged data")
+                        help="last frame to be included in the stacked data")
     parser.add_argument('-r', '--reverse', action='store_true',
                         help="store images in reverse order")
     parser.add_argument('-v', '--version', action='version', 

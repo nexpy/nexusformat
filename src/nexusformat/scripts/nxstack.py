@@ -296,7 +296,7 @@ def main():
     parser.add_argument('-r', '--reverse', action='store_true',
                         help="store images in reverse order")
     parser.add_argument('-v', '--version', action='version', 
-                        version='nxcombine v%s' % __version__)
+                        version='nxstack v%s' % __version__)
 
     args = parser.parse_args()
     directory = args.directory
@@ -351,7 +351,7 @@ def main():
         write_metadata(root, directory, prefix)
         if spec_file:
             write_specfile(root, spec_file)
-        note = NXnote('nxcombine '+' '.join(sys.argv[1:]), 
+        note = NXnote('nxstack '+' '.join(sys.argv[1:]), 
                       ('Current machine: %s\n'
                        'Current working directory: %s\n'
                        'Data files: %s to %s\n'
@@ -360,7 +360,7 @@ def main():
                       % (socket.gethostname(), os.getcwd(), 
                          data_files[0], data_files[-1], 
                          background_file, spec_file))
-        root.entry['nxcombine'] = NXprocess(program='nxcombine',
+        root.entry['nxstack'] = NXprocess(program='nxstack',
                                     sequence_index=len(root.entry.NXprocess)+1,
                                     version=__version__, note=note)
                                  

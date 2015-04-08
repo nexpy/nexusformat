@@ -4151,6 +4151,8 @@ def setcompression(value):
     Sets default compression filter.
     """
     global NX_COMPRESSION
+    if value == 'None':
+        value = None
     NX_COMPRESSION = value
 
 nxsetcompression = setcompression

@@ -295,6 +295,7 @@ def main():
                         help="last frame to be included in the stacked data")
     parser.add_argument('-r', '--reverse', action='store_true',
                         help="store images in reverse order")
+    parser.add_argument('-c', '--compression', help="HDF5 compression method")
     parser.add_argument('-v', '--version', action='version', 
                         version='nxstack v%s' % __version__)
 
@@ -306,6 +307,10 @@ def main():
     output = args.output
     if output is not None and os.path.splitext(output)[1] == '':
         output = output + '.nxs'
+
+    compression = args.compression
+    if compression:
+        nxsetcompression(compression)
 
     background = args.background
     if background:

@@ -341,6 +341,10 @@ class NXFile(object):
         """ Delete an item from a group. """
         del self._file[name]
 
+    def __contains__(self, key):
+        """Implements 'k in d' test"""
+        return self._file.__contains__(key)
+
     def __enter__(self):
         return self.open()
 
@@ -498,6 +502,8 @@ class NXFile(object):
         if data._uncopied_data:
             _file, _path = data._uncopied_data
             with _file as f:
+                if self.nxpath in self:
+                    del self[self.nxpath]
                 f.copy(_path, self[parent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:

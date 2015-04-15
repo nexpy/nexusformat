@@ -134,3 +134,14 @@ class GlobusCatalog(object):
     def finalize(self):
         if self.ssh_session != None:
             self.ssh_session.terminate()
+
+    def __str__(self):
+        result = "GlobusCatalog"
+        if self.catalog != None:
+            result += ":" + self.catalog
+            if self.dataset != None:
+                if self.member == None:
+                    result += "[%s]"%(self.dataset)
+                else:
+                    result += "[%s:%s]"%(self.dataset,self.member)
+        return result

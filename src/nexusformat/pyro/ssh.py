@@ -162,7 +162,6 @@ class NeXPyroSSH:
         self.dbg("terminate()")
         self.queueDown.put("TERMINATE")
         time.sleep(1)
-        self.process.terminate()
 
 class NeXPyroError(Exception):
     pass

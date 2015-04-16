@@ -253,7 +253,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink',
            'NeXusError', 
            'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
            'NX_ENCODING', 'nxsetencoding',
-           'nxclasses', 'nxload', 'nxsave', 'nxdir', 'nxdemo']
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
@@ -4202,6 +4202,12 @@ def save(filename, group, mode='w'):
  
 nxsave = save
 
+def duplicate(input_file, output_file):
+    input = nxload(input_file)
+    output = NXFile(output_file, 'w')
+    output.copyfile(input.nxfile)
+
+nxduplicate = duplicate
 
 def directory(filename):
     """

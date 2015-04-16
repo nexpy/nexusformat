@@ -616,9 +616,8 @@ class NXFile(object):
         self._setattrs()
 
     def linkexternal(self, link):
-        if os.path.isabs(link.nxfilename):
-            link.nxfilename = os.path.relpath(link.nxfilename, 
-                                              os.path.dirname(self.filename))
+        link_filename = os.path.relpath(link.nxfilename, 
+                                        os.path.dirname(self.filename))
         if self._isexternal():
             current_link = self.get(self.nxpath, getlink=True)
             if current_link.filename == link.nxfilename and \
@@ -626,7 +625,7 @@ class NXFile(object):
                return
             else:
                 del self[self.nxpath]
-        self[self.nxpath] = h5.ExternalLink(link.nxfilename, link.nxtarget)
+        self[self.nxpath] = h5.ExternalLink(link_filename, link.nxtarget)
 
     def _isexternal(self):
         return self.get(self.nxpath, getclass=True, getlink=True) == h5.ExternalLink
@@ -1519,8 +1518,6 @@ class NXfield(NXobject):
         self._group = group
         self._dtype = dtype
         if dtype:
-            if dtype == 'char':
-                dtype = string_dtype
             try:
                 self._dtype = np.dtype(dtype)
             except Exception:

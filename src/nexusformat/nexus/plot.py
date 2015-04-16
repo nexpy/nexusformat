@@ -159,7 +159,7 @@ class PylabPlotter(object):
             if not zmin: 
                 zmin = np.nanmin(data[data>-np.inf])
             if not zmax: 
-                zmax = np.nanmax(data[data<np.inf)
+                zmax = np.nanmax(data[data<np.inf])
             
             if not image:
                 if log:

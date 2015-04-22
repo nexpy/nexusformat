@@ -721,12 +721,12 @@ def _getvalue(value, dtype=None, shape=None):
         _shape = _value.shape
     else:
         if isinstance(value, np.ma.MaskedArray):
-            if value.count() < value.size:
+            if value.count() < value.size: #some values are masked
                 _value = value
             else:
                 _value = np.asarray(value)
         else:
-            _value = value
+            _value = np.asarray(value) #convert subclasses of ndarray
         _dtype = _value.dtype
         _shape = _value.shape
     if dtype is not None:

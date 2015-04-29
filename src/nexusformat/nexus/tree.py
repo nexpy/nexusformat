@@ -3885,9 +3885,8 @@ class NXdata(NXgroup):
         """
         Returns the NXfield containing the signal data.
         """
-        if 'signal' in self.attrs:
-            if self.attrs['signal'] in self:
-                return self[self.attrs['signal']]
+        if 'signal' in self.attrs and self.attrs['signal'] in self:
+            return self[self.attrs['signal']]
         for obj in self.values():
             if 'signal' in obj.attrs and str(obj.signal) == '1':
                 if isinstance(self[obj.nxname],NXlink):
@@ -3909,7 +3908,6 @@ class NXdata(NXgroup):
         self.attrs['signal'] = signal.nxname
         if signal.nxname not in self:
             self[signal.nxname] = signal
-        return self[signal.nxname]
 
     def _axes(self):
         """
@@ -3920,7 +3918,7 @@ class NXdata(NXgroup):
                 axes = _readaxes(self.attrs['axes'])
             elif self.nxsignal is not None and 'axes' in self.nxsignal.attrs:
                 axes = _readaxes(self.nxsignal.attrs['axes'])
-            return [getattr(self, name) for name in axes]
+            return [self[name] for name in axes]
         except (KeyError, AttributeError, UnboundLocalError):
             axes = {}
             for entry in self:
@@ -3932,9 +3930,10 @@ class NXdata(NXgroup):
                         return None
             if axes:
                 return [axes[key] for key in sorted(axes.keys())]
-            else:
+            elif self.nxsignal is not None:
                 return [NXfield(np.arange(self.nxsignal.shape[i]), 
                         name='Axis%s'%i) for i in range(self.nxsignal.ndim)]
+            return None
 
     def _set_axes(self, axes):
         """
@@ -3950,7 +3949,6 @@ class NXdata(NXgroup):
         axes_attr = ":".join([axis.nxname for axis in axes])
         if 'signal' in self.attrs:
             self.attrs['axes'] = axes_attr
-        self.nxsignal.attrs['axes'] = axes_attr
 
     def _errors(self):
         """

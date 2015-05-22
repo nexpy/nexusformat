@@ -1581,7 +1581,7 @@ class NXfield(NXobject):
             return object.__getattribute__(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
-        raise KeyError(name+" not in "+self.nxname)
+        raise AttributeError(name+" not in "+self.nxname)
 
     def __setattr__(self, name, value):
         """

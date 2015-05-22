@@ -2127,8 +2127,8 @@ class NXfield(NXobject):
         for large arrays will be printed.
         """
         if self._value is not None:
-            if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
-                and self.shape <> ():
+            if ((self.dtype.kind == 'S' or self.dtype == string_dtype)
+                 and self.shape != ()):
                 return '\n'.join([t for t in self._value.flatten()]).decode('utf-8')
             elif isinstance(self._value, six.text_type):
                 return self._value.encode(NX_ENCODING)
@@ -2144,7 +2144,7 @@ class NXfield(NXobject):
         """
         if self._value is not None:
             if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
-                and self.shape <> ():
+                and self.shape != ():
                 return '\n'.join([t for t in self._value.flatten()])
             elif isinstance(self._value, str):
                 return self._value.decode(NX_ENCODING)

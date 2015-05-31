@@ -2184,13 +2184,20 @@ class NXfield(NXobject):
         """
         Returns a list of NXfields containing axes.
 
-        Only works if the NXfield has the 'axes' attribute
+        If the NXfield does not have the 'axes' attribute but is defined as
+        the signal in its parent group, a list of the parent group's axes will
+        be returned. 
         """
         try:
-            return [getattr(self.nxgroup,name) 
+            return [getattr(self.nxgroup, name) 
                     for name in _readaxes(self.attrs['axes'])]
         except KeyError:
-            return None
+            try:
+                if self is self.nxgroup.nxsignal:
+                    return self.nxgroup.nxaxes
+            except Exception:
+                pass
+        return None
 
     def _getdata(self):
         """

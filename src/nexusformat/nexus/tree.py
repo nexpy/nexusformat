@@ -3837,6 +3837,36 @@ class NXdata(NXgroup):
                 result.errors = self.errors / other
             return result
 
+    @property
+    def plot_shape(self):
+        if self.nxsignal is not None:
+            return self.nxsignal.plot_shape
+        else:
+            return None
+
+    @property
+    def plot_rank(self):
+        if self.nxsignal is not None:
+            return self.nxsignal.plot_rank
+        else:
+            return None
+
+    @property
+    def plot_axes(self):
+        signal = self.nxsignal
+        if signal is not None:
+            if signal.shape > signal.plot_shape:
+                axes = self.nxaxes
+                newaxes = []
+                for i in range(signal.ndim):
+                    if signal.shape[i] > 1: 
+                        newaxes.append(axes[i])
+                return newaxes
+            else:
+                return self.nxaxes
+        else:
+            return None
+
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              zmin=None, zmax=None, **opts):
         """

@@ -710,7 +710,10 @@ def _getvalue(value, dtype=None, shape=None):
         if isinstance(value, unicode):
             _value = value
         else:
-            _value = value.decode(NX_ENCODING)
+            try:
+                _value = value.decode(NX_ENCODING)
+            except UnicodeDecodeError:
+                _value = value.decode('latin1')
         _dtype = string_dtype
         _shape = ()
     elif not isinstance(value, np.ndarray):

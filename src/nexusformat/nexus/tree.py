@@ -1645,7 +1645,7 @@ class NXfield(NXobject):
                 raise NeXusError('Data not available either in file or in memory')
         else:
             result = self.nxdata.__getitem__(idx)
-        return NXfield(result, name=self.nxname, attrs=self.attrs)
+        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """
@@ -1989,10 +1989,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata+other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata+other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
  
     def __radd__(self, other):
         """
@@ -2008,10 +2008,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata-other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata-other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __mul__(self, other):
         """
@@ -2019,10 +2019,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata*other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata*other, name=self.nxname,
-                          attrs=self.attrs)
+                          attrs=self.safe_attrs)
 
     def __rmul__(self, other):
         """
@@ -2038,10 +2038,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata/other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata/other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __rdiv__(self, other):
         """
@@ -2049,17 +2049,17 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=other.nxdata/self.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=other/self.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __pow__(self, power):
         """
         Returns the NXfield raised to the specified power.
         """
         return NXfield(value=pow(self.nxdata,power), name=self.nxname,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     def min(self, axis=None):
         """
@@ -2078,14 +2078,14 @@ class NXfield(NXobject):
         Returns an NXfield with the specified shape.
         """
         return NXfield(value=self.nxdata, name=self.nxname, shape=shape,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     def transpose(self):
         """
         Returns an NXfield containing the transpose of the data array.
         """
         return NXfield(value=self.nxdata.transpose(), name=self.nxname,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     @property
     def T(self):
@@ -2097,7 +2097,7 @@ class NXfield(NXobject):
         assuming it contains bin boundaries.
         """
         return NXfield((self.nxdata[:-1]+self.nxdata[1:])/2,
-                        name=self.nxname,attrs=self.attrs)
+                        name=self.nxname, attrs=self.safe_attrs)
 
     def add(self, data, offset):
         """
@@ -2326,6 +2326,17 @@ class NXfield(NXobject):
     shape = property(_getshape, _setshape, doc="Property: Shape of NeXus field")
     ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
     size = property(_getsize, doc="Property: Size of NeXus field")
+
+    @property
+    def safe_attrs(self):
+        _attrs = copy(self.attrs)
+        if 'target' in _attrs:
+            del _attrs['target']
+        if 'signal' in _attrs:
+            del _attrs['signal']
+        if 'axes' in _attrs:
+            del _attrs['axes']
+        return _attrs
 
     @property
     def plot_shape(self):     

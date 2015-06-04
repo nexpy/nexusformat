@@ -107,11 +107,9 @@ def read_images(filenames, shape):
     else:
         v = np.empty([len(filenames), shape[0], shape[1]], dtype=np.float32)
     v.fill(np.nan)
-    i = 0
-    for filename in filenames:
+    for i, filename in enumerate(filenames):
         if filename:
             v[i] = read_image(filename)
-        i += 1
     return v
 
 

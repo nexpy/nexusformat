@@ -2346,6 +2346,13 @@ class NXfield(NXobject):
         return _attrs
 
     @property
+    def reversed(self):
+        if self.ndim == 1 and self.nxdata[-1] < self.nxdata[0]:
+            return True
+        else:
+            return False
+
+    @property
     def plot_shape(self):     
         _shape = list(self.shape)
         while 1 in _shape:
@@ -3043,42 +3050,6 @@ class NXgroup(NXobject):
         return (centers(self.nxsignal,self.nxaxes)*self.nxsignal).sum() \
                 /self.nxsignal.sum()
 
-    def project(self, axes, limits):
-        """
-        Projects the data along a specified 1D axis or 2D axes summing over the
-        limits, which are specified as tuples for each dimension.
-        
-        This assumes that the data is at least two-dimensional.
-        """
-        if not isinstance(axes, list):
-            axes = [axes]
-        if len(limits) < len(self.nxsignal.shape):
-            raise NeXusError("Too few limits specified")
-        elif len(axes) > 2:
-            raise NeXusError("Projections to more than two dimensions not supported")
-        projection_axes =  [x for x in range(len(limits)) if x not in axes]
-        projection_axes.sort(reverse=True)
-        slab = [slice(_min, _max) for _min, _max in limits]
-        result = self[slab]
-        slab_axes = list(projection_axes)
-        for slab_axis in slab_axes:
-            slab[slab_axis] = convert_index(slab[slab_axis],
-                                            self.nxaxes[slab_axis])
-            if isinstance(slab[slab_axis], int):
-                slab.pop(slab_axis)
-                projection_axes.pop(projection_axes.index(slab_axis))
-                for i in range(len(projection_axes)):
-                    if projection_axes[i] > slab_axis:
-                        projection_axes[i] -= 1
-        if projection_axes:
-            result = result.sum(projection_axes)
-        if len(axes) > 1 and axes[0] > axes[1]:
-            result[result.nxsignal.nxname] = result.nxsignal.transpose()
-            if result.nxerrors:
-                result[result.nxerrors.nxname] = result.nxerrors.transpose()
-            result.nxaxes = result.nxaxes[::-1]            
-        return result        
-
     def is_plottable(self):
         plottable = False
         for entry in self:
@@ -3658,29 +3629,45 @@ class NXdata(NXgroup):
             return NXgroup.__getitem__(self, key)
         elif self.nxsignal:
             idx = key
+            signal = self.nxsignal
             axes = self.nxaxes
-            if isinstance(idx, int) or isinstance(idx, slice):
+            removed_axes = []
+            if (isinstance(idx, int) or isinstance(idx, float) or 
+                isinstance(idx, slice)):
                 idx = convert_index(idx, axes[0])
                 axes[0] = axes[0][idx]
-                result = NXdata(self.nxsignal[idx], axes)
-                if self.nxsignal.mask:
-                    result[self.nxsignal.mask.nxname] = self.nxsignal.mask
-                if self.nxerrors: 
-                    result.errors = self.errors[idx]
+                if axes[0].shape == () or axes[0].shape == (1):
+                    removed_axes.append(axes[0])
             else:
-                i = 0
                 slices = []
-                for ind in idx:
+                for i,ind in enumerate(idx):
                     ind = convert_index(ind, axes[i])
                     axes[i] = axes[i][ind]
                     slices.append(ind)
+                    if axes[i].shape == () or axes[i].shape == (1):
+                        removed_axes.append(axes[i])
+                    idx = tuple(slices)
                     i = i + 1
-                result = NXdata(self.nxsignal[tuple(slices)], axes)
-                if self.nxerrors: 
-                    result.errors = self.errors[tuple(slices)]
+            for axis in removed_axes:
+                axes.remove(axis)
+            signal = self.nxsignal[idx]
+            if self.nxerrors: 
+                errors = self.errors[idx]
+            else:
+                errors = None
+            if 'axes' in signal.attrs:
+                del signal.attrs['axes']
+            for axis in axes:
+                if axis.shape == () or axis.shape == (1):
+                    removed_axes.append(axis)
+                    axes.remove(axis)
+            result = NXdata(signal, axes, errors, *removed_axes)
+            if errors is not None:
+                result.errors = errors
+            if signal.mask:
+                result[signal.mask.nxname] = signal.mask           
             if self.nxtitle:
                 result.title = self.nxtitle
-            result = simplify_axes(result)
             return result
         else:
             raise NeXusError("No signal specified")
@@ -3694,14 +3681,12 @@ class NXdata(NXgroup):
                 idx = convert_index(idx, axes[0])
                 self.nxsignal[idx] = value
             else:
-                i = 0
                 slices = []
                 axes = self.nxaxes
-                for ind in idx:
+                for i,ind in enumerate(idx):
                     ind = convert_index(ind, axes[i])
                     axes[i] = axes[i][ind]
                     slices.append(ind)
-                    i = i + 1
                 self.nxsignal[tuple(slices)] = value
         else:
             raise NeXusError('Invalid index')
@@ -3837,6 +3822,42 @@ class NXdata(NXgroup):
                 result.errors = self.errors / other
             return result
 
+    def project(self, axes, limits):
+        """
+        Projects the data along a specified 1D axis or 2D axes summing over the
+        limits, which are specified as tuples for each dimension.
+        
+        This assumes that the data is at least two-dimensional.
+        """
+        if not isinstance(axes, list):
+            axes = [axes]
+        if len(limits) < len(self.nxsignal.shape):
+            raise NeXusError("Too few limits specified")
+        elif len(axes) > 2:
+            raise NeXusError("Projections to more than two dimensions not supported")
+        projection_axes =  [x for x in range(len(limits)) if x not in axes]
+        projection_axes.sort(reverse=True)
+        slab = [slice(_min, _max) for _min, _max in limits]
+        result = self[slab]
+        slab_axes = list(projection_axes)
+        for slab_axis in slab_axes:
+            slab[slab_axis] = convert_index(slab[slab_axis],
+                                            self.nxaxes[slab_axis])
+            if isinstance(slab[slab_axis], int):
+                slab.pop(slab_axis)
+                projection_axes.pop(projection_axes.index(slab_axis))
+                for i in range(len(projection_axes)):
+                    if projection_axes[i] > slab_axis:
+                        projection_axes[i] -= 1
+        if projection_axes:
+            result = result.sum(projection_axes)
+        if len(axes) > 1 and axes[0] > axes[1]:
+            result[result.nxsignal.nxname] = result.nxsignal.transpose()
+            if result.nxerrors:
+                result[result.nxerrors.nxname] = result.nxerrors.transpose()
+            result.nxaxes = result.nxaxes[::-1]            
+        return result        
+
     @property
     def plot_shape(self):
         if self.nxsignal is not None:
@@ -3855,7 +3876,7 @@ class NXdata(NXgroup):
     def plot_axes(self):
         signal = self.nxsignal
         if signal is not None:
-            if signal.shape > signal.plot_shape:
+            if len(signal.shape) > len(signal.plot_shape):
                 axes = self.nxaxes
                 newaxes = []
                 for i in range(signal.ndim):
@@ -4139,6 +4160,9 @@ def convert_index(idx, axis):
     elif isinstance(idx, slice):
         if isinstance(idx.start, NXfield) and isinstance(idx.stop, NXfield):
             idx = slice(idx.start.nxdata, idx.stop.nxdata)
+        if ((axis.reversed and idx.start < idx.stop) or
+            (not axis.reversed and idx.start > idx.stop)):
+            idx = slice(idx.stop, idx.start)
         if idx.start is None:
             start = None
         else:
@@ -4146,7 +4170,7 @@ def convert_index(idx, axis):
         if idx.stop is None:
             stop = None
         else:
-            stop = axis.index(idx.stop,max=True) + 1
+            stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
             idx = slice(start, stop)
         elif stop <= start+1:
@@ -4156,24 +4180,6 @@ def convert_index(idx, axis):
     elif isinstance(idx, float):
         idx = axis.index(idx)
     return idx
-
-def simplify_axes(data):
-    shape = list(data.nxsignal.shape)
-    while 1 in shape: 
-        shape.remove(1)
-    data.nxsignal._shape = shape
-    if data.nxsignal._value is not None:
-        data.nxsignal._value.shape = shape
-    if data.nxerrors is not None:
-        data.nxerrors._shape = shape
-        if data.nxerrors._value is not None:
-            data.nxerrors._value.shape = shape
-    axes = []
-    for axis in data.nxaxes:
-        if len(axis) > 1: 
-            axes.append(axis)
-    data.nxaxes = axes
-    return data
 
 def centers(signal, axes):
     """

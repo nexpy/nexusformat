@@ -31,19 +31,36 @@ def _fixaxes(signal, axes):
     return signal.nxdata.view().reshape(shape), newaxes
 
 
-def centers(signal, axes):
+def centers(axis, dimlen):
     """
-    Return the centers of the axes.
+    Return the centers of the axis bins.
 
-    This works regardless if the axes contain bin boundaries or centers.
+    This works regardless if the axis contains bin boundaries or centers.
     """
-    def findc(axis, dimlen):
-        if axis.shape[0] == dimlen+1:
-            return (axis.nxdata[:-1] + axis.nxdata[1:])/2
-        else:
-            assert axis.shape[0] == dimlen
-            return axis.nxdata
-    return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
+    ax = axis.astype(np.float32)
+    if ax.shape[0] == dimlen+1:
+        return (ax[:-1] + ax[1:])/2
+    else:
+        assert ax.shape[0] == dimlen
+        return ax
+
+
+def boundaries(axis, dimlen):
+    """
+    Return the boundaries of the axis bins.
+
+    This works regardless if the axis contains bin boundaries or centers.
+    """
+    ax = axis.astype(np.float32)
+    if ax.shape[0] == dimlen:
+        start = ax[0] - (ax[1] - ax[0])/2
+        end = ax[-1] + (ax[-1] - ax[-2])/2
+        return np.concatenate((np.atleast_1d(start),
+                               (ax[:-1] + ax[1:])/2, 
+                               np.atleast_1d(end)))
+    else:
+        assert ax.shape[0] == dimlen + 1
+        return ax
 
 
 def label(field):
@@ -64,7 +81,7 @@ class PylabPlotter(object):
     Matplotlib plotter class for NeXus data.
     """
 
-    def plot(self, data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts):
+    def plot(self, data_group, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts):
         """
         Plot the data entry.
 
@@ -90,19 +107,13 @@ class PylabPlotter(object):
             plt.autoscale(enable=True)
             plt.clf()
 
-        signal = data.nxsignal
-        axes = data.nxaxes
-        errors = data.nxerrors
-        title = data.nxtitle
+        signal = data_group.nxsignal
+        errors = data_group.nxerrors
+        title = data_group.nxtitle
 
         # Provide a new view of the data if there is a dimension of length 1
-        if 1 in signal.shape:
-            data, axes = _fixaxes(signal, axes)
-        else:
-            data = signal.nxdata
-
-        # Find the centers of the bins for histogrammed data
-        axis_data = centers(data, axes)
+        data, axes = (signal.nxdata.reshape(data_group.plot_shape), 
+                      data_group.plot_axes)
 
         #One-dimensional Plot
         if len(data.shape) == 1:
@@ -111,9 +122,10 @@ class PylabPlotter(object):
                     errors = NXfield(np.sqrt(data))
             if errors:
                 ebars = errors.nxdata
-                plt.errorbar(axis_data[0], data, ebars, fmt=fmt, **opts)
+                plt.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
+                             fmt=fmt, **opts)
             else:
-                plt.plot(axis_data[0], data, fmt, **opts)
+                plt.plot(centers(axes[0], data.shape[0]), data, fmt, **opts)
             if not over:
                 ax = plt.gca()
                 xlo, xhi = ax.set_xlim(auto=True)        
@@ -150,10 +162,12 @@ class PylabPlotter(object):
                     print "Warning: Only the top 2D slice of the data is plotted"
 
             if image:
-                x, y = axis_data[-2], axis_data[-3]
+                x = boundaries(axes[-2], data.shape[-2])
+                y = boundaries(axes[-3], data.shape[-3])
                 xlabel, ylabel = label(axes[-2]), label(axes[-3])
             else:
-                x, y = axis_data[-1], axis_data[-2]
+                x = boundaries(axes[-1], data.shape[-1])
+                y = boundaries(axes[-2], data.shape[-2])
                 xlabel, ylabel = label(axes[-1]), label(axes[-2])
 
             if not zmin: 
@@ -174,14 +188,11 @@ class PylabPlotter(object):
                 im = ax.imshow(data, **opts)
                 ax.set_aspect('equal')
             else:
-                extent = (x[0],x[-1],y[0],y[-1])
-                im = NonUniformImage(ax, extent=extent, **opts)
-                im.set_data(x, y, data)
+                im = ax.pcolormesh(x, y, data, **opts)
                 im.get_cmap().set_bad('k', 1.0)
                 ax.set_xlim(x[0], x[-1])
                 ax.set_ylim(y[0], y[-1])
                 ax.set_aspect('auto')
-            ax.images.append(im)
             if not image:
                 plt.colorbar(im)
 	
@@ -212,4 +223,3 @@ class PylabPlotter(object):
 
 
 plotview = PylabPlotter()
-

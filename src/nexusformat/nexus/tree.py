@@ -2980,12 +2980,17 @@ class NXgroup(NXobject):
             if self.nxroot == target.nxroot:
                 if isinstance(target, NXobject):
                     if target.nxname in self:
-                        raise NeXusError("Object with the same name already exists in '%s'" % self.nxpath)
+                        raise NeXusError(
+                        "Object with the same name already exists in '%s'" 
+                        % self.nxpath)
                     self[target.nxname] = NXlink(target=target)
                 else:
                     raise NeXusError("Link target must be an NXobject")
+            elif isinstance(target, NXfield):
+                self[target.nxname] = NXlink(target=target.nxpath, 
+                                             file=target.nxfilename)
             else:
-                self[target.nxname] = NXlink(target=target.nxpath, file=target.nxfilename)
+                raise NeXusError("Only a field can currently be linked externally")
         else:
             raise NeXusError("The group must have a root object of class NXroot")                
 

@@ -19,18 +19,6 @@ import numpy as np
 from nexusformat.nexus import NXfield, NeXusError
 
 
-def _fixaxes(signal, axes):
-    """
-    Remove length-one dimensions from plottable data
-    """
-    shape = list(signal.shape)
-    while 1 in shape: shape.remove(1)
-    newaxes = []
-    for axis in axes:
-        if axis.size > 1: newaxes.append(axis)
-    return signal.nxdata.view().reshape(shape), newaxes
-
-
 def centers(axis, dimlen):
     """
     Return the centers of the axis bins.

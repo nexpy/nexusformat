@@ -3029,9 +3029,7 @@ class NXgroup(NXobject):
                 axis = [axis]
             axis = tuple(axis)
             signal = NXfield(self.nxsignal.sum(axis), name=self.nxsignal.nxname,
-                             attrs=self.nxsignal.attrs)
-            if 'axes' in signal.attrs:
-                del signal.attrs['axes']
+                             attrs=self.nxsignal.safe_attrs)
             axes = self.nxaxes
             averages = []
             for ax in axis:
@@ -3674,7 +3672,7 @@ class NXdata(NXgroup):
                         idx = slice(idx.start, idx.stop+1)
                     axes[0] = axes[0][idx]
                 else:
-                    axes[0] = axis[idx]                
+                    axes[0] = axis                
             else:
                 slices = []
                 for i,ind in enumerate(idx):
@@ -3693,7 +3691,7 @@ class NXdata(NXgroup):
                             ind = slice(ind.start, ind.stop+1)
                         axes[i] = axes[i][ind]
                     else:
-                        axes[i] = axis[ind]
+                        axes[i] = axis
                 idx = tuple(slices)
             for axis in removed_axes:
                 axes.remove(axis)
@@ -3704,10 +3702,6 @@ class NXdata(NXgroup):
                 errors = None
             if 'axes' in signal.attrs:
                 del signal.attrs['axes']
-            for axis in axes:
-                if axis.shape == () or axis.shape == (1):
-                    removed_axes.append(axis)
-                    axes.remove(axis)
             result = NXdata(signal, axes, errors, *removed_axes)
             if errors is not None:
                 result.errors = errors

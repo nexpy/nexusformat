@@ -2099,6 +2099,19 @@ class NXfield(NXobject):
         return NXfield((self.nxdata[:-1]+self.nxdata[1:])/2,
                         name=self.nxname, attrs=self.safe_attrs)
 
+    def boundaries(self):
+        """
+        Returns an NXfield with the boundaries of a single axis
+        assuming it contains bin centers.
+        """
+        ax = self.nxdata
+        start = ax[0] - (ax[1] - ax[0])/2
+        end = ax[-1] + (ax[-1] - ax[-2])/2
+        return NXfield(np.concatenate((np.atleast_1d(start), 
+                                       (ax[:-1] + ax[1:])/2, 
+                                       np.atleast_1d(end))),
+                       name=self.nxname, attrs=self.safe_attrs)
+
     def add(self, data, offset):
         """
         Adds a slab into the data array.
@@ -3647,20 +3660,41 @@ class NXdata(NXgroup):
             removed_axes = []
             if (isinstance(idx, int) or isinstance(idx, float) or 
                 isinstance(idx, slice)):
-                idx = convert_index(idx, axes[0])
-                axes[0] = axes[0][idx]
-                if axes[0].shape == () or axes[0].shape == (1):
+                if signal.shape[0] < axes[0].shape[0]:
+                    axis = axes[0].centers()
+                else:
+                    axis = axes[0]
+                idx = convert_index(idx, axis)
+                axis = axis[idx]
+                if axis.shape == () or axis.shape == (1,):
+                    axes[0] = axis
                     removed_axes.append(axes[0])
+                elif signal.shape[0] < axes[0].shape[0]:
+                    if isinstance(ind, slice) and idx.stop is not None:
+                        idx = slice(idx.start, idx.stop+1)
+                    axes[0] = axes[0][idx]
+                else:
+                    axes[0] = axis[idx]                
             else:
                 slices = []
                 for i,ind in enumerate(idx):
-                    ind = convert_index(ind, axes[i])
-                    axes[i] = axes[i][ind]
+                    if signal.shape[i] < axes[i].shape[0]:
+                        axis = axes[i].centers()
+                    else:
+                        axis = axes[i]
+                    ind = convert_index(ind, axis)
+                    axis = axis[ind]
                     slices.append(ind)
-                    if axes[i].shape == () or axes[i].shape == (1):
+                    if axis.shape == () or axis.shape == (1,):
+                        axes[i] = axis
                         removed_axes.append(axes[i])
-                    idx = tuple(slices)
-                    i = i + 1
+                    elif signal.shape[i] < axes[i].shape[0]:
+                        if isinstance(ind, slice) and ind.stop is not None:
+                            ind = slice(ind.start, ind.stop+1)
+                        axes[i] = axes[i][ind]
+                    else:
+                        axes[i] = axis[ind]
+                idx = tuple(slices)
             for axis in removed_axes:
                 axes.remove(axis)
             signal = self.nxsignal[idx]

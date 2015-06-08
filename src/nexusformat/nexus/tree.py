@@ -2987,6 +2987,8 @@ class NXgroup(NXobject):
                 else:
                     raise NeXusError("Link target must be an NXobject")
             elif isinstance(target, NXfield):
+                if isinstance(target, NXlinkfield):
+                    target = target.nxlink
                 self[target.nxname] = NXlink(target=target.nxpath, 
                                              file=target.nxfilename)
             else:
@@ -3292,6 +3294,12 @@ class NXlinkexternal(NXlink, NXfield):
                     (NXfield._str_value(self), self._filename)
         else:
             return "NXlink(target='%s', file='%s')" % (self._target, self._filename)
+
+    def __str__(self):
+        return NXfield.__str__(self)
+
+    def __unicode__(self):
+        return NXfield.__unicode__(self)
 
     def __getattr__(self, key):
         return NXfield.__getattr__(self, key)

@@ -3668,7 +3668,7 @@ class NXdata(NXgroup):
                     axes[0] = axis
                     removed_axes.append(axes[0])
                 elif signal.shape[0] < axes[0].shape[0]:
-                    if isinstance(ind, slice) and idx.stop is not None:
+                    if isinstance(idx, slice) and idx.stop is not None:
                         idx = slice(idx.start, idx.stop+1)
                     axes[0] = axes[0][idx]
                 else:

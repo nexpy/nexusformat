@@ -2013,6 +2013,17 @@ class NXfield(NXobject):
             return NXfield(value=self.nxdata-other, name=self.nxname,
                            attrs=self.safe_attrs)
 
+    def __rsub__(self, other):
+        """
+        Returns the NXfield after subtracting from another number.
+        """
+        if isinstance(other, NXfield):
+            return NXfield(value=other.nxdata-self.nxdata, name=self.nxname,
+                           attrs=self.safe_attrs)
+        else:
+            return NXfield(value=other-self.nxdata, name=self.nxname,
+                           attrs=self.safe_attrs)
+
     def __mul__(self, other):
         """
         Returns the product of the NXfield and another NXfield or number.
@@ -2022,7 +2033,7 @@ class NXfield(NXobject):
                            attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata*other, name=self.nxname,
-                          attrs=self.safe_attrs)
+                           attrs=self.safe_attrs)
 
     def __rmul__(self, other):
         """

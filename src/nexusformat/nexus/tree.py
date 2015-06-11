@@ -3663,47 +3663,11 @@ class NXdata(NXgroup):
         if isinstance(key, basestring): #i.e., requesting a dictionary value
             return NXgroup.__getitem__(self, key)
         elif self.nxsignal:
-            idx = key
-            signal = self.nxsignal
-            axes = self.nxaxes
+            idx, axes = self.slab(key)
             removed_axes = []
-            if (isinstance(idx, int) or isinstance(idx, float) or 
-                isinstance(idx, slice)):
-                if signal.shape[0] < axes[0].shape[0]:
-                    axis = axes[0].centers()
-                else:
-                    axis = axes[0]
-                idx = convert_index(idx, axis)
-                axis = axis[idx]
+            for axis in axes:
                 if axis.shape == () or axis.shape == (1,):
-                    axes[0] = axis
-                    removed_axes.append(axes[0])
-                elif signal.shape[0] < axes[0].shape[0]:
-                    if isinstance(idx, slice) and idx.stop is not None:
-                        idx = slice(idx.start, idx.stop+1)
-                    axes[0] = axes[0][idx]
-                else:
-                    axes[0] = axis                
-            else:
-                slices = []
-                for i,ind in enumerate(idx):
-                    if signal.shape[i] < axes[i].shape[0]:
-                        axis = axes[i].centers()
-                    else:
-                        axis = axes[i]
-                    ind = convert_index(ind, axis)
-                    axis = axis[ind]
-                    slices.append(ind)
-                    if axis.shape == () or axis.shape == (1,):
-                        axes[i] = axis
-                        removed_axes.append(axes[i])
-                    elif signal.shape[i] < axes[i].shape[0]:
-                        if isinstance(ind, slice) and ind.stop is not None:
-                            ind = slice(ind.start, ind.stop+1)
-                        axes[i] = axes[i][ind]
-                    else:
-                        axes[i] = axis
-                idx = tuple(slices)
+                    removed_axes.append(axis)
             for axis in removed_axes:
                 axes.remove(axis)
             signal = self.nxsignal[idx]
@@ -3889,14 +3853,12 @@ class NXdata(NXgroup):
             raise NeXusError("Projections to more than two dimensions not supported")
         projection_axes =  [x for x in range(len(limits)) if x not in axes]
         projection_axes.sort(reverse=True)
-        slab = [slice(_min, _max) for _min, _max in limits]
-        result = self[slab]
-        slab_axes = list(projection_axes)
+        idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
+        result = self[idx]
+        idx, slab_axes = list(idx), list(projection_axes)
         for slab_axis in slab_axes:
-            slab[slab_axis] = convert_index(slab[slab_axis],
-                                            self.nxaxes[slab_axis])
-            if isinstance(slab[slab_axis], int):
-                slab.pop(slab_axis)
+            if isinstance(idx[slab_axis], int):
+                idx.pop(slab_axis)
                 projection_axes.pop(projection_axes.index(slab_axis))
                 for i in range(len(projection_axes)):
                     if projection_axes[i] > slab_axis:
@@ -3909,6 +3871,25 @@ class NXdata(NXgroup):
                 result[result.nxerrors.nxname] = result.nxerrors.transpose()
             result.nxaxes = result.nxaxes[::-1]            
         return result        
+
+    def slab(self, idx):
+        if (isinstance(idx, int) or isinstance(idx, float) or isinstance(idx, slice)):
+            idx = [idx]
+        signal = self.nxsignal
+        axes = self.nxaxes
+        slices = []
+        for i,ind in enumerate(idx):
+            if signal.shape[i] < axes[i].shape[0]:
+                axis = axes[i].centers()
+            else:
+                axis = axes[i]
+            ind = convert_index(ind, axis)
+            slices.append(ind)
+            if (signal.shape[i] < axes[i].shape[0] and
+                isinstance(ind, slice) and ind.stop is not None):
+                ind = slice(ind.start, ind.stop+1)
+            axes[i] = axis[ind]
+        return tuple(slices), axes
 
     @property
     def plot_shape(self):

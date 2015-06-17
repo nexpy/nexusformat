@@ -1814,6 +1814,15 @@ class NXfield(NXobject):
         """
         return int(np.prod(self.shape))
 
+    def __nonzero__(self):
+        """
+        Returns False if all values are 0 or False, True otherwise.
+        """
+        if np.any(self.nxdata):
+            return True
+        else:
+            return False
+
     def index(self, value, max=False):
         """
         Returns the index of a one-dimensional NXfield element that is less

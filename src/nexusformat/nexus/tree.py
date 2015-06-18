@@ -3310,11 +3310,6 @@ class NXlinkexternal(NXlink, NXfield):
             self._target = target
         self._filename = file
         self._mode = 'r'
-        if 'value' not in opts:
-            try:
-                self.readvalues()
-            except NeXusError:
-                pass
         
     def __repr__(self):
         if self._value is not None:

@@ -1818,10 +1818,14 @@ class NXfield(NXobject):
         """
         Returns False if all values are 0 or False, True otherwise.
         """
-        if np.any(self.nxdata):
+        try:
+            if np.any(self.nxdata):
+                return True
+            else:
+                return False
+        except NeXusError:
+            #This usually means that there are too many values to load
             return True
-        else:
-            return False
 
     def index(self, value, max=False):
         """
@@ -3077,7 +3081,7 @@ class NXgroup(NXobject):
         Currently, only the first moment has been defined. Eventually, the
         order of the moment will be defined by the 'order' parameter.
         """
-        if not self.nxsignal:
+        if self.nxsignal is None:
             raise NeXusError("No signal to calculate")
         elif len(self.nxsignal.shape) > 1:
             raise NeXusError("Operation only possible on one-dimensional signals")
@@ -3666,7 +3670,7 @@ class NXdata(NXgroup):
         """
         if isinstance(key, basestring): #i.e., requesting a dictionary value
             return NXgroup.__getitem__(self, key)
-        elif self.nxsignal:
+        elif self.nxsignal is not None:
             idx, axes = self.slab(key)
             removed_axes = []
             for axis in axes:
@@ -3695,7 +3699,7 @@ class NXdata(NXgroup):
     def __setitem__(self, idx, value):
         if isinstance(idx, basestring):
             NXgroup.__setitem__(self, idx, value)
-        elif self.nxsignal:
+        elif self.nxsignal is not None:
             if isinstance(idx, int) or isinstance(idx, slice):
                 axes = self.nxaxes
                 idx = convert_index(idx, axes[0])

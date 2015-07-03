@@ -2825,8 +2825,6 @@ class NXgroup(NXobject):
                 group._entries[key] = value
             elif isinstance(value, NXlink) and group.nxroot is value.nxroot:
                 group._entries[key] = copy(value)
-            elif isinstance(value, NXlink) and key != value.nxname:
-                raise NeXusError("Cannot change the name of a linked object")
             elif isinstance(value, NXobject):
                 if value.nxgroup:
                     memo = {}
@@ -3004,7 +3002,7 @@ class NXgroup(NXobject):
         else:
             self[name] = NXfield(value=value, name=name, group=self)
 
-    def makelink(self, target):
+    def makelink(self, target, name=None):
         """
         Creates a linked NXobject within the group.
 
@@ -3016,18 +3014,26 @@ class NXgroup(NXobject):
         if isinstance(self.nxroot, NXroot):
             if self.nxroot == target.nxroot:
                 if isinstance(target, NXobject):
-                    if target.nxname in self:
+                    if name is None:
+                        name = target.nxname
+                    if name in self:
                         raise NeXusError(
                         "Object with the same name already exists in '%s'" 
                         % self.nxpath)
-                    self[target.nxname] = NXlink(target=target)
+                    self[name] = NXlink(target=target, name=name)
                 else:
                     raise NeXusError("Link target must be an NXobject")
             elif isinstance(target, NXfield):
                 if isinstance(target, NXlinkfield):
                     target = target.nxlink
-                self[target.nxname] = NXlink(target=target.nxpath, 
-                                             file=target.nxfilename)
+                if name is None:
+                    name = target.nxname
+                if name in self:
+                    raise NeXusError(
+                    "Object with the same name already exists in '%s'" 
+                    % self.nxpath)
+                self[name] = NXlink(target=target.nxpath, name=name,
+                                    file=target.nxfilename)
             else:
                 raise NeXusError("Only a field can currently be linked externally")
         else:
@@ -3209,7 +3215,10 @@ class NXlink(NXobject):
     def __init__(self, target=None, name=None, file=None, **opts):
         self._class = "NXlink"
         if isinstance(target, NXobject):
-            self._name = target.nxname
+            if name is None:
+                self._name = target.nxname
+            else:
+                self._name = name
             self._target = target.attrs["target"] = target.nxpath
             if target.nxclass == "NXlink":
                 raise NeXusError("Cannot link to another NXlink object")
@@ -3258,9 +3267,6 @@ class NXlink(NXobject):
             return self.nxlink._str_tree(indent, attrs, recursive)
         else:
             return " "*indent+self.nxname+' -> '+self._target
-
-    def rename(self, name):
-        raise NeXusError("Cannot rename a linked object")
 
     def _getlink(self):
         return self.nxroot[self._target]

@@ -2394,7 +2394,7 @@ class NXfield(NXobject):
         _shape = list(self.shape)
         while 1 in _shape:
             _shape.remove(1)
-        return _shape
+        return tuple(_shape)
 
     @property
     def plot_rank(self):

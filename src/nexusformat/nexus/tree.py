@@ -1064,10 +1064,21 @@ class NXobject(object):
         Returns the directory tree as a string.
 
         The tree contains all child objects of this object and their children.
-        It invokes the 'dir' method with both 'attrs' and 'recursive' set
-        to True.
+        It invokes the 'dir' method with 'attrs' set to False and 'recursive'
+        set to True.
         """
         return self._str_tree(attrs=True, recursive=True)
+
+    @property
+    def short_tree(self):
+        """
+        Returns the directory tree as a string.
+
+        The tree contains all child objects of this object and their children.
+        It invokes the 'dir' method with 'attrs' set to False and 'recursive'
+        set to True.
+        """
+        return self._str_tree(attrs=False, recursive=True)
 
     def rename(self, name):
         if self.nxfilemode == 'r':
@@ -3263,10 +3274,7 @@ class NXlink(NXobject):
         return unicode(self.nxlink)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        if self.nxlink:
-            return self.nxlink._str_tree(indent, attrs, recursive)
-        else:
-            return " "*indent+self.nxname+' -> '+self._target
+        return " "*indent+self.nxname+' -> '+self._target
 
     def _getlink(self):
         return self.nxroot[self._target]

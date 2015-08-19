@@ -500,11 +500,14 @@ class NXFile(object):
                 return [(path, data._target)]
 
         if data._uncopied_data:
+            if self.nxpath in self:
+                del self[self.nxpath]
             _file, _path = data._uncopied_data
-            with _file as f:
-                if self.nxpath in self:
-                    del self[self.nxpath]
-                f.copy(_path, self[parent], self.nxpath)
+            if _file._filename != self._filename:
+                with _file as f:
+                    f.copy(_path, self[parent], self.nxpath)
+            else:
+                self._file.copy(_path, self[parent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[parent], self.nxpath)
@@ -2264,7 +2267,7 @@ class NXfield(NXobject):
                     self._value.shape = self._shape
             else:
                 raise NeXusError('Data size larger than NX_MEMORY=%s MB' % NX_MEMORY)
-        if not self.mask is None:
+        if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
                     mask = self.mask.nxdata
@@ -4353,7 +4356,7 @@ def demo(argv):
 
     else:
         usage = """
-usage: %s cmd [args]
+    usage: %s cmd [args]
     copy fromfile.nxs tofile.nxs
     ls *.nxs
     plot file.nxs entry.data
@@ -4361,6 +4364,7 @@ usage: %s cmd [args]
         print usage
 
 nxdemo = demo
+
 
 if __name__ == "__main__":
     import sys

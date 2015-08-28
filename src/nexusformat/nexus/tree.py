@@ -253,7 +253,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink',
            'NeXusError', 
            'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
            'NX_ENCODING', 'nxsetencoding',
-           'nxclasses', 'nxload', 'nxsave', 'nxdir', 'nxdemo']
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
@@ -500,11 +500,14 @@ class NXFile(object):
                 return [(path, data._target)]
 
         if data._uncopied_data:
+            if self.nxpath in self:
+                del self[self.nxpath]
             _file, _path = data._uncopied_data
-            with _file as f:
-                if self.nxpath in self:
-                    del self[self.nxpath]
-                f.copy(_path, self[parent], self.nxpath)
+            if _file._filename != self._filename:
+                with _file as f:
+                    f.copy(_path, self[parent], self.nxpath)
+            else:
+                self._file.copy(_path, self[parent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[parent], self.nxpath)
@@ -616,9 +619,8 @@ class NXFile(object):
         self._setattrs()
 
     def linkexternal(self, link):
-        if os.path.isabs(link.nxfilename):
-            link.nxfilename = os.path.relpath(link.nxfilename, 
-                                              os.path.dirname(self.filename))
+        link_filename = os.path.relpath(link.nxfilename, 
+                                        os.path.dirname(self.filename))
         if self._isexternal():
             current_link = self.get(self.nxpath, getlink=True)
             if current_link.filename == link.nxfilename and \
@@ -626,7 +628,7 @@ class NXFile(object):
                return
             else:
                 del self[self.nxpath]
-        self[self.nxpath] = h5.ExternalLink(link.nxfilename, link.nxtarget)
+        self[self.nxpath] = h5.ExternalLink(link_filename, link.nxtarget)
 
     def _isexternal(self):
         return self.get(self.nxpath, getclass=True, getlink=True) == h5.ExternalLink
@@ -711,7 +713,10 @@ def _getvalue(value, dtype=None, shape=None):
         if isinstance(value, unicode):
             _value = value
         else:
-            _value = value.decode(NX_ENCODING)
+            try:
+                _value = value.decode(NX_ENCODING)
+            except UnicodeDecodeError:
+                _value = value.decode('latin1')
         _dtype = string_dtype
         _shape = ()
     elif not isinstance(value, np.ndarray):
@@ -722,12 +727,12 @@ def _getvalue(value, dtype=None, shape=None):
         _shape = _value.shape
     else:
         if isinstance(value, np.ma.MaskedArray):
-            if value.count() < value.size:
+            if value.count() < value.size: #some values are masked
                 _value = value
             else:
                 _value = np.asarray(value)
         else:
-            _value = value
+            _value = np.asarray(value) #convert subclasses of ndarray
         _dtype = _value.dtype
         _shape = _value.shape
     if dtype is not None:
@@ -1062,10 +1067,21 @@ class NXobject(object):
         Returns the directory tree as a string.
 
         The tree contains all child objects of this object and their children.
-        It invokes the 'dir' method with both 'attrs' and 'recursive' set
-        to True.
+        It invokes the 'dir' method with 'attrs' set to False and 'recursive'
+        set to True.
         """
         return self._str_tree(attrs=True, recursive=True)
+
+    @property
+    def short_tree(self):
+        """
+        Returns the directory tree as a string.
+
+        The tree contains all child objects of this object and their children.
+        It invokes the 'dir' method with 'attrs' set to False and 'recursive'
+        set to True.
+        """
+        return self._str_tree(attrs=False, recursive=True)
 
     def rename(self, name):
         if self.nxfilemode == 'r':
@@ -1519,8 +1535,6 @@ class NXfield(NXobject):
         self._group = group
         self._dtype = dtype
         if dtype:
-            if dtype == 'char':
-                dtype = string_dtype
             try:
                 self._dtype = np.dtype(dtype)
             except Exception:
@@ -1645,7 +1659,7 @@ class NXfield(NXobject):
                 raise NeXusError('Data not available either in file or in memory')
         else:
             result = self.nxdata.__getitem__(idx)
-        return NXfield(result, name=self.nxname, attrs=self.attrs)
+        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """
@@ -1813,6 +1827,19 @@ class NXfield(NXobject):
         Returns the length of the NXfield data.
         """
         return int(np.prod(self.shape))
+
+    def __nonzero__(self):
+        """
+        Returns False if all values are 0 or False, True otherwise.
+        """
+        try:
+            if np.any(self.nxdata):
+                return True
+            else:
+                return False
+        except NeXusError:
+            #This usually means that there are too many values to load
+            return True
 
     def index(self, value, max=False):
         """
@@ -1989,10 +2016,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata+other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata+other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
  
     def __radd__(self, other):
         """
@@ -2008,10 +2035,21 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata-other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata-other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
+
+    def __rsub__(self, other):
+        """
+        Returns the NXfield after subtracting from another number.
+        """
+        if isinstance(other, NXfield):
+            return NXfield(value=other.nxdata-self.nxdata, name=self.nxname,
+                           attrs=self.safe_attrs)
+        else:
+            return NXfield(value=other-self.nxdata, name=self.nxname,
+                           attrs=self.safe_attrs)
 
     def __mul__(self, other):
         """
@@ -2019,10 +2057,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata*other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata*other, name=self.nxname,
-                          attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __rmul__(self, other):
         """
@@ -2038,10 +2076,10 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=self.nxdata/other.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=self.nxdata/other, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __rdiv__(self, other):
         """
@@ -2049,17 +2087,17 @@ class NXfield(NXobject):
         """
         if isinstance(other, NXfield):
             return NXfield(value=other.nxdata/self.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
         else:
             return NXfield(value=other/self.nxdata, name=self.nxname,
-                           attrs=self.attrs)
+                           attrs=self.safe_attrs)
 
     def __pow__(self, power):
         """
         Returns the NXfield raised to the specified power.
         """
         return NXfield(value=pow(self.nxdata,power), name=self.nxname,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     def min(self, axis=None):
         """
@@ -2078,14 +2116,14 @@ class NXfield(NXobject):
         Returns an NXfield with the specified shape.
         """
         return NXfield(value=self.nxdata, name=self.nxname, shape=shape,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     def transpose(self):
         """
         Returns an NXfield containing the transpose of the data array.
         """
         return NXfield(value=self.nxdata.transpose(), name=self.nxname,
-                       attrs=self.attrs)
+                       attrs=self.safe_attrs)
 
     @property
     def T(self):
@@ -2097,7 +2135,20 @@ class NXfield(NXobject):
         assuming it contains bin boundaries.
         """
         return NXfield((self.nxdata[:-1]+self.nxdata[1:])/2,
-                        name=self.nxname,attrs=self.attrs)
+                        name=self.nxname, attrs=self.safe_attrs)
+
+    def boundaries(self):
+        """
+        Returns an NXfield with the boundaries of a single axis
+        assuming it contains bin centers.
+        """
+        ax = self.nxdata
+        start = ax[0] - (ax[1] - ax[0])/2
+        end = ax[-1] + (ax[-1] - ax[-2])/2
+        return NXfield(np.concatenate((np.atleast_1d(start), 
+                                       (ax[:-1] + ax[1:])/2, 
+                                       np.atleast_1d(end))),
+                       name=self.nxname, attrs=self.safe_attrs)
 
     def add(self, data, offset):
         """
@@ -2184,13 +2235,20 @@ class NXfield(NXobject):
         """
         Returns a list of NXfields containing axes.
 
-        Only works if the NXfield has the 'axes' attribute
+        If the NXfield does not have the 'axes' attribute but is defined as
+        the signal in its parent group, a list of the parent group's axes will
+        be returned. 
         """
         try:
-            return [getattr(self.nxgroup,name) 
+            return [getattr(self.nxgroup, name) 
                     for name in _readaxes(self.attrs['axes'])]
         except KeyError:
-            return None
+            try:
+                if self is self.nxgroup.nxsignal:
+                    return self.nxgroup.nxaxes
+            except Exception:
+                pass
+        return None
 
     def _getdata(self):
         """
@@ -2209,7 +2267,7 @@ class NXfield(NXobject):
                     self._value.shape = self._shape
             else:
                 raise NeXusError('Data size larger than NX_MEMORY=%s MB' % NX_MEMORY)
-        if not self.mask is None:
+        if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
                     mask = self.mask.nxdata
@@ -2328,11 +2386,29 @@ class NXfield(NXobject):
     size = property(_getsize, doc="Property: Size of NeXus field")
 
     @property
+    def safe_attrs(self):
+        _attrs = copy(self.attrs)
+        if 'target' in _attrs:
+            del _attrs['target']
+        if 'signal' in _attrs:
+            del _attrs['signal']
+        if 'axes' in _attrs:
+            del _attrs['axes']
+        return _attrs
+
+    @property
+    def reversed(self):
+        if self.ndim == 1 and self.nxdata[-1] < self.nxdata[0]:
+            return True
+        else:
+            return False
+
+    @property
     def plot_shape(self):     
         _shape = list(self.shape)
         while 1 in _shape:
             _shape.remove(1)
-        return _shape
+        return tuple(_shape)
 
     @property
     def plot_rank(self):
@@ -2763,8 +2839,6 @@ class NXgroup(NXobject):
                 group._entries[key] = value
             elif isinstance(value, NXlink) and group.nxroot is value.nxroot:
                 group._entries[key] = copy(value)
-            elif isinstance(value, NXlink) and key != value.nxname:
-                raise NeXusError("Cannot change the name of a linked object")
             elif isinstance(value, NXobject):
                 if value.nxgroup:
                     memo = {}
@@ -2942,7 +3016,7 @@ class NXgroup(NXobject):
         else:
             self[name] = NXfield(value=value, name=name, group=self)
 
-    def makelink(self, target):
+    def makelink(self, target, name=None):
         """
         Creates a linked NXobject within the group.
 
@@ -2954,13 +3028,28 @@ class NXgroup(NXobject):
         if isinstance(self.nxroot, NXroot):
             if self.nxroot == target.nxroot:
                 if isinstance(target, NXobject):
-                    if target.nxname in self:
-                        raise NeXusError("Object with the same name already exists in '%s'" % self.nxpath)
-                    self[target.nxname] = NXlink(target=target)
+                    if name is None:
+                        name = target.nxname
+                    if name in self:
+                        raise NeXusError(
+                        "Object with the same name already exists in '%s'" 
+                        % self.nxpath)
+                    self[name] = NXlink(target=target, name=name)
                 else:
                     raise NeXusError("Link target must be an NXobject")
+            elif isinstance(target, NXfield):
+                if isinstance(target, NXlinkfield):
+                    target = target.nxlink
+                if name is None:
+                    name = target.nxname
+                if name in self:
+                    raise NeXusError(
+                    "Object with the same name already exists in '%s'" 
+                    % self.nxpath)
+                self[name] = NXlink(target=target.nxpath, name=name,
+                                    file=target.nxfilename)
             else:
-                self[target.nxname] = NXlink(target=target.nxpath, file=target.nxfilename)
+                raise NeXusError("Only a field can currently be linked externally")
         else:
             raise NeXusError("The group must have a root object of class NXroot")                
 
@@ -2984,9 +3073,7 @@ class NXgroup(NXobject):
                 axis = [axis]
             axis = tuple(axis)
             signal = NXfield(self.nxsignal.sum(axis), name=self.nxsignal.nxname,
-                             attrs=self.nxsignal.attrs)
-            if 'axes' in signal.attrs:
-                del signal.attrs['axes']
+                             attrs=self.nxsignal.safe_attrs)
             axes = self.nxaxes
             averages = []
             for ax in axis:
@@ -3014,7 +3101,7 @@ class NXgroup(NXobject):
         Currently, only the first moment has been defined. Eventually, the
         order of the moment will be defined by the 'order' parameter.
         """
-        if not self.nxsignal:
+        if self.nxsignal is None:
             raise NeXusError("No signal to calculate")
         elif len(self.nxsignal.shape) > 1:
             raise NeXusError("Operation only possible on one-dimensional signals")
@@ -3024,42 +3111,6 @@ class NXgroup(NXobject):
             raise NeXusError("Operation not allowed for groups of unknown class")
         return (centers(self.nxsignal,self.nxaxes)*self.nxsignal).sum() \
                 /self.nxsignal.sum()
-
-    def project(self, axes, limits):
-        """
-        Projects the data along a specified 1D axis or 2D axes summing over the
-        limits, which are specified as tuples for each dimension.
-        
-        This assumes that the data is at least two-dimensional.
-        """
-        if not isinstance(axes, list):
-            axes = [axes]
-        if len(limits) < len(self.nxsignal.shape):
-            raise NeXusError("Too few limits specified")
-        elif len(axes) > 2:
-            raise NeXusError("Projections to more than two dimensions not supported")
-        projection_axes =  [x for x in range(len(limits)) if x not in axes]
-        projection_axes.sort(reverse=True)
-        slab = [slice(_min, _max) for _min, _max in limits]
-        result = self[slab]
-        slab_axes = list(projection_axes)
-        for slab_axis in slab_axes:
-            slab[slab_axis] = convert_index(slab[slab_axis],
-                                            self.nxaxes[slab_axis])
-            if isinstance(slab[slab_axis], int):
-                slab.pop(slab_axis)
-                projection_axes.pop(projection_axes.index(slab_axis))
-                for i in range(len(projection_axes)):
-                    if projection_axes[i] > slab_axis:
-                        projection_axes[i] -= 1
-        if projection_axes:
-            result = result.sum(projection_axes)
-        if len(axes) > 1 and axes[0] > axes[1]:
-            result[result.nxsignal.nxname] = result.nxsignal.transpose()
-            if result.nxerrors:
-                result[result.nxerrors.nxname] = result.nxerrors.transpose()
-            result.nxaxes = result.nxaxes[::-1]            
-        return result        
 
     def is_plottable(self):
         plottable = False
@@ -3178,7 +3229,10 @@ class NXlink(NXobject):
     def __init__(self, target=None, name=None, file=None, **opts):
         self._class = "NXlink"
         if isinstance(target, NXobject):
-            self._name = target.nxname
+            if name is None:
+                self._name = target.nxname
+            else:
+                self._name = name
             self._target = target.attrs["target"] = target.nxpath
             if target.nxclass == "NXlink":
                 raise NeXusError("Cannot link to another NXlink object")
@@ -3223,13 +3277,7 @@ class NXlink(NXobject):
         return unicode(self.nxlink)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        if self.nxlink:
-            return self.nxlink._str_tree(indent, attrs, recursive)
-        else:
-            return " "*indent+self.nxname+' -> '+self._target
-
-    def rename(self, name):
-        raise NeXusError("Cannot rename a linked object")
+        return " "*indent+self.nxname+' -> '+self._target
 
     def _getlink(self):
         return self.nxroot[self._target]
@@ -3283,11 +3331,6 @@ class NXlinkexternal(NXlink, NXfield):
             self._target = target
         self._filename = file
         self._mode = 'r'
-        if 'value' not in opts:
-            try:
-                self.readvalues()
-            except NeXusError:
-                pass
         
     def __repr__(self):
         if self._value is not None:
@@ -3298,6 +3341,12 @@ class NXlinkexternal(NXlink, NXfield):
                     (NXfield._str_value(self), self._filename)
         else:
             return "NXlink(target='%s', file='%s')" % (self._target, self._filename)
+
+    def __str__(self):
+        return NXfield.__str__(self)
+
+    def __unicode__(self):
+        return NXfield.__unicode__(self)
 
     def __getattr__(self, key):
         return NXfield.__getattr__(self, key)
@@ -3638,31 +3687,28 @@ class NXdata(NXgroup):
         """
         if isinstance(key, basestring): #i.e., requesting a dictionary value
             return NXgroup.__getitem__(self, key)
-        elif self.nxsignal:
-            idx = key
-            axes = self.nxaxes
-            if isinstance(idx, int) or isinstance(idx, slice):
-                idx = convert_index(idx, axes[0])
-                axes[0] = axes[0][idx]
-                result = NXdata(self.nxsignal[idx], axes)
-                if self.nxsignal.mask:
-                    result[self.nxsignal.mask.nxname] = self.nxsignal.mask
-                if self.nxerrors: 
-                    result.errors = self.errors[idx]
+        elif self.nxsignal is not None:
+            idx, axes = self.slab(key)
+            removed_axes = []
+            for axis in axes:
+                if axis.shape == () or axis.shape == (1,):
+                    removed_axes.append(axis)
+            for axis in removed_axes:
+                axes.remove(axis)
+            signal = self.nxsignal[idx]
+            if self.nxerrors: 
+                errors = self.errors[idx]
             else:
-                i = 0
-                slices = []
-                for ind in idx:
-                    ind = convert_index(ind, axes[i])
-                    axes[i] = axes[i][ind]
-                    slices.append(ind)
-                    i = i + 1
-                result = NXdata(self.nxsignal[tuple(slices)], axes)
-                if self.nxerrors: 
-                    result.errors = self.errors[tuple(slices)]
+                errors = None
+            if 'axes' in signal.attrs:
+                del signal.attrs['axes']
+            result = NXdata(signal, axes, errors, *removed_axes)
+            if errors is not None:
+                result.errors = errors
+            if signal.mask:
+                result[signal.mask.nxname] = signal.mask           
             if self.nxtitle:
                 result.title = self.nxtitle
-            result = simplify_axes(result)
             return result
         else:
             raise NeXusError("No signal specified")
@@ -3670,20 +3716,18 @@ class NXdata(NXgroup):
     def __setitem__(self, idx, value):
         if isinstance(idx, basestring):
             NXgroup.__setitem__(self, idx, value)
-        elif self.nxsignal:
+        elif self.nxsignal is not None:
             if isinstance(idx, int) or isinstance(idx, slice):
                 axes = self.nxaxes
                 idx = convert_index(idx, axes[0])
                 self.nxsignal[idx] = value
             else:
-                i = 0
                 slices = []
                 axes = self.nxaxes
-                for ind in idx:
+                for i,ind in enumerate(idx):
                     ind = convert_index(ind, axes[i])
                     axes[i] = axes[i][ind]
                     slices.append(ind)
-                    i = i + 1
                 self.nxsignal[tuple(slices)] = value
         else:
             raise NeXusError('Invalid index')
@@ -3819,6 +3863,89 @@ class NXdata(NXgroup):
                 result.errors = self.errors / other
             return result
 
+    def project(self, axes, limits):
+        """
+        Projects the data along a specified 1D axis or 2D axes summing over the
+        limits, which are specified as tuples for each dimension.
+        
+        This assumes that the data is at least two-dimensional.
+        """
+        if not isinstance(axes, list):
+            axes = [axes]
+        if len(limits) < len(self.nxsignal.shape):
+            raise NeXusError("Too few limits specified")
+        elif len(axes) > 2:
+            raise NeXusError("Projections to more than two dimensions not supported")
+        projection_axes =  [x for x in range(len(limits)) if x not in axes]
+        projection_axes.sort(reverse=True)
+        idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
+        result = self[idx]
+        idx, slab_axes = list(idx), list(projection_axes)
+        for slab_axis in slab_axes:
+            if isinstance(idx[slab_axis], int):
+                idx.pop(slab_axis)
+                projection_axes.pop(projection_axes.index(slab_axis))
+                for i in range(len(projection_axes)):
+                    if projection_axes[i] > slab_axis:
+                        projection_axes[i] -= 1
+        if projection_axes:
+            result = result.sum(projection_axes)
+        if len(axes) > 1 and axes[0] > axes[1]:
+            result[result.nxsignal.nxname] = result.nxsignal.transpose()
+            if result.nxerrors:
+                result[result.nxerrors.nxname] = result.nxerrors.transpose()
+            result.nxaxes = result.nxaxes[::-1]            
+        return result        
+
+    def slab(self, idx):
+        if (isinstance(idx, int) or isinstance(idx, float) or isinstance(idx, slice)):
+            idx = [idx]
+        signal = self.nxsignal
+        axes = self.nxaxes
+        slices = []
+        for i,ind in enumerate(idx):
+            if signal.shape[i] < axes[i].shape[0]:
+                axis = axes[i].centers()
+            else:
+                axis = axes[i]
+            ind = convert_index(ind, axis)
+            slices.append(ind)
+            if (signal.shape[i] < axes[i].shape[0] and
+                isinstance(ind, slice) and ind.stop is not None):
+                ind = slice(ind.start, ind.stop+1)
+            axes[i] = axis[ind]
+        return tuple(slices), axes
+
+    @property
+    def plot_shape(self):
+        if self.nxsignal is not None:
+            return self.nxsignal.plot_shape
+        else:
+            return None
+
+    @property
+    def plot_rank(self):
+        if self.nxsignal is not None:
+            return self.nxsignal.plot_rank
+        else:
+            return None
+
+    @property
+    def plot_axes(self):
+        signal = self.nxsignal
+        if signal is not None:
+            if len(signal.shape) > len(signal.plot_shape):
+                axes = self.nxaxes
+                newaxes = []
+                for i in range(signal.ndim):
+                    if signal.shape[i] > 1: 
+                        newaxes.append(axes[i])
+                return newaxes
+            else:
+                return self.nxaxes
+        else:
+            return None
+
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              zmin=None, zmax=None, **opts):
         """
@@ -3888,9 +4015,8 @@ class NXdata(NXgroup):
         """
         Returns the NXfield containing the signal data.
         """
-        if 'signal' in self.attrs:
-            if self.attrs['signal'] in self:
-                return self[self.attrs['signal']]
+        if 'signal' in self.attrs and self.attrs['signal'] in self:
+            return self[self.attrs['signal']]
         for obj in self.values():
             if 'signal' in obj.attrs and str(obj.signal) == '1':
                 if isinstance(self[obj.nxname],NXlink):
@@ -3912,7 +4038,6 @@ class NXdata(NXgroup):
         self.attrs['signal'] = signal.nxname
         if signal.nxname not in self:
             self[signal.nxname] = signal
-        return self[signal.nxname]
 
     def _axes(self):
         """
@@ -3923,7 +4048,7 @@ class NXdata(NXgroup):
                 axes = _readaxes(self.attrs['axes'])
             elif self.nxsignal is not None and 'axes' in self.nxsignal.attrs:
                 axes = _readaxes(self.nxsignal.attrs['axes'])
-            return [getattr(self, name) for name in axes]
+            return [self[name] for name in axes]
         except (KeyError, AttributeError, UnboundLocalError):
             axes = {}
             for entry in self:
@@ -3935,9 +4060,10 @@ class NXdata(NXgroup):
                         return None
             if axes:
                 return [axes[key] for key in sorted(axes.keys())]
-            else:
+            elif self.nxsignal is not None:
                 return [NXfield(np.arange(self.nxsignal.shape[i]), 
                         name='Axis%s'%i) for i in range(self.nxsignal.ndim)]
+            return None
 
     def _set_axes(self, axes):
         """
@@ -3953,7 +4079,6 @@ class NXdata(NXgroup):
         axes_attr = ":".join([axis.nxname for axis in axes])
         if 'signal' in self.attrs:
             self.attrs['axes'] = axes_attr
-        self.nxsignal.attrs['axes'] = axes_attr
 
     def _errors(self):
         """
@@ -4093,6 +4218,9 @@ def convert_index(idx, axis):
     elif isinstance(idx, slice):
         if isinstance(idx.start, NXfield) and isinstance(idx.stop, NXfield):
             idx = slice(idx.start.nxdata, idx.stop.nxdata)
+        if ((axis.reversed and idx.start < idx.stop) or
+            (not axis.reversed and idx.start > idx.stop)):
+            idx = slice(idx.stop, idx.start)
         if idx.start is None:
             start = None
         else:
@@ -4100,7 +4228,7 @@ def convert_index(idx, axis):
         if idx.stop is None:
             stop = None
         else:
-            stop = axis.index(idx.stop,max=True) + 1
+            stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
             idx = slice(start, stop)
         elif stop <= start+1:
@@ -4110,24 +4238,6 @@ def convert_index(idx, axis):
     elif isinstance(idx, float):
         idx = axis.index(idx)
     return idx
-
-def simplify_axes(data):
-    shape = list(data.nxsignal.shape)
-    while 1 in shape: 
-        shape.remove(1)
-    data.nxsignal._shape = shape
-    if data.nxsignal._value is not None:
-        data.nxsignal._value.shape = shape
-    if data.nxerrors is not None:
-        data.nxerrors._shape = shape
-        if data.nxerrors._value is not None:
-            data.nxerrors._value.shape = shape
-    axes = []
-    for axis in data.nxaxes:
-        if len(axis) > 1: 
-            axes.append(axis)
-    data.nxaxes = axes
-    return data
 
 def centers(signal, axes):
     """
@@ -4202,6 +4312,12 @@ def save(filename, group, mode='w'):
  
 nxsave = save
 
+def duplicate(input_file, output_file):
+    input = nxload(input_file)
+    output = NXFile(output_file, 'w')
+    output.copyfile(input.nxfile)
+
+nxduplicate = duplicate
 
 def directory(filename):
     """
@@ -4240,7 +4356,7 @@ def demo(argv):
 
     else:
         usage = """
-usage: %s cmd [args]
+    usage: %s cmd [args]
     copy fromfile.nxs tofile.nxs
     ls *.nxs
     plot file.nxs entry.data
@@ -4248,6 +4364,7 @@ usage: %s cmd [args]
         print usage
 
 nxdemo = demo
+
 
 if __name__ == "__main__":
     import sys

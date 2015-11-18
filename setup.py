@@ -21,22 +21,24 @@ import nexusformat.requires
 
 verbose=1
 
-setup (name =  nexusformat.__package_name__, # NeXpy
+setup (name = nexusformat.__package_name__, # NeXpy
        version = nexusformat.__version__,
        license = nexusformat.__license__,
        description = nexusformat.__description__,
        long_description = nexusformat.__long_description__,
-       author=nexusformat.__author_name__,
-       author_email=nexusformat.__author_email__,
-       url=nexusformat.__url__,
-       download_url=nexusformat.__download_url__,
-       platforms='any',
+       author = nexusformat.__author_name__,
+       author_email = nexusformat.__author_email__,
+       url = nexusformat.__url__,
+       download_url = nexusformat.__download_url__,
+       platforms = 'any',
        install_requires = nexusformat.requires.pkg_requirements,
+       extras_requires = nexusformat.requires.pkg_extras,
+       dependency_links = nexusformat.requires.pkg_links,
        package_dir = {'': 'src'},
        packages = find_packages('src'),
-       entry_points={
+       entry_points = {
             # create & install scripts in <python>/bin
-            'console_scripts': ['nxstartserver=nexusformat.pyro.start_server:main',
+            'console_scripts': ['nxstartserver=nexusformat.pyro.start_server:main [pyro]',
                                 'nxstack=nexusformat.scripts.nxstack:main'],
        },
        classifiers= ['Development Status :: 4 - Beta',

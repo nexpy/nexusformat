@@ -13,6 +13,7 @@ import os, sys
 import pkg_resources
 pkg_resources.require('numpy')
 import numpy
+import versioneer
 
 # pull in some definitions from the package's __init__.py file
 sys.path.insert(0, os.path.join('src', ))
@@ -22,7 +23,8 @@ import nexusformat.requires
 verbose=1
 
 setup (name =  nexusformat.__package_name__, # NeXpy
-       version = nexusformat.__version__,
+       version=versioneer.get_version(),
+       cmdclass=versioneer.get_cmdclass(),
        license = nexusformat.__license__,
        description = nexusformat.__description__,
        long_description = nexusformat.__long_description__,

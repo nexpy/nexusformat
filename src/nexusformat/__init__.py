@@ -10,7 +10,9 @@
 #-----------------------------------------------------------------------------
 
 __package_name__ = u'nexusformat'
-__version__ = u'0.1.4'
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
 
 __documentation_author__ = u'Ray Osborn'
 __documentation_copyright__ = u'2013-2015, Ray Osborn'

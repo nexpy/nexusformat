@@ -30,7 +30,7 @@ Example 1: Loading a NeXus file
 The following commands loads NeXus data from a file, displays (some of) the
 contents as a tree, and then accesses individual data items.
 
-    >>> from nexpy.api import nexus as nx
+    >>> from nexusformat import nexus as nx
     >>> a=nx.load('sns/data/ARCS_7326.nxs')
     >>> print a.tree
     root:NXroot
@@ -2444,7 +2444,7 @@ class NXfield(NXobject):
         """
 
         try:
-            from nexpy.gui.plotview import plotview
+            from __main__ import plotview
             if plotview is None:
                 raise ImportError
         except ImportError:
@@ -3970,7 +3970,7 @@ class NXdata(NXgroup):
         """
 
         try:
-            from nexpy.gui.plotview import plotview
+            from __main__ import plotview
             if plotview is None:
                 raise ImportError
         except ImportError:

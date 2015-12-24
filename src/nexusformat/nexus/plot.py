@@ -126,14 +126,20 @@ class PylabPlotter(object):
                     ax = plt.gca()
                     xlo, xhi = ax.set_xlim(auto=True)        
                     ylo, yhi = ax.set_ylim(auto=True)                
-                    if xmin: xlo = xmin
-                    if xmax: xhi = xmax
+                    if xmin: 
+                        xlo = xmin
+                    if xmax: 
+                        xhi = xmax
                     ax.set_xlim(xlo, xhi)
-                    if ymin: ylo = ymin
-                    if ymax: yhi = ymax
+                    if ymin: 
+                        ylo = ymin
+                    if ymax: 
+                        yhi = ymax
                     ax.set_ylim(ylo, yhi)
-                    if logx: ax.set_xscale('symlog')
-                    if log or logy: ax.set_yscale('symlog')
+                    if logx: 
+                        ax.set_xscale('symlog')
+                    if log or logy: 
+                        ax.set_yscale('symlog')
                     plt.xlabel(label(axes[0]))
                     plt.ylabel(label(signal))
                     plt.title(title)

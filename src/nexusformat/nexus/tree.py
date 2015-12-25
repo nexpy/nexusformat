@@ -4325,7 +4325,7 @@ def directory(filename):
     Outputs contents of the named NeXus file.
     """
     root = load(filename)
-    print root.tree
+    print(root.tree)
 
 nxdir = directory
 
@@ -4362,7 +4362,7 @@ def demo(argv):
     ls *.nxs
     plot file.nxs entry.data
         """%(argv[0],)
-        print usage
+        print(usage)
 
 nxdemo = demo
 

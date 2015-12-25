@@ -64,6 +64,7 @@ interface (NAPI_).
 .. _NAPI:  http://www.nexusformat.org/Application_Program_Interface
 .. _HDF:   http://www.hdfgroup.org
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-from tree import *
-
+from .tree import *

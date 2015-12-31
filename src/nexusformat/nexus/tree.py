@@ -415,6 +415,8 @@ class NXFile(object):
         nxclass = obj.attrs.get('NX_class', None)
         if isinstance(nxclass, np.ndarray): # attribute reported as DATATYPE SIMPLE
             nxclass = nxclass[0]            # convert as if DATATYPE SCALAR
+        if isinstance(nxclass, bytes):
+            nxclass = nxclass.decode()
         return nxclass
 
     def _readchildren(self):
@@ -594,7 +596,7 @@ class NXFile(object):
                 value = self.readvalue(self.nxpath)
                 if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
-                if isinstance(value, str):
+                if isinstance(value, bytes):
                     value = six.text_type(value, encoding='utf-8')
             except ValueError:
                 value = None
@@ -891,7 +893,7 @@ class NXattr(object):
     nxdata = property(_getdata,doc="Property: The attribute values")
     dtype = property(_getdtype, "Property: Data type of NeXus attribute")
 
-_npattrs = filter(lambda x: not x.startswith('_'), np.ndarray.__dict__.keys())
+_npattrs = list(filter(lambda x: not x.startswith('_'), np.ndarray.__dict__))
 
 class NXobject(object):
 
@@ -973,7 +975,7 @@ class NXobject(object):
 
     def __getstate__(self):
         result = self.__dict__.copy()
-        hidden_keys = [key for key in result.keys() if key.startswith('_')]
+        hidden_keys = [key for key in result if key.startswith('_')]
         needed_keys = ['_class', '_name', '_group', '_entries', '_attrs', 
                        '_filename', '_mode', '_target', '_dtype', '_shape', 
                        '_value', '_maxshape', '_chunks', '_fillvalue', 
@@ -1009,8 +1011,7 @@ class NXobject(object):
         return ""
 
     def _str_attrs(self,indent=0):
-        names = list(self.attrs.keys())
-        names.sort()
+        names = sorted(self.attrs)
         result = []
         for k in names:
             txt1, txt2, txt3 = ('', '', '') # only useful in source-level debugging
@@ -1035,8 +1036,7 @@ class NXobject(object):
         # Print children
         entries = self._entries
         if entries:
-            names = list(entries.keys())
-            names.sort()
+            names = sorted(entries)
             if recursive:
                 for k in names:
                     result.append(entries[k]._str_tree(indent=indent+2,
@@ -1567,7 +1567,7 @@ class NXfield(NXobject):
             del attr['fillvalue']
         else:
             self._fillvalue = None
-        for key in attr.keys():
+        for key in attr:
             attrs[key] = attr[key]
         # Convert NeXus attributes to python attributes
         self._attrs = AttrDict(self)
@@ -2449,10 +2449,10 @@ class NXfield(NXobject):
             if plotview is None:
                 raise ImportError
         except ImportError:
-            from nexusformat.nexus.plot import plotview
+            from .plot import plotview
 
         if self.is_plottable():
-            if 'axes' in self.attrs.keys():
+            if 'axes' in self.attrs:
                 axes = [getattr(self.nxgroup, name) 
                         for name in _readaxes(self.attrs['axes'])]
                 data = NXdata(self, axes, title=self.nxtitle)
@@ -2693,22 +2693,22 @@ class NXgroup(NXobject):
     """
 
     def __init__(self, *items, **opts):
-        if "name" in opts.keys():
+        if "name" in opts:
             self._name = opts["name"]
             del opts["name"]
         self._entries = {}
-        if "entries" in opts.keys():
+        if "entries" in opts:
             for k,v in opts["entries"].items():
                 self._entries[k] = v
             del opts["entries"]
         self._attrs = AttrDict(self)
-        if "attrs" in opts.keys():
+        if "attrs" in opts:
             self._setattrs(opts["attrs"])
             del opts["attrs"]
-        if "nxclass" in opts.keys():
+        if "nxclass" in opts:
             self._class = opts["nxclass"]
             del opts["nxclass"]
-        if "group" in opts.keys():
+        if "group" in opts:
             self._group = opts["group"]
             del opts["group"]
         for k,v in opts.items():
@@ -2735,7 +2735,7 @@ class NXgroup(NXobject):
 #            return cmp(self.nxname, other.nxname)
 
     def __dir__(self):
-        return sorted(dir(super(self.__class__, self))+self.keys())
+        return sorted(dir(super(self.__class__, self))+list(self))
 
     def __repr__(self):
         return "%s('%s')" % (self.__class__.__name__,self.nxname)
@@ -2914,7 +2914,8 @@ class NXgroup(NXobject):
         """
         Compares the _entries dictionaries
         """
-        if other == None: return False
+        if other == None: 
+            return False
         return self._entries == other._entries
 
     def __deepcopy__(self, memo):
@@ -3877,8 +3878,8 @@ class NXdata(NXgroup):
             raise NeXusError("Too few limits specified")
         elif len(axes) > 2:
             raise NeXusError("Projections to more than two dimensions not supported")
-        projection_axes =  [x for x in range(len(limits)) if x not in axes]
-        projection_axes.sort(reverse=True)
+        projection_axes =  sorted([x for x in range(len(limits)) 
+                                   if x not in axes], reverse=True)
         idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
         result = self[idx]
         idx, slab_axes = list(idx), list(projection_axes)
@@ -4060,7 +4061,7 @@ class NXdata(NXgroup):
                     else:
                         return None
             if axes:
-                return [axes[key] for key in sorted(axes.keys())]
+                return sorted(axes)
             elif self.nxsignal is not None:
                 return [NXfield(np.arange(self.nxsignal.shape[i]), 
                         name='Axis%s'%i) for i in range(self.nxsignal.ndim)]
@@ -4075,7 +4076,7 @@ class NXdata(NXgroup):
         if not isinstance(axes, list):
             axes = [axes]
         for axis in axes:
-            if axis.nxname not in self.keys():
+            if axis.nxname not in self:
                 self.insert(axis)
         axes_attr = ":".join([axis.nxname for axis in axes])
         if 'signal' in self.attrs:
@@ -4115,7 +4116,7 @@ class NXmonitor(NXdata):
     def __init__(self, signal=None, axes=(), *items, **opts):
         NXdata.__init__(self, signal=signal, axes=axes, *items, **opts)
         self._class = "NXmonitor"
-        if "name" not in opts.keys():
+        if "name" not in opts:
             self._name = "monitor"
 
 
@@ -4195,8 +4196,8 @@ for _class in nxclasses:
 
                     See the NXgroup documentation for more details.
                     """ % _class
-        globals()[_class]=type(_class, (NXgroup,),
-                               {'_class':_class,'__doc__':docstring})
+        globals()[_class] = type(_class, (NXgroup,),
+                                 {'_class':_class,'__doc__':docstring})
     __all__.append(_class)
 
 #-------------------------------------------------------------------------
@@ -4248,7 +4249,7 @@ def centers(signal, axes):
     """
     def findc(axis, dimlen):
         if axis.shape[0] == dimlen+1:
-            return (axis.nxdata[:-1] + axis.nxdata[1:])/2
+            return (axis.nxdata[:-1] + axis.nxdata[1:]) / 2
         else:
             assert axis.shape[0] == dimlen
             return axis.nxdata

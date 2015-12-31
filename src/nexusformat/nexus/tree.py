@@ -247,8 +247,6 @@ NX_MEMORY = 2000
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
 
-string_dtype = h5.special_dtype(vlen=six.text_type)
-
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink', 
            'NXlinkfield', 'NXlinkgroup', 'NXlinkdata', 'NXlinkexternal',
            'NeXusError', 
@@ -269,7 +267,33 @@ nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
               'NXsubentry', 'NXtranslation', 'NXuser', 'NXvelocity_selector', 
               'NXxraylens']
 
+
 np.set_printoptions(threshold=5)
+string_dtype = h5.special_dtype(vlen=six.text_type)
+
+
+def text(value):
+    """Return a unicode string in both Python 2 and 3"""
+    if isinstance(value, bytes):
+        try:
+            return value.decode(NX_ENCODING)
+        except UnicodeDecodeError:
+            if NX_ENCODING == 'utf-8':
+                return value.decode('latin-1')
+            else:
+                return value.decode('utf-8')
+    elif six.PY3:
+        return str(value)
+    else:
+        return unicode(value)
+
+
+def is_text(value):
+    """Determine if the value presents text in both Python 2 and 3"""
+    if isinstance(value, bytes) or isinstance(value, six.string_types):
+        return True
+    else:
+        return False
 
 
 class NeXusError(Exception):
@@ -411,12 +435,12 @@ class NXFile(object):
                                attrs=attrs)
         return data
 
-    def _readnxclass(self, obj):        # see issue #33
+    def _readnxclass(self, obj):
         nxclass = obj.attrs.get('NX_class', None)
-        if isinstance(nxclass, np.ndarray): # attribute reported as DATATYPE SIMPLE
-            nxclass = nxclass[0]            # convert as if DATATYPE SCALAR
+        if isinstance(nxclass, np.ndarray):
+            nxclass = nxclass[0]
         if isinstance(nxclass, bytes):
-            nxclass = nxclass.decode()
+            nxclass = text(nxclass)
         return nxclass
 
     def _readchildren(self):
@@ -468,7 +492,7 @@ class NXFile(object):
         self._writelinks(links)
         if len(tree.attrs) > 0:
             self._writeattrs(tree.attrs)
-        self._setattrs()
+        self._rootattrs()
 
     def _writeattrs(self, attrs):
         """
@@ -597,7 +621,7 @@ class NXFile(object):
                 if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
                 if isinstance(value, bytes):
-                    value = six.text_type(value, encoding='utf-8')
+                    value = text(value)
             except ValueError:
                 value = None
         else:
@@ -619,7 +643,7 @@ class NXFile(object):
     def copyfile(self, the_file):
         for entry in the_file['/']:
             the_file.copy(entry, self['/']) 
-        self._setattrs()
+        self._rootattrs()
 
     def linkexternal(self, link):
         link_filename = os.path.relpath(link.nxfilename, 
@@ -636,7 +660,7 @@ class NXFile(object):
     def _isexternal(self):
         return self.get(self.nxpath, getclass=True, getlink=True) == h5.ExternalLink
 
-    def _setattrs(self):
+    def _rootattrs(self):
         from datetime import datetime
         self._file.attrs['file_name'] = self.filename
         self._file.attrs['file_time'] = datetime.now().isoformat()
@@ -681,7 +705,13 @@ class NXFile(object):
     def _getattrs(self):
         item = self.get(self.nxpath)
         if item is not None:
-            return dict(item.attrs)
+            attrs = {}
+            for key in item.attrs:
+                if isinstance(item.attrs[key], bytes):
+                    attrs[key] = text(item.attrs[key])
+                else:
+                    attrs[key] = item.attrs[key]
+            return attrs
         else:
             return {}
 
@@ -710,16 +740,11 @@ def _getvalue(value, dtype=None, shape=None):
     converted to the given dtype and/or reshaped to the given shape. Otherwise, 
     the dtype and shape are determined from the value.
     """
-    if isinstance(value, six.string_types):
+    if is_text(value):
         if value == '':
-            value = u' '
-        if isinstance(value, six.text_type):
-            _value = value
+            _value = u' '
         else:
-            try:
-                _value = value.decode(NX_ENCODING)
-            except UnicodeDecodeError:
-                _value = value.decode('latin1')
+            _value = text(value)
         _dtype = string_dtype
         _shape = ()
     elif not isinstance(value, np.ndarray):
@@ -739,7 +764,7 @@ def _getvalue(value, dtype=None, shape=None):
         _dtype = _value.dtype
         _shape = _value.shape
     if dtype is not None:
-        if isinstance(dtype, six.string_types) and dtype == 'char':
+        if is_text(dtype) and dtype == 'char':
             dtype = string_dtype
         elif isinstance(value, np.bool_) and dtype != np.bool_:
             raise NeXusError("Cannot assign a Boolean value to a non-Boolean NXobject")
@@ -858,10 +883,10 @@ class NXattr(object):
         self._value, self._dtype, _ = _getvalue(value, dtype)
 
     def __str__(self):
-        return six.text_type(self.nxdata).encode(NX_ENCODING)
+        return text(self.nxdata)
 
     def __unicode__(self):
-        return six.text_type(self.nxdata)
+        return text(self.nxdata)
 
     def __repr__(self):
         if self.dtype.type == np.string_ or self.dtype == string_dtype:
@@ -1014,14 +1039,13 @@ class NXobject(object):
         names = sorted(self.attrs)
         result = []
         for k in names:
-            txt1, txt2, txt3 = ('', '', '') # only useful in source-level debugging
-            txt1 = " " * indent
-            txt2 = "@" + k
-            try:
-                txt3 = " = " + six.text_type(self.attrs[k])
-            except UnicodeDecodeError as err:
-                # this is a wild assumption to read non-compliant strings from Soleil
-                txt3 = u" = " + six.text_type(self.attrs[k], "utf-8")
+            txt1, txt2, txt3 = ('', '', '') 
+            txt1 = u" " * indent
+            txt2 = u"@" + k
+            if is_text(self.attrs[k]):
+                txt3 =  u" = '" + text(self.attrs[k]) + "'"
+            else:
+                txt3 = u" = " + text(self.attrs[k])
             txt = txt1 + txt2 + txt3
             result.append(txt)
         return "\n".join(result)
@@ -1194,8 +1218,7 @@ class NXobject(object):
         return self._class
 
     def _setclass(self, class_):
-        if isinstance(class_, six.string_types):
-            class_ = globals()[class_]
+        class_ = globals()[text(class_)]
         if issubclass(class_, NXobject):
             self.__class__ = class_
             self._class = self.__class__.__name__
@@ -2183,11 +2206,9 @@ class NXfield(NXobject):
         if self._value is not None:
             if ((self.dtype.kind == 'S' or self.dtype == string_dtype)
                  and self.shape != ()):
-                return '\n'.join([t for t in self._value.flatten()]).decode('utf-8')
-            elif isinstance(self._value, six.text_type):
-                return self._value.encode(NX_ENCODING)
+                return text('\n'.join([t for t in self._value.flatten()]))
             else:
-                return str(self._value)
+                return text(self._value)
         return ""
 
     def __unicode__(self):
@@ -2199,11 +2220,9 @@ class NXfield(NXobject):
         if self._value is not None:
             if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
                 and self.shape != ():
-                return '\n'.join([t for t in self._value.flatten()])
-            elif isinstance(self._value, str):
-                return self._value.decode(NX_ENCODING)
+                return text('\n'.join([t for t in self._value.flatten()]))
             else:
-                return six.text_type(self._value)
+                return text(self._value)
         return u""
 
     def _str_value(self,indent=0):
@@ -2214,17 +2233,19 @@ class NXfield(NXobject):
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([str(n) for n in self.shape])
-        s = six.text_type(self)
+        s = text(self)
         if self.dtype == string_dtype:
-            s = repr(s)[1:]
+            s = repr(s)
+            if s.startswith('u'):
+                s = s[1:]
             if len(s) > 60:
                 s = s[0:56] + '...' + "'"
         elif '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
         try:
-            v=[" "*indent + self.nxname + " = " + s]
+            v = [" "*indent + self.nxname + " = " + s]
         except Exception:
-            v=[" "*indent + self.nxname]
+            v = [" "*indent + self.nxname]
         if attrs and self.attrs:
             v.append(self._str_attrs(indent=indent+2))
         return "\n".join(v)
@@ -2797,7 +2818,7 @@ class NXgroup(NXobject):
         """
         Returns an entry in the group.
         """
-        if isinstance(key, six.string_types):
+        if is_text(key):
             if '/' in key:
                 if key.startswith('/'):
                     return self.nxroot[key[1:]]
@@ -2820,7 +2841,7 @@ class NXgroup(NXobject):
         """
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
-        if isinstance(key, six.string_types):
+        if is_text(key):
             group = self
             if '/' in key:
                 names = [name for name in key.split('/') if name]
@@ -2870,7 +2891,7 @@ class NXgroup(NXobject):
     def __delitem__(self, key):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
-        if isinstance(key, six.string_types): #i.e., deleting a NeXus object
+        if is_text(key): #i.e., deleting a NeXus object
             group = self
             if '/' in key:
                 names = [name for name in key.split('/') if name]
@@ -3200,9 +3221,9 @@ class NXgroup(NXobject):
         path is returned.
         """
         if 'title' in self:
-            return six.text_type(self.title)
+            return text(self.title)
         elif self.nxgroup and 'title' in self.nxgroup:
-            return six.text_type(self.nxgroup.title)
+            return text(self.nxgroup.title)
         else:
             if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
                 return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
@@ -3273,10 +3294,10 @@ class NXlink(NXobject):
         return "NXlink('%s')" % (self._target)
 
     def __str__(self):
-        return str(self.nxlink)
+        return text(self.nxlink)
 
     def __unicode__(self):
-        return six.text_type(self.nxlink)
+        return text(self.nxlink)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return " "*indent+self.nxname+' -> '+self._target
@@ -3337,7 +3358,7 @@ class NXlinkexternal(NXlink, NXfield):
     def __repr__(self):
         if self._value is not None:
             if self.dtype.type == np.string_ or self.dtype == string_dtype:
-                return "NXlink('%s', file='%s')" % (six.text_type(self), self._filename)
+                return "NXlink('%s', file='%s')" % (text(self), self._filename)
             else:
                 return "NXlink(%s, file='%s')" % \
                     (NXfield._str_value(self), self._filename)
@@ -3345,10 +3366,16 @@ class NXlinkexternal(NXlink, NXfield):
             return "NXlink(target='%s', file='%s')" % (self._target, self._filename)
 
     def __str__(self):
-        return NXfield.__str__(self)
+        if self._value is not None:
+            return NXfield.__str__(self)
+        else:
+            return repr(self)
 
     def __unicode__(self):
-        return NXfield.__unicode__(self)
+        if self._value is not None:
+            return NXfield.__unicode__(self)
+        else:
+            return repr(self)
 
     def __getattr__(self, key):
         return NXfield.__getattr__(self, key)
@@ -3361,12 +3388,6 @@ class NXlinkexternal(NXlink, NXfield):
 
     def __setitem__(self, key, value):
         raise NeXusError("Cannot currently assign slabs to an external link")
-
-    def __str__(self):
-        if self._value is not None:
-            return NXfield.__str__(self)
-        else:
-            return repr(self)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         if self._value is not None:
@@ -3687,7 +3708,7 @@ class NXdata(NXgroup):
         real-space slicing should only be used on monotonically increasing (or
         decreasing) one-dimensional arrays.
         """
-        if isinstance(key, six.string_types): #i.e., requesting a dictionary value
+        if is_text(key): #i.e., requesting a dictionary value
             return NXgroup.__getitem__(self, key)
         elif self.nxsignal is not None:
             idx, axes = self.slab(key)
@@ -3716,7 +3737,7 @@ class NXdata(NXgroup):
             raise NeXusError("No signal specified")
 
     def __setitem__(self, idx, value):
-        if isinstance(idx, six.string_types):
+        if is_text(idx):
             NXgroup.__setitem__(self, idx, value)
         elif self.nxsignal is not None:
             if isinstance(idx, int) or isinstance(idx, slice):
@@ -4172,7 +4193,7 @@ class NXnote(NXgroup):
         self._class = "NXnote"
         NXgroup.__init__(self, **opts)
         for item in items:
-            if isinstance(item, six.string_types):
+            if is_text(item):
                 if "description" not in self:
                     self.description = item
                 elif "data" not in self:

@@ -16,7 +16,7 @@ This module provides a standard Matplotlib plotting option to the NeXus Python
 API
 """
 import numpy as np
-from nexusformat.nexus import NXfield, NeXusError
+from . import NXfield, NeXusError
 
 
 def centers(axis, dimlen):
@@ -55,9 +55,9 @@ def label(field):
     """
     Return a label for a data field suitable for use on a graph axis.
     """
-    if hasattr(field, 'long_name'):
+    if 'long_name' in field.attrs:
         return field.long_name
-    elif hasattr(field, 'units'):
+    elif 'units' in field.attrs:
         return "%s (%s)"%(field.nxname, field.units)
     else:
         return field.nxname
@@ -105,7 +105,7 @@ class PylabPlotter(object):
 
         #One-dimensional Plot
         if len(data.shape) == 1:
-            if hasattr(signal, 'units'):
+            if 'units' in signal.attrs:
                 if not errors and signal.units == 'counts':
                     errors = NXfield(np.sqrt(data))
             if errors:
@@ -132,7 +132,7 @@ class PylabPlotter(object):
 
         #Two dimensional plot
         else:
-            from matplotlib.image import NonUniformImage
+
             from matplotlib.colors import LogNorm, Normalize
 
             if len(data.shape) > 2:

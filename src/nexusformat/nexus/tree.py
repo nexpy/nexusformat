@@ -3124,53 +3124,43 @@ class NXgroup(NXobject):
         """
         Returns the first NXdata group within the group's tree.
         """
-        data = self
-        if self.nxclass == "NXroot":
-            try:
-                data = data.NXdata[0]
-            except Exception:
-                if data.NXentry:
-                    data = data.NXentry[0]
-                else:
-                    return None
-        if data.nxclass == "NXentry":
-            if data.NXdata:
-                data = data.NXdata[0]
-            elif data.NXmonitor:
-                data = data.NXmonitor[0]
-            elif data.NXlog:
-                data = data.NXlog[0]
-            else:
-                return None
-        return data
+        return None
 
     def plot(self, **opts):
         """
         Plot data contained within the group.
         """
-        if self.plottable_data:
+        try:
             self.plottable_data.plot(**opts)
-    
+        except Exception:
+            raise NeXusError("Data cannot be plotted")
+
     def oplot(self, **opts):
         """
         Plots the data contained within the group over the current figure.
         """
-        if self.plottable_data:
+        try:
             self.plottable_data.oplot(**opts)
+        except Exception:
+            raise NeXusError("Data cannot be plotted")
 
     def logplot(self, **opts):
         """
         Plots the data intensity contained within the group on a log scale.
         """
-        if self.plottable_data:
+        try:
             self.plottable_data.logplot(**opts)
+        except Exception:
+            raise NeXusError("Data cannot be plotted")
 
     def implot(self, **opts):
         """
         Plots the data intensity as an RGB(A) image.
         """
-        if self.plottable_data:
+        try:
             self.plottable_data.implot(**opts)
+        except AttributeError:
+            raise NeXusError("Data cannot be plotted")
 
     def component(self, nxclass):
         """
@@ -3473,6 +3463,24 @@ class NXroot(NXgroup):
         if self._filename:
             self._mode = self._file.mode = 'rw'
 
+    @property
+    def plottable_data(self):
+        """
+        Returns the first NXdata group within the group's tree.
+        """
+        if self.NXdata:
+            return self.NXdata[0]
+        elif self.NXmonitor:
+            return self.NXmonitor[0]
+        elif self.NXlog:
+            return self.NXlog[0]
+        elif self.NXentry:
+            for entry in self.NXentry:
+                data = entry.plottable_data
+                if data is not None:
+                    return data
+        return None
+
 
 class NXentry(NXgroup):
 
@@ -3536,6 +3544,20 @@ class NXentry(NXgroup):
             return result
         except KeyError:
             raise NeXusError("Inconsistency between two NXentry groups")
+
+    @property
+    def plottable_data(self):
+        """
+        Returns the first NXdata group within the group's tree.
+        """
+        if self.NXdata:
+            return self.NXdata[0]
+        elif self.NXmonitor:
+            return self.NXmonitor[0]
+        elif self.NXlog:
+            return self.NXlog[0]
+        else:
+            return None
 
 
 class NXsubentry(NXentry):

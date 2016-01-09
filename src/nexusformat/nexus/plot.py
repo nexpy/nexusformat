@@ -15,6 +15,8 @@
 This module provides a standard Matplotlib plotting option to the NeXus Python
 API
 """
+from __future__ import (absolute_import, division, print_function)
+
 import numpy as np
 from . import NXfield, NeXusError
 
@@ -147,7 +149,7 @@ class PylabPlotter(object):
                     slab.extend([slice(None), slice(None)])
                 data = data[slab]
                 if 0 in slab:
-                    print "Warning: Only the top 2D slice of the data is plotted"
+                    print("Warning: Only the top 2D slice of the data is plotted")
 
             if image:
                 x = boundaries(axes[-2], data.shape[-2])

@@ -236,6 +236,7 @@ from __future__ import (absolute_import, division, print_function)
 import six
 
 import os
+import re
 import sys
 from copy import copy, deepcopy
 
@@ -785,10 +786,8 @@ def _readaxes(axes):
 
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
-    if isinstance(axes, six.string_types):
-        import re
-        sep=re.compile('[\[]*(\s*,*:*)+[\]]*')
-        return filter(lambda x: len(x)>0, sep.split(axes))
+    if is_text(axes):
+        return list(filter(lambda x: len(x)>0, re.split(r'[,:; \[\]]+', axes)))
     else:
         return list(axes)
 

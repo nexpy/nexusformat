@@ -15,8 +15,10 @@
 This module provides a standard Matplotlib plotting option to the NeXus Python
 API
 """
+from __future__ import (absolute_import, division, print_function)
+
 import numpy as np
-from nexusformat.nexus import NXfield, NeXusError
+from . import NXfield, NeXusError
 
 
 def centers(axis, dimlen):
@@ -55,9 +57,9 @@ def label(field):
     """
     Return a label for a data field suitable for use on a graph axis.
     """
-    if hasattr(field, 'long_name'):
+    if 'long_name' in field.attrs:
         return field.long_name
-    elif hasattr(field, 'units'):
+    elif 'units' in field.attrs:
         return "%s (%s)"%(field.nxname, field.units)
     else:
         return field.nxname

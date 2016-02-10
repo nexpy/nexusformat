@@ -2377,7 +2377,7 @@ class NXfield(NXobject):
             self._value = np.asarray(self._value, dtype=self._dtype)
 
     def _getshape(self):
-        return self._shape
+        return tuple([int(i) for i in self._shape])
 
     def _setshape(self, value):
         if self.nxfilemode == 'r':
@@ -3099,7 +3099,7 @@ class NXgroup(NXobject):
             axes = self.nxaxes
             averages = []
             for ax in axis:
-                summedaxis = axes.pop(ax)
+                summedaxis = deepcopy(axes.pop(ax))
                 summedaxis.minimum = summedaxis.nxdata[0]
                 summedaxis.maximum = summedaxis.nxdata[-1]
                 averages.append(NXfield(
@@ -3227,6 +3227,7 @@ class NXgroup(NXobject):
     nxerrors = None
     nxtitle = property(_title, "Property: Group title")
     entries = property(_getentries,doc="Property: NeXus objects within group")
+
 
 class NXlink(NXobject):
 

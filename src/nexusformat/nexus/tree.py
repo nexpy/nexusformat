@@ -1923,7 +1923,7 @@ class NXfield(NXobject):
                     idx = idx - 1
             except IndexError:
                 pass
-        return np.clip(idx, 0, len(self.nxdata)-1)
+        return int(np.clip(idx, 0, len(self.nxdata)-1))
 
     def __array__(self):
         """

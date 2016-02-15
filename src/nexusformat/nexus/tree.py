@@ -4277,7 +4277,7 @@ def convert_index(idx, axis):
         if idx.stop is None:
             stop = None
         else:
-            stop = axis.index(idx.stop, max=True)
+            stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
             idx = slice(start, stop)
         elif stop <= start+1:

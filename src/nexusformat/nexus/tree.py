@@ -235,10 +235,11 @@ title is the title of the group or the parent :class:`NXentry`, if available.
 from __future__ import (absolute_import, division, print_function)
 import six
 
+from copy import copy, deepcopy
+import numbers
 import os
 import re
 import sys
-from copy import copy, deepcopy
 
 import numpy as np
 import h5py as h5
@@ -1562,7 +1563,7 @@ class NXfield(NXobject):
                 self._dtype = np.dtype(dtype)
             except Exception:
                 raise NeXusError("Invalid data type: %s" % dtype)
-        if isinstance(shape, int):
+        if isinstance(shape, numbers.Integral):
             shape = [shape]
         self._shape = tuple(shape)
         # Append extra keywords to the attribute list
@@ -1659,7 +1660,7 @@ class NXfield(NXobject):
         real-space slicing should only be used on monotonically increasing (or
         decreasing) one-dimensional arrays.
         """
-        idx = convert_index(idx,self)
+        idx = convert_index(idx, self)
         if len(self) == 1:
             result = self
         elif self._value is None:
@@ -1978,7 +1979,8 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are the same.
         """
         if isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and isinstance(other.nxdata, np.ndarray):
+            if isinstance(self.nxdata, np.ndarray) and \
+               isinstance(other.nxdata, np.ndarray):
                 return all(self.nxdata == other.nxdata)
             else:
                 return self.nxdata == other.nxdata
@@ -1990,7 +1992,8 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are not the same.
         """
         if isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and isinstance(other.nxdata, np.ndarray):
+            if isinstance(self.nxdata, np.ndarray) and \
+               isinstance(other.nxdata, np.ndarray):
                 return any(self.nxdata != other.nxdata)
             else:
                 return self.nxdata != other.nxdata
@@ -3091,7 +3094,7 @@ class NXgroup(NXobject):
         if axis is None:
             return self.nxsignal.sum()
         else:
-            if isinstance(axis, int):
+            if isinstance(axis, numbers.Integral):
                 axis = [axis]
             axis = tuple(axis)
             signal = NXfield(self.nxsignal.sum(axis), name=self.nxsignal.nxname,
@@ -3762,7 +3765,7 @@ class NXdata(NXgroup):
         if is_text(idx):
             NXgroup.__setitem__(self, idx, value)
         elif self.nxsignal is not None:
-            if isinstance(idx, int) or isinstance(idx, slice):
+            if isinstance(idx, numbers.Integral) or isinstance(idx, slice):
                 axes = self.nxaxes
                 idx = convert_index(idx, axes[0])
                 self.nxsignal[idx] = value
@@ -3915,7 +3918,7 @@ class NXdata(NXgroup):
         
         This assumes that the data is at least two-dimensional.
         """
-        if not isinstance(axes, list):
+        if not isinstance(axes, list) and not isinstance(axes, tuple):
             axes = [axes]
         if len(limits) < len(self.nxsignal.shape):
             raise NeXusError("Too few limits specified")
@@ -3927,7 +3930,7 @@ class NXdata(NXgroup):
         result = self[idx]
         idx, slab_axes = list(idx), list(projection_axes)
         for slab_axis in slab_axes:
-            if isinstance(idx[slab_axis], int):
+            if isinstance(idx[slab_axis], numbers.Integral):
                 idx.pop(slab_axis)
                 projection_axes.pop(projection_axes.index(slab_axis))
                 for i in range(len(projection_axes)):
@@ -3943,7 +3946,7 @@ class NXdata(NXgroup):
         return result        
 
     def slab(self, idx):
-        if (isinstance(idx, int) or isinstance(idx, float) or isinstance(idx, slice)):
+        if (isinstance(idx, numbers.Real) or isinstance(idx, slice)):
             idx = [idx]
         signal = self.nxsignal
         axes = self.nxaxes
@@ -4064,7 +4067,7 @@ class NXdata(NXgroup):
             return self[self.attrs['signal']]
         for obj in self.values():
             if 'signal' in obj.attrs and str(obj.signal) == '1':
-                if isinstance(self[obj.nxname],NXlink):
+                if isinstance(self[obj.nxname], NXlink):
                     return self[obj.nxname].nxlink
                 else:
                     return self[obj.nxname]
@@ -4116,7 +4119,7 @@ class NXdata(NXgroup):
         
         The argument should be a list of valid NXfields within the group.
         """
-        if not isinstance(axes, list):
+        if not isinstance(axes, list) and not isinstance(axes, tuple):
             axes = [axes]
         for axis in axes:
             if axis.nxname not in self:
@@ -4255,8 +4258,8 @@ def convert_index(idx, axis):
     if len(axis) == 1:
         idx = 0
     elif isinstance(idx, slice) and \
-            (idx.start is None or isinstance(idx.start, int)) and \
-            (idx.stop is None or isinstance(idx.stop, int)):
+            (idx.start is None or isinstance(idx.start, numbers.Integral)) and \
+            (idx.stop is None or isinstance(idx.stop, numbers.Integral)):
         if idx.start is not None and idx.stop is not None:
             if idx.stop == idx.start or idx.stop == idx.start + 1:
                 idx = idx.start
@@ -4280,7 +4283,8 @@ def convert_index(idx, axis):
             idx = start
         else:
             idx = slice(start, stop)
-    elif isinstance(idx, float):
+    elif not isinstance(idx, numbers.Integral) and \
+             isinstance(idx, numbers.Real):
         idx = axis.index(idx)
     return idx
 

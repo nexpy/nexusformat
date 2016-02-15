@@ -4266,8 +4266,9 @@ def convert_index(idx, axis):
     elif isinstance(idx, slice):
         if isinstance(idx.start, NXfield) and isinstance(idx.stop, NXfield):
             idx = slice(idx.start.nxdata, idx.stop.nxdata)
-        if ((axis.reversed and idx.start < idx.stop) or
-            (not axis.reversed and idx.start > idx.stop)):
+        if (idx.start is not None and idx.stop is not None and
+            ((axis.reversed and idx.start < idx.stop) or
+             (not axis.reversed and idx.start > idx.stop))):
             idx = slice(idx.stop, idx.start)
         if idx.start is None:
             start = None
@@ -4276,7 +4277,7 @@ def convert_index(idx, axis):
         if idx.stop is None:
             stop = None
         else:
-            stop = axis.index(idx.stop, max=True) + 1
+            stop = axis.index(idx.stop, max=True)
         if start is None or stop is None:
             idx = slice(start, stop)
         elif stop <= start+1:

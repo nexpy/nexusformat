@@ -1215,7 +1215,7 @@ class NXobject(object):
             self._changed = False
     
     def _getclass(self):
-        return self._class
+        return text(self._class)
 
     def _setclass(self, class_):
         class_ = globals()[text(class_)]
@@ -1225,13 +1225,13 @@ class NXobject(object):
             self.update()                   
 
     def _getname(self):
-        return self._name
+        return text(self._name)
 
     def _setname(self, value):
         if self.nxgroup:
             self.nxgroup._entries[value] = self.nxgroup._entries[self._name]
             del self.nxgroup._entries[self._name]
-        self._name = str(value)
+        self._name = text(value)
         self.set_changed()                       
 
     def _getgroup(self):
@@ -2228,13 +2228,13 @@ class NXfield(NXobject):
         return u""
 
     def _str_value(self,indent=0):
-        v = str(self)
+        v = text(self)
         if '\n' in v:
             v = '\n'.join([(" "*indent)+s for s in v.split('\n')])
         return v
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        dims = 'x'.join([str(n) for n in self.shape])
+        dims = 'x'.join([text(n) for n in self.shape])
         s = text(self)
         if self.dtype == string_dtype:
             s = repr(s)
@@ -2321,9 +2321,9 @@ class NXfield(NXobject):
         parent = self.nxgroup
         if parent:
             if 'title' in parent:
-                return str(parent.title)
+                return text(parent.title)
             elif parent.nxgroup and 'title' in parent.nxgroup:
-                return str(parent.nxgroup.title)        
+                return text(parent.nxgroup.title)        
         else:
             if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
                 return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
@@ -4066,7 +4066,7 @@ class NXdata(NXgroup):
         if 'signal' in self.attrs and self.attrs['signal'] in self:
             return self[self.attrs['signal']]
         for obj in self.values():
-            if 'signal' in obj.attrs and str(obj.signal) == '1':
+            if 'signal' in obj.attrs and text(obj.signal) == '1':
                 if isinstance(self[obj.nxname], NXlink):
                     return self[obj.nxname].nxlink
                 else:

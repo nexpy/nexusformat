@@ -376,7 +376,7 @@ class NXFile(object):
         return self.open()
 
     def __exit__(self, *args):
-        self._file.close()
+        self.close()
 
     def get(self, *args, **kwds):
         return self._file.get(*args, **kwds)

@@ -502,7 +502,7 @@ class NXFile(object):
 
         If no group or data object is open, the file attributes are returned.
         """
-        for name, value in attrs.iteritems():
+        for name, value in attrs.items():
             self[self.nxpath].attrs[name] = value.nxdata
 
     def _writedata(self, data):
@@ -557,9 +557,8 @@ class NXFile(object):
                                             maxshape=data._maxshape,
                                             fillvalue = data._fillvalue)
             try:
-                value = data.nxdata
-                if value is not None:
-                    self[self.nxpath][()] = value 
+                if data._value is not None:
+                    self[self.nxpath][()] = data._value 
             except NeXusError:
                 pass  
         self._writeattrs(data.attrs)
@@ -4022,7 +4021,7 @@ class NXdata(NXgroup):
             if plotview is None:
                 raise ImportError
         except ImportError:
-            from nexusformat.nexus.plot import plotview
+            from .plot import plotview
             
         # Check there is a plottable signal
         if self.nxsignal is None:

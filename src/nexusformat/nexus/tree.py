@@ -2095,7 +2095,7 @@ class NXfield(NXobject):
         """
         return self.__mul__(other)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
         Returns the NXfield divided by another NXfield or number.
         """
@@ -2106,7 +2106,7 @@ class NXfield(NXobject):
             return NXfield(value=self.nxdata/other, name=self.nxname,
                            attrs=self.safe_attrs)
 
-    def __rdiv__(self, other):
+    def __rtruediv__(self, other):
         """
         Returns the inverse of the NXfield divided by another NXfield or number.
         """
@@ -3102,19 +3102,43 @@ class NXgroup(NXobject):
             averages = []
             for ax in axis:
                 summedaxis = deepcopy(axes.pop(ax))
-                summedaxis.minimum = summedaxis.nxdata[0]
-                summedaxis.maximum = summedaxis.nxdata[-1]
+                summedaxis.attrs["minimum"] = summedaxis.nxdata[0]
+                summedaxis.attrs["maximum"] = summedaxis.nxdata[-1]
+                summedaxis.attrs["summed_bins"] = summedaxis.size
                 averages.append(NXfield(
                                 0.5*(summedaxis.nxdata[0]+summedaxis.nxdata[-1]), 
                                 name=summedaxis.nxname,attrs=summedaxis.attrs))
             result = NXdata(signal, axes)
+            summed_bins = 1
             for average in averages:
                 result.insert(average)
+                summed_bins *= average.attrs["summed_bins"]
+            result.attrs["summed_bins"] = summed_bins
             if self.nxerrors:
                 errors = np.sqrt((self.nxerrors.nxdata**2).sum(axis))
                 result.errors = NXfield(errors, name="errors")
             if self.nxtitle:
                 result.title = self.nxtitle
+            return result
+
+    def average(self, axis=None):
+        """
+        Returns the sum of the NXdata group using the Numpy sum method
+        on the NXdata signal. The sum is over a single axis or a tuple of axes
+        using the Numpy sum method. The result is then divided by the number of
+        bins summed over to produce an average.
+
+        The result contains a copy of all the metadata contained in
+        the NXdata group.
+        """
+        if axis is None:
+            raise NeXusError("The average function requires an axis")
+        result = self.sum(axis)
+        if "summed_bins" in result.attrs:
+            result.attrs["averaged_bins"] = result.attrs["summed_bins"]
+            del result.attrs["summed_bins"]
+            return result / result.attrs["averaged_bins"]
+        else:
             return result
 
     def moment(self, order=1):
@@ -3878,7 +3902,7 @@ class NXdata(NXgroup):
         """
         return self.__mul__(other)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
         Divides the NXdata group by a NXdata group or a number. Only the signal 
         data is affected.

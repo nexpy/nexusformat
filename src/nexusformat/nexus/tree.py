@@ -2106,6 +2106,8 @@ class NXfield(NXobject):
             return NXfield(value=self.nxdata/other, name=self.nxname,
                            attrs=self.safe_attrs)
 
+    __div__ = __truediv__
+
     def __rtruediv__(self, other):
         """
         Returns the inverse of the NXfield divided by another NXfield or number.
@@ -2116,6 +2118,8 @@ class NXfield(NXobject):
         else:
             return NXfield(value=other/self.nxdata, name=self.nxname,
                            attrs=self.safe_attrs)
+
+    __rdiv__ = __rtruediv__
 
     def __pow__(self, power):
         """
@@ -3077,7 +3081,7 @@ class NXgroup(NXobject):
         else:
             raise NeXusError("The group must have a root object of class NXroot")                
 
-    def sum(self, axis=None, average=False):
+    def sum(self, axis=None, averaged=False):
         """
         Returns the sum of the NXdata group using the Numpy sum method
         on the NXdata signal. The sum is over a single axis or a tuple of axes
@@ -3091,7 +3095,7 @@ class NXgroup(NXobject):
         if not hasattr(self,"nxclass"):
             raise NeXusError("Summing not allowed for groups of unknown class")
         if axis is None:
-            if average:
+            if averaged:
                 return self.nxsignal.sum() / self.nxsignal.size
             else:
                 return self.nxsignal.sum()
@@ -3116,14 +3120,14 @@ class NXgroup(NXobject):
             for average in averages:
                 result.insert(average)
                 summed_bins *= average.attrs["summed_bins"]
-            if average:
+            if averaged:
                 result.nxsignal = result.nxsignal / summed_bins
                 result.attrs["averaged_bins"] = summed_bins
             else:
                 result.attrs["summed_bins"] = summed_bins
             if self.nxerrors:
                 errors = np.sqrt((self.nxerrors.nxdata**2).sum(axis))
-                if average:
+                if averaged:
                     result.errors = NXfield(errors, name="errors") / summed_bins
                 else:
                     result.errors = NXfield(errors, name="errors")
@@ -3140,7 +3144,7 @@ class NXgroup(NXobject):
         The result contains a copy of all the metadata contained in
         the NXdata group.
         """
-        return self.sum(axis, average=True)
+        return self.sum(axis, averaged=True)
 
     def moment(self, order=1):
         """
@@ -3935,7 +3939,9 @@ class NXdata(NXgroup):
                 result.errors = self.errors / other
             return result
 
-    def project(self, axes, limits):
+    __div__ = __truediv__
+
+    def project(self, axes, limits, averaged=False):
         """
         Projects the data along a specified 1D axis or 2D axes summing over the
         limits, which are specified as tuples for each dimension.
@@ -3961,7 +3967,10 @@ class NXdata(NXgroup):
                     if projection_axes[i] > slab_axis:
                         projection_axes[i] -= 1
         if projection_axes:
-            result = result.sum(projection_axes)
+            if averaged:
+                result = result.average(projection_axes)
+            else:
+                result = result.sum(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
             result[result.nxsignal.nxname] = result.nxsignal.transpose()
             if result.nxerrors:
@@ -4108,8 +4117,7 @@ class NXdata(NXgroup):
             if 'signal' in current_signal.attrs:
                 del current_signal.attrs['signal']
         self.attrs['signal'] = signal.nxname
-        if signal.nxname not in self:
-            self[signal.nxname] = signal
+        self[signal.nxname] = signal
 
     def _axes(self):
         """

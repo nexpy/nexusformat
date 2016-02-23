@@ -3077,7 +3077,7 @@ class NXgroup(NXobject):
         else:
             raise NeXusError("The group must have a root object of class NXroot")                
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, average=False):
         """
         Returns the sum of the NXdata group using the Numpy sum method
         on the NXdata signal. The sum is over a single axis or a tuple of axes
@@ -3091,7 +3091,10 @@ class NXgroup(NXobject):
         if not hasattr(self,"nxclass"):
             raise NeXusError("Summing not allowed for groups of unknown class")
         if axis is None:
-            return self.nxsignal.sum()
+            if average:
+                return self.nxsignal.sum() / self.nxsignal.size
+            else:
+                return self.nxsignal.sum()
         else:
             if isinstance(axis, numbers.Integral):
                 axis = [axis]
@@ -3113,10 +3116,17 @@ class NXgroup(NXobject):
             for average in averages:
                 result.insert(average)
                 summed_bins *= average.attrs["summed_bins"]
-            result.attrs["summed_bins"] = summed_bins
+            if average:
+                result.nxsignal = result.nxsignal / summed_bins
+                result.attrs["averaged_bins"] = summed_bins
+            else:
+                result.attrs["summed_bins"] = summed_bins
             if self.nxerrors:
                 errors = np.sqrt((self.nxerrors.nxdata**2).sum(axis))
-                result.errors = NXfield(errors, name="errors")
+                if average:
+                    result.errors = NXfield(errors, name="errors") / summed_bins
+                else:
+                    result.errors = NXfield(errors, name="errors")
             if self.nxtitle:
                 result.title = self.nxtitle
             return result
@@ -3124,22 +3134,13 @@ class NXgroup(NXobject):
     def average(self, axis=None):
         """
         Returns the sum of the NXdata group using the Numpy sum method
-        on the NXdata signal. The sum is over a single axis or a tuple of axes
-        using the Numpy sum method. The result is then divided by the number of
-        bins summed over to produce an average.
+        on the NXdata signal. The result is then divided by the number of 
+        summed bins to produce an average.
 
         The result contains a copy of all the metadata contained in
         the NXdata group.
         """
-        if axis is None:
-            raise NeXusError("The average function requires an axis")
-        result = self.sum(axis)
-        if "summed_bins" in result.attrs:
-            result.attrs["averaged_bins"] = result.attrs["summed_bins"]
-            del result.attrs["summed_bins"]
-            return result / result.attrs["averaged_bins"]
-        else:
-            return result
+        return self.sum(axis, average=True)
 
     def moment(self, order=1):
         """

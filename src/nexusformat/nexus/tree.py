@@ -3941,7 +3941,7 @@ class NXdata(NXgroup):
 
     __div__ = __truediv__
 
-    def project(self, axes, limits, averaged=False):
+    def project(self, axes, limits, summed=True):
         """
         Projects the data along a specified 1D axis or 2D axes summing over the
         limits, which are specified as tuples for each dimension.
@@ -3967,10 +3967,10 @@ class NXdata(NXgroup):
                     if projection_axes[i] > slab_axis:
                         projection_axes[i] -= 1
         if projection_axes:
-            if averaged:
-                result = result.average(projection_axes)
-            else:
+            if summed:
                 result = result.sum(projection_axes)
+            else:
+                result = result.average(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
             result[result.nxsignal.nxname] = result.nxsignal.transpose()
             if result.nxerrors:

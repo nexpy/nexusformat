@@ -6,6 +6,8 @@
 #
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
+from __future__ import (division, print_function)
+
 import argparse
 import datetime
 import getopt
@@ -224,13 +226,13 @@ def write_data(root, filenames, background_file=None):
                 files = []
                 for j in range(i,i+chunk_size):
                     if j == get_index(filenames[k]):
-                        print 'Processing', filenames[k]
+                        print('Processing', filenames[k])
                         files.append(filenames[k])
                         try:
                             exposure_time, exposure, summed_exposures = read_metadata(filenames[k])
                             root.entry.instrument.detector.frame_start[k] = exposure_time - scan_time
                         except Exception as error:
-                            print filenames[k], error
+                            print(filenames[k], error)
                         k += 1
                     elif k < len(filenames):
                         files.append(None)
@@ -368,7 +370,7 @@ def main():
                                     version=__version__, note=note)
                                  
         toc = timeit.default_timer()
-        print toc-tic, 'seconds for', output_file
+        print (toc-tic, 'seconds for', output_file)
 
 
 if __name__ == "__main__":

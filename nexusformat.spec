@@ -12,9 +12,13 @@ URL:            https://nexpy.github.io/nexpy/
 Source0:        https://github.com/nexpy/nexusformat/archive/v%{version}.zip
 
 Requires:       h5py
+Requires:	numpy
 
+BuildRequires:  numpy
+BuildRequires:  python2-devel
+BuildRequires:  python-setuptools
 
-%{?python_provide:%python_provide python-%{srcname}}
+BuildArch:      noarch
 
 %description
 Python API to NeXus files using h5py

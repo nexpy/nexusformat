@@ -667,6 +667,8 @@ class NXFile(object):
         self._file.attrs['file_time'] = datetime.now().isoformat()
         self._file.attrs['HDF5_Version'] = h5.version.hdf5_version
         self._file.attrs['h5py_version'] = h5.version.version
+        from .. import __version__
+        self._file.attrs['nexusformat_version'] = __version__
 
     def update(self, item, path=None):
         if path is not None:

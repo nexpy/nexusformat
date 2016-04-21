@@ -2404,6 +2404,34 @@ class NXfield(NXobject):
     def _getsize(self):
         return len(self)
 
+    def _getcompression(self):
+        if self.nxfilemode:
+            return self.nxfile[self.nxpath].compression
+        else:
+            return self._compression
+
+    def _setcompression(self, value):
+        if self.nxfilemode == 'r':
+            raise NeXusError('NeXus file is locked')
+        elif self.nxfilemode == 'rw':
+            raise NeXusError('Cannot change the compression of a field already stored in a file')
+        self._compression = value
+        
+    def _getchunks(self):
+        if self.nxfilemode:
+            return self.nxfile[self.nxpath].chunks
+        else:
+            return self._chunks
+
+    def _setchunks(self, value):
+        if self.nxfilemode == 'r':
+            raise NeXusError('NeXus file is locked')
+        elif self.nxfilemode == 'rw':
+            raise NeXusError('Cannot change the chunk sizes of a field already stored in a file')
+        elif isinstance(value, (tuple, list)) and len(value) != self.ndim:
+            raise NeXusError('Number of chunks does not match the no. of array dimensions')
+        self._chunks = tuple(value)
+
     nxdata = property(_getdata, _setdata, doc="Property: The data values")
     nxaxes = property(_getaxes, doc="Property: The plotting axes")
     nxtitle = property(_title, "Property: Title for group plot")
@@ -2413,6 +2441,8 @@ class NXfield(NXobject):
     shape = property(_getshape, _setshape, doc="Property: Shape of NeXus field")
     ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
     size = property(_getsize, doc="Property: Size of NeXus field")
+    compression = property(_getcompression, _setcompression, doc="Property: Compression of NeXus field")
+    chunks = property(_getchunks, _setchunks, doc="Property: Chunk sizes of NeXus field")
 
     @property
     def safe_attrs(self):

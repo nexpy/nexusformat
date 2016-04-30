@@ -745,8 +745,7 @@ def _getvalue(value, dtype=None, shape=None):
     converted to the given dtype and/or reshaped to the given shape. Otherwise, 
     the dtype and shape are determined from the value.
     """
-    if is_text(dtype) and dtype == 'char':
-        dtype = string_dtype
+    dtype, shape = _getdtype(dtype), _getshape(shape)
     if value is None:
         return None, dtype, shape
     elif is_text(value):
@@ -754,7 +753,7 @@ def _getvalue(value, dtype=None, shape=None):
             raise NeXusError("Cannot assign a shape to a text string")
         if dtype is not None and dtype is not string_dtype:
             try:
-                return np.array(value, dtype=dtype), dtype, ()
+                return np.asscalar(np.array(value, dtype=dtype)), dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the requested dtype")
         else:
@@ -787,10 +786,36 @@ def _getvalue(value, dtype=None, shape=None):
             _value = _value.reshape(shape)
         except ValueError:
             raise NeXusError("The shape of the assigned value is incompatible with the NXobject")
-        _shape = tuple(shape)
-    return _value, _value.dtype, _value.shape
+    if _value.shape == ():
+        return np.asscalar(_value), _value.dtype, _value.shape
+    else:
+        return _value, _value.dtype, _value.shape
 
 
+def _getdtype(dtype):
+    if dtype is None:
+        return None
+    elif is_text(dtype) and dtype == 'char':
+        return string_dtype
+    else:
+        try:
+            return np.dtype(dtype)
+        except TypeError:
+            raise NeXusError("Invalid data type: %s" % dtype)
+
+
+def _getshape(shape):
+    if shape is None:
+        return None
+    else:
+        try:
+            if not isinstance(shape, (list, tuple)):
+                shape = [shape]
+            return tuple([int(i) for i in shape])
+        except ValueError:
+            raise NeXusError("Invalid shape: %s" % shape)
+
+    
 def _readaxes(axes):
     """
     Returns a list of axis names stored in the 'axes' attribute.
@@ -931,7 +956,7 @@ class NXattr(object):
     def _getshape(self):
         try:
             return tuple([int(i) for i in self._shape])
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return ()
 
     nxdata = property(_getdata,doc="Property: The attribute values")
@@ -1571,24 +1596,12 @@ class NXfield(NXobject):
 
     """
 
-    def __init__(self, value=None, name='field', dtype=None, shape=None, group=None,
-                 attrs=None, **attr):
+    def __init__(self, value=None, name='field', dtype=None, shape=None, 
+                 group=None, attrs=None, **attr):
         self._class = 'NXfield'
-        self._value = value
         self._name = name
         self._group = group
-        self._dtype = dtype
-        if dtype:
-            try:
-                self._dtype = np.dtype(dtype)
-            except Exception:
-                raise NeXusError("Invalid data type: %s" % dtype)
-        if shape is None:
-            self._shape = None
-        else:
-            if isinstance(shape, numbers.Integral):
-                shape = [shape]
-            self._shape = tuple(shape)
+        self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         # Append extra keywords to the attribute list
         if not attrs:
             attrs = {}
@@ -1622,9 +1635,6 @@ class NXfield(NXobject):
         self._masked = False
         self._filename = None
         self._memfile = None
-        if value is not None:
-            self._value, self._dtype, self._shape = \
-                _getvalue(value, self._dtype, self._shape)
         self.set_changed()
 
     def __repr__(self):
@@ -2398,7 +2408,7 @@ class NXfield(NXobject):
             raise NeXusError('NeXus file is locked')
         elif self.nxfilemode == 'rw':
             raise NeXusError('Cannot change the dtype of a field already stored in a file')
-        self._dtype = np.dtype(value)
+        self._dtype = _getdtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
 
@@ -2417,7 +2427,7 @@ class NXfield(NXobject):
             if self._value.size != np.prod(value):
                 raise ValueError('Total size of new array must be unchanged')
             self._value.shape = tuple(value)
-        self._shape = tuple(value)
+        self._shape = _getshape(value)
 
     def _getndim(self):
         return len(self.shape)

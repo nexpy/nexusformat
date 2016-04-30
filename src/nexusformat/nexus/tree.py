@@ -751,7 +751,7 @@ def _getvalue(value, dtype=None, shape=None):
     elif is_text(value):
         if shape is not None and shape != ():
             raise NeXusError("Cannot assign a shape to a text string")
-        if dtype is not None and dtype is not string_dtype:
+        if dtype is not None:
             try:
                 return np.asscalar(np.array(value, dtype=dtype)), dtype, ()
             except Exception:
@@ -809,11 +809,11 @@ def _getshape(shape):
         return None
     else:
         try:
-            if not isinstance(shape, (list, tuple)):
+            if not isinstance(shape, (list, tuple, np.ndarray)):
                 shape = [shape]
             return tuple([int(i) for i in shape])
         except ValueError:
-            raise NeXusError("Invalid shape: %s" % shape)
+            raise NeXusError("Invalid shape: %s" % str(shape))
 
     
 def _readaxes(axes):
@@ -1791,10 +1791,17 @@ class NXfield(NXobject):
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
+            if np.prod(self._shape) > 10000:
+                if not self._chunks:
+                    self._chunks = True
+                if not self._compression:
+                    self._compression = NX_COMPRESSION
             self._memfile.create_dataset('data', shape=self._shape, 
                                          dtype=self._dtype, 
-                                         compression=NX_COMPRESSION, 
-                                         chunks=True)
+                                         compression=self._compression,
+                                         chunks=self._chunks,
+                                         fillvalue=self._fillvalue,
+                                         maxshape=self._maxshape)
         else:
             raise NeXusError('Cannot allocate to field before setting shape and dtype')       
 
@@ -2448,6 +2455,12 @@ class NXfield(NXobject):
             raise NeXusError('Cannot change the compression of a field already stored in a file')
         self._compression = value
         
+    def _getfillvalue(self):
+        if self.nxfilemode:
+            return self.nxfile[self.nxpath].fillvalue
+        else:
+            return self._fillvalue
+
     def _getchunks(self):
         if self.nxfilemode:
             return self.nxfile[self.nxpath].chunks
@@ -2473,6 +2486,7 @@ class NXfield(NXobject):
     ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
     size = property(_getsize, doc="Property: Size of NeXus field")
     compression = property(_getcompression, _setcompression, doc="Property: Compression of NeXus field")
+    fillvalue = property(_getfillvalue, doc="Property: Default fill value of NeXus field")
     chunks = property(_getchunks, _setchunks, doc="Property: Chunk sizes of NeXus field")
 
     @property

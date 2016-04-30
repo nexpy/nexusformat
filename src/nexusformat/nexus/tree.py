@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013, NeXpy Development Team.
+# Copyright (c) 2013-2016, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -2259,6 +2259,8 @@ class NXfield(NXobject):
             s = repr(s)
             if s.startswith('u'):
                 s = s[1:]
+            if len(self.shape) > 0:
+                s = s[1:-1]
             if len(s) > 60:
                 s = s[0:56] + '...' + "'"
         elif '\n' in s or s == "":

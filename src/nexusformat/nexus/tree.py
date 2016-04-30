@@ -3779,7 +3779,7 @@ class NXdata(NXgroup):
                     axis_name = "axis%s" % i
                     self[axis_name] = axis
                     axis_names[i] = axis_name
-            self.attrs["axes"] = ":".join(axis_names.values())
+            self.attrs["axes"] = list(axis_names.values())
         if signal is not None:
             if isinstance(signal, NXfield):
                 if signal.nxname == "unknown" or signal.nxname in self:

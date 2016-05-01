@@ -753,7 +753,8 @@ def _getvalue(value, dtype=None, shape=None):
             raise NeXusError("Cannot assign a shape to a text string")
         if dtype is not None:
             try:
-                return np.asscalar(np.array(value, dtype=dtype)), dtype, ()
+                _dtype = _getdtype(dtype)
+                return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the requested dtype")
         else:
@@ -799,7 +800,11 @@ def _getdtype(dtype):
         return string_dtype
     else:
         try:
-            return np.dtype(dtype)
+            _dtype = np.dtype(dtype)
+            if _dtype.kind == 'U':
+                return string_dtype
+            else:
+                return _dtype
         except TypeError:
             raise NeXusError("Invalid data type: %s" % dtype)
 

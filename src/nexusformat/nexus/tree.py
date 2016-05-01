@@ -771,7 +771,7 @@ def _getvalue(value, dtype=None, shape=None):
             _value = np.asarray(value) #convert subclasses of ndarray
     else:
         _value = np.asarray(value)
-        if _value.dtype.kind == 'S':
+        if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
             _value = _value.astype(string_dtype)
     if dtype is not None:
         if isinstance(value, np.bool_) and dtype != np.bool_:
@@ -1596,6 +1596,10 @@ class NXfield(NXobject):
 
     """
 
+    field_properties = ['dtype', 'shape', 'maxshape', 'compression', 'chunks',
+                        'fillvalue', 'ndim', 'size', 'mask', 
+                        'nxdata', 'nxaxes', 'nxtitle']
+
     def __init__(self, value=None, name='field', dtype=None, shape=None, 
                  group=None, attrs=None, **attr):
         self._class = 'NXfield'
@@ -1663,7 +1667,7 @@ class NXfield(NXobject):
         attributes for the NXfield class.
         """
         if name.startswith('_') or name.startswith('nx') or \
-           name == 'mask' or name == 'shape' or name == 'dtype':
+           name in self.field_properties:
             if isinstance(value, NXfield):
                 value = value.nxdata
             object.__setattr__(self, name, value)
@@ -1800,8 +1804,9 @@ class NXfield(NXobject):
                                          dtype=self._dtype, 
                                          compression=self._compression,
                                          chunks=self._chunks,
-                                         fillvalue=self._fillvalue,
-                                         maxshape=self._maxshape)
+                                         maxshape=self._maxshape,
+                                         fillvalue=self._fillvalue)
+            self._chunks = self._memfile['data'].chunks
         else:
             raise NeXusError('Cannot allocate to field before setting shape and dtype')       
 
@@ -2411,9 +2416,7 @@ class NXfield(NXobject):
         return self._dtype
 
     def _setdtype(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the dtype of a field already stored in a file')
         self._dtype = _getdtype(value)
         if self._value is not None:
@@ -2426,10 +2429,10 @@ class NXfield(NXobject):
             return ()
 
     def _setshape(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the shape of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the shape of a field already in core memory')
         if self._value is not None:
             if self._value.size != np.prod(value):
                 raise ValueError('Total size of new array must be unchanged')
@@ -2444,34 +2447,38 @@ class NXfield(NXobject):
 
     def _getcompression(self):
         if self.nxfilemode:
-            return self.nxfile[self.nxpath].compression
-        else:
-            return self._compression
+            self._compression = self.nxfile[self.nxpath].compression
+        return self._compression
 
     def _setcompression(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the compression of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the compression of a field already in core memory')
         self._compression = value
         
     def _getfillvalue(self):
         if self.nxfilemode:
-            return self.nxfile[self.nxpath].fillvalue
-        else:
-            return self._fillvalue
+            self._fillvalue = self.nxfile[self.nxpath].fillvalue
+        return self._fillvalue
 
+    def _setfillvalue(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the fill values of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the fill values of a field already in core memory')
+        self._compression = value
+        
     def _getchunks(self):
         if self.nxfilemode:
-            return self.nxfile[self.nxpath].chunks
-        else:
-            return self._chunks
+            self._chunks = self.nxfile[self.nxpath].chunks
+        return self._chunks
 
     def _setchunks(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the chunk sizes of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the chunk sizes of a field already in core memory')
         elif isinstance(value, (tuple, list)) and len(value) != self.ndim:
             raise NeXusError('Number of chunks does not match the no. of array dimensions')
         self._chunks = tuple(value)
@@ -2486,7 +2493,7 @@ class NXfield(NXobject):
     ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
     size = property(_getsize, doc="Property: Size of NeXus field")
     compression = property(_getcompression, _setcompression, doc="Property: Compression of NeXus field")
-    fillvalue = property(_getfillvalue, doc="Property: Default fill value of NeXus field")
+    fillvalue = property(_getfillvalue, _setfillvalue, doc="Property: Default fill value of NeXus field")
     chunks = property(_getchunks, _setchunks, doc="Property: Chunk sizes of NeXus field")
 
     @property
@@ -3334,7 +3341,7 @@ class NXgroup(NXobject):
     nxaxes = None
     nxerrors = None
     nxtitle = property(_title, "Property: Group title")
-    entries = property(_getentries,doc="Property: NeXus objects within group")
+    entries = property(_getentries, doc="Property: NeXus objects within group")
 
 
 class NXlink(NXobject):

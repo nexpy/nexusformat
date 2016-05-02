@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013, NeXpy Development Team.
+# Copyright (c) 2013-2016, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -500,10 +500,12 @@ class NXFile(object):
         """
         Writes the attributes for the group/data with the current path.
 
-        If no group or data object is open, the file attributes are returned.
+        Null attributes are ignored.
         """
-        for name, value in attrs.items():
-            self[self.nxpath].attrs[name] = value.nxdata
+        if self[self.nxpath] is not None:
+            for name, value in attrs.items():
+                if value.nxdata is not None:
+                    self[self.nxpath].attrs[name] = value.nxdata
 
     def _writedata(self, data):
         """
@@ -543,7 +545,7 @@ class NXFile(object):
             data._memfile = None
         elif data.nxfilemode and data.nxfile.filename != self.filename:
             data.nxfile.copy(data.nxpath, self[parent])
-        else:
+        elif data.dtype is not None:
             if data.nxname not in self[parent]:
                 if np.prod(data.shape) > 10000:
                     if not data._chunks:
@@ -560,7 +562,7 @@ class NXFile(object):
                 if data._value is not None:
                     self[self.nxpath][()] = data._value 
             except NeXusError:
-                pass  
+                pass
         self._writeattrs(data.attrs)
         self.nxpath = parent
         return []
@@ -667,6 +669,8 @@ class NXFile(object):
         self._file.attrs['file_time'] = datetime.now().isoformat()
         self._file.attrs['HDF5_Version'] = h5.version.hdf5_version
         self._file.attrs['h5py_version'] = h5.version.version
+        from .. import __version__
+        self._file.attrs['nexusformat_version'] = __version__
 
     def update(self, item, path=None):
         if path is not None:
@@ -741,20 +745,24 @@ def _getvalue(value, dtype=None, shape=None):
     converted to the given dtype and/or reshaped to the given shape. Otherwise, 
     the dtype and shape are determined from the value.
     """
-    if is_text(value):
-        if value == '':
-            _value = u' '
+    dtype, shape = _getdtype(dtype), _getshape(shape)
+    if value is None:
+        return None, dtype, shape
+    elif is_text(value):
+        if shape is not None and shape != ():
+            raise NeXusError("Cannot assign a shape to a text string")
+        if dtype is not None:
+            try:
+                _dtype = _getdtype(dtype)
+                return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
+            except Exception:
+                raise NeXusError("The value is incompatible with the requested dtype")
         else:
             _value = text(value)
-        _dtype = string_dtype
-        _shape = ()
-    elif not isinstance(value, np.ndarray):
-        _value = np.asarray(value)
-        if _value.dtype.kind == 'S':
-            _value = _value.astype(string_dtype)
-        _dtype = _value.dtype
-        _shape = _value.shape
-    else:
+            if _value == u'':
+                _value = u' '
+            return _value, string_dtype, ()
+    elif isinstance(value, np.ndarray):
         if isinstance(value, np.ma.MaskedArray):
             if value.count() < value.size: #some values are masked
                 _value = value
@@ -762,24 +770,71 @@ def _getvalue(value, dtype=None, shape=None):
                 _value = np.asarray(value)
         else:
             _value = np.asarray(value) #convert subclasses of ndarray
-        _dtype = _value.dtype
-        _shape = _value.shape
+    else:
+        _value = np.asarray(value)
+        if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
+            _value = _value.astype(string_dtype)
     if dtype is not None:
-        if is_text(dtype) and dtype == 'char':
-            dtype = string_dtype
-        elif isinstance(value, np.bool_) and dtype != np.bool_:
+        if isinstance(value, np.bool_) and dtype != np.bool_:
             raise NeXusError("Cannot assign a Boolean value to a non-Boolean NXobject")
         elif isinstance(_value, np.ndarray):
-            _value = _value.astype(dtype)
-    if shape:
+            try:
+                _value = _value.astype(dtype)
+            except:
+                raise NeXusError("The value is incompatible with the requested dtype")
+    if shape is not None and isinstance(_value, np.ndarray):
         try:
             _value = _value.reshape(shape)
         except ValueError:
             raise NeXusError("The shape of the assigned value is incompatible with the NXobject")
-        _shape = tuple(shape)
-    return _value, _dtype, _shape
+    if _value.shape == ():
+        return np.asscalar(_value), _value.dtype, _value.shape
+    else:
+        return _value, _value.dtype, _value.shape
 
 
+def _getdtype(dtype):
+    if dtype is None:
+        return None
+    elif is_text(dtype) and dtype == 'char':
+        return string_dtype
+    else:
+        try:
+            _dtype = np.dtype(dtype)
+            if _dtype.kind == 'U':
+                return string_dtype
+            else:
+                return _dtype
+        except TypeError:
+            raise NeXusError("Invalid data type: %s" % dtype)
+
+
+def _getshape(shape):
+    if shape is None:
+        return None
+    else:
+        try:
+            if not isinstance(shape, (list, tuple, np.ndarray)):
+                shape = [shape]
+            return tuple([int(i) for i in shape])
+        except ValueError:
+            raise NeXusError("Invalid shape: %s" % str(shape))
+
+    
+def _getmaxshape(maxshape, shape):
+    maxshape, shape = _getshape(maxshape), _getshape(shape)
+    if shape is None:
+        raise NeXusError('Define shape before setting maximum shape')
+    else:
+        if len(maxshape) != len(shape):
+            raise NeXusError('Number of dimensions in maximum shape does not match the field')
+        else:
+            for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
+                if i < j:
+                    raise NeXusError('Maximum shape must be larger than the field shape')
+        return maxshape
+
+    
 def _readaxes(axes):
     """
     Returns a list of axis names stored in the 'axes' attribute.
@@ -806,6 +861,8 @@ class AttrDict(dict):
         return super(AttrDict, self).__getitem__(key).nxdata
 
     def __setitem__(self, key, value):
+        if value is None:
+            return
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(key, value)
         else:
@@ -872,14 +929,14 @@ class NXattr(object):
 
     """
 
-    def __init__(self, value=None, dtype=None):
+    def __init__(self, value=None, dtype=None, shape=None):
         if isinstance(value, NXattr):
             value = value.nxdata
         elif isinstance(value, NXfield):
             value = value.nxdata
         elif isinstance(value, NXgroup):
             raise NeXusError("A data attribute cannot be a NXgroup")
-        self._value, self._dtype, _ = _getvalue(value, dtype)
+        self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
 
     def __str__(self):
         return text(self.nxdata)
@@ -888,7 +945,8 @@ class NXattr(object):
         return text(self.nxdata)
 
     def __repr__(self):
-        if self.dtype.type == np.string_ or self.dtype == string_dtype:
+        if self.dtype is not None and \
+            self.dtype.type == np.string_ or self.dtype == string_dtype:
             return "NXattr('%s')" % self.nxdata
         else:
             return "NXattr(%s)" % self.nxdata
@@ -906,16 +964,23 @@ class NXattr(object):
         """
         Returns the attribute value.
         """
-        if self.dtype.type == np.string_ or self.dtype == string_dtype:
-            return self._value
-        else:
+        try:
             return self._value[()]
+        except TypeError:
+            return self._value
 
     def _getdtype(self):
         return self._dtype
 
+    def _getshape(self):
+        try:
+            return tuple([int(i) for i in self._shape])
+        except (TypeError, ValueError):
+            return ()
+
     nxdata = property(_getdata,doc="Property: The attribute values")
     dtype = property(_getdtype, "Property: Data type of NeXus attribute")
+    shape = property(_getshape, "Property: Shape of NeXus attribute")
 
 _npattrs = list(filter(lambda x: not x.startswith('_'), np.ndarray.__dict__))
 
@@ -1550,27 +1615,21 @@ class NXfield(NXobject):
 
     """
 
-    def __init__(self, value=None, name='field', dtype=None, shape=(), group=None,
-                 attrs=None, **attr):
+    field_properties = ['dtype', 'shape', 'maxshape', 'compression', 'chunks',
+                        'fillvalue', 'mask', 'nxdata']
+
+    def __init__(self, value=None, name='field', dtype=None, shape=None, 
+                 group=None, attrs=None, **attr):
         self._class = 'NXfield'
-        self._value = value
         self._name = name
         self._group = group
-        self._dtype = dtype
-        if dtype:
-            try:
-                self._dtype = np.dtype(dtype)
-            except Exception:
-                raise NeXusError("Invalid data type: %s" % dtype)
-        if isinstance(shape, numbers.Integral):
-            shape = [shape]
-        self._shape = tuple(shape)
+        self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         # Append extra keywords to the attribute list
         if not attrs:
             attrs = {}
         # Store h5py attributes as private variables
         if 'maxshape' in attr:
-            self._maxshape = attr['maxshape']
+            self._maxshape = _getmaxshape(attr['maxshape'], self._shape)
             del attr['maxshape']
         else:
             self._maxshape = None
@@ -1598,9 +1657,6 @@ class NXfield(NXobject):
         self._masked = False
         self._filename = None
         self._memfile = None
-        if value is not None:
-            self._value, self._dtype, self._shape = \
-                _getvalue(value, self._dtype, self._shape)
         self.set_changed()
 
     def __repr__(self):
@@ -1629,7 +1685,7 @@ class NXfield(NXobject):
         attributes for the NXfield class.
         """
         if name.startswith('_') or name.startswith('nx') or \
-           name == 'mask' or name == 'shape' or name == 'dtype':
+           name in self.field_properties:
             if isinstance(value, NXfield):
                 value = value.nxdata
             object.__setattr__(self, name, value)
@@ -1757,10 +1813,18 @@ class NXfield(NXobject):
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
+            if np.prod(self._shape) > 10000:
+                if not self._chunks:
+                    self._chunks = True
+                if not self._compression:
+                    self._compression = NX_COMPRESSION
             self._memfile.create_dataset('data', shape=self._shape, 
                                          dtype=self._dtype, 
-                                         compression=NX_COMPRESSION, 
-                                         chunks=True)
+                                         compression=self._compression,
+                                         chunks=self._chunks,
+                                         maxshape=self._maxshape,
+                                         fillvalue=self._fillvalue)
+            self._chunks = self._memfile['data'].chunks
         else:
             raise NeXusError('Cannot allocate to field before setting shape and dtype')       
 
@@ -2209,11 +2273,7 @@ class NXfield(NXobject):
         for large arrays will be printed.
         """
         if self._value is not None:
-            if ((self.dtype.kind == 'S' or self.dtype == string_dtype)
-                 and self.shape != ()):
-                return text('\n'.join([t for t in self._value.flatten()]))
-            else:
-                return text(self._value)
+            return text(self._value)
         return ""
 
     def __unicode__(self):
@@ -2223,11 +2283,7 @@ class NXfield(NXobject):
         for large arrays will be printed.
         """
         if self._value is not None:
-            if (self.dtype.kind == 'S' or self.dtype == string_dtype) \
-                and self.shape != ():
-                return text('\n'.join([t for t in self._value.flatten()]))
-            else:
-                return text(self._value)
+            return text(self._value)
         return u""
 
     def _str_value(self,indent=0):
@@ -2239,10 +2295,12 @@ class NXfield(NXobject):
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([text(n) for n in self.shape])
         s = text(self)
-        if self.dtype == string_dtype:
+        if self.dtype == string_dtype or self.dtype.kind == 'S':
             s = repr(s)
             if s.startswith('u'):
                 s = s[1:]
+            if len(self.shape) > 0:
+                s = s[1:-1]
             if len(s) > 60:
                 s = s[0:56] + '...' + "'"
         elif '\n' in s or s == "":
@@ -2282,6 +2340,8 @@ class NXfield(NXobject):
         Returns the data if it is not larger than NX_MEMORY.
         """
         if self._value is None:
+            if self.dtype is None or self.shape is None:
+                return None
             if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1024*1024:
                 if self.nxfilemode:
                     self._value = self._get_filedata()
@@ -2374,27 +2434,89 @@ class NXfield(NXobject):
         return self._dtype
 
     def _setdtype(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the dtype of a field already stored in a file')
-        self._dtype = np.dtype(value)
+        elif self._memfile:
+            raise NeXusError('Cannot change the dtype of a field already in core memory')
+        self._dtype = _getdtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
 
     def _getshape(self):
-        return tuple([int(i) for i in self._shape])
+        try:
+            return _getshape(self._shape)
+        except TypeError:
+            return ()
 
     def _setshape(self, value):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
-        elif self.nxfilemode == 'rw':
+        if self.nxfilemode:
             raise NeXusError('Cannot change the shape of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the shape of a field already in core memory')
+        _shape = _getshape(value)
         if self._value is not None:
-            if self._value.size != np.prod(value):
+            if self._value.size != np.prod(_shape):
                 raise ValueError('Total size of new array must be unchanged')
-            self._value.shape = tuple(value)
-        self._shape = tuple(value)
+            self._value.shape = _shape
+        self._shape = _shape
+
+    def _getcompression(self):
+        if self.nxfilemode:
+            self._compression = self.nxfile[self.nxpath].compression
+        elif self._memfile:
+            self._compression = self._memfile['data'].compression
+        return self._compression
+
+    def _setcompression(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the compression of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the compression of a field already in core memory')
+        self._compression = value
+        
+    def _getfillvalue(self):
+        if self.nxfilemode:
+            self._fillvalue = self.nxfile[self.nxpath].fillvalue
+        elif self._memfile:
+            self._fillvalue = self._memfile['data'].fillvalue
+        return self._fillvalue
+
+    def _setfillvalue(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the fill values of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the fill values of a field already in core memory')
+        self._fillvalue = value
+        
+    def _getchunks(self):
+        if self.nxfilemode:
+            self._chunks = self.nxfile[self.nxpath].chunks
+        elif self._memfile:
+            self._chunks = self._memfile['data'].chunks
+        return self._chunks
+
+    def _setchunks(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the chunk sizes of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the chunk sizes of a field already in core memory')
+        elif isinstance(value, (tuple, list, np.ndarray)) and len(value) != self.ndim:
+            raise NeXusError('Number of chunks does not match the no. of array dimensions')
+        self._chunks = tuple(value)
+
+    def _getmaxshape(self):
+        if self.nxfilemode:
+            self._maxshape = self.nxfile[self.nxpath].maxshape
+        elif self._memfile:
+            self._maxshape = self._memfile['data'].maxshape
+        return self._maxshape
+
+    def _setmaxshape(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the maximum shape of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the maximum shape  of a field already in core memory')
+        self._maxshape = _getmaxshape(value, self.shape) 
 
     def _getndim(self):
         return len(self.shape)
@@ -2409,6 +2531,10 @@ class NXfield(NXobject):
     dtype = property(_getdtype, _setdtype, 
                      doc="Property: Data type of NeXus field")
     shape = property(_getshape, _setshape, doc="Property: Shape of NeXus field")
+    compression = property(_getcompression, _setcompression, doc="Property: Compression of NeXus field")
+    fillvalue = property(_getfillvalue, _setfillvalue, doc="Property: Default fill value of NeXus field")
+    chunks = property(_getchunks, _setchunks, doc="Property: Chunk sizes of NeXus field")
+    maxshape = property(_getmaxshape, _setmaxshape, doc="Property: Maximum size of NeXus field array")
     ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
     size = property(_getsize, doc="Property: Size of NeXus field")
 
@@ -3257,7 +3383,7 @@ class NXgroup(NXobject):
     nxaxes = None
     nxerrors = None
     nxtitle = property(_title, "Property: Group title")
-    entries = property(_getentries,doc="Property: NeXus objects within group")
+    entries = property(_getentries, doc="Property: NeXus objects within group")
 
 
 class NXlink(NXobject):
@@ -3728,7 +3854,7 @@ class NXdata(NXgroup):
                     axis_name = "axis%s" % i
                     self[axis_name] = axis
                     axis_names[i] = axis_name
-            self.attrs["axes"] = ":".join(axis_names.values())
+            self.attrs["axes"] = list(axis_names.values())
         if signal is not None:
             if isinstance(signal, NXfield):
                 if signal.nxname == "unknown" or signal.nxname in self:

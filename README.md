@@ -24,6 +24,12 @@ or
     $ easy_install nexusformat
 ```
 
+If you have an Anaconda installation, use::
+
+```
+    $ conda install -c nexpy nexusformat
+```
+
 The source code can be downloaded from the NeXpy Git repository:
 
 ```
@@ -50,16 +56,6 @@ more details of the nature of these dependencies in the
 
 * h5py                 http://www.h5py.org
 * numpy                http://numpy.org
-
-The remote server requires the Pyro4 package.
-
-* pyro4                http://pythonhosted.org//Pyro4/
-
-The following environment variable may need to be set
-
-PYTHONPATH --> paths to numpy if installed in a nonstandard place
-
-All of the above are included in the Enthought Python Distribution v7.3.
 
 User Support
 ============

@@ -15,7 +15,7 @@ __version__ = get_versions()['version']
 del get_versions
 
 __documentation_author__ = u'Ray Osborn'
-__documentation_copyright__ = u'2013-2015, Ray Osborn'
+__documentation_copyright__ = u'2013-2016, Ray Osborn'
 
 __license__ = u'BSD'
 __author_name__ = u'NeXpy Development Team'
@@ -29,10 +29,11 @@ __description__ = u'nexusformat: Python API to access NeXus data'
 __long_description__ = \
 u"""
 This package provides a Python API to open, create, and manipulate `NeXus data 
-<http://www.nexusformat.org/>`_ written in the HDF5 format. It also includes a 
-server to allow files to be opened on a remote server across a network. The 
-'nexusformat' package provides the underlying API for `NeXpy 
-<http://nexpy.github.io/nexpy>`_, which provides a GUI interface. 
+<http://www.nexusformat.org/>`_ written in the HDF5 format. The 'nexusformat' 
+package provides the underlying API for `NeXpy 
+<http://nexpy.github.io/nexpy>`_, which provides a GUI interface. It also 
+contains a command-line script, `nxstack` for merging TIFF or CBF files into a 
+single HDF5 array.
 
 The latest development version is always available from `NeXpy's GitHub
 site <https://github.com/nexpy/nexusformat>`_.

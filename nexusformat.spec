@@ -3,7 +3,7 @@
 %define debug_package %{nil}
 
 Name:           python-%{srcname}
-Version:        0.2.2
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Python API to NeXus files using h5py
 

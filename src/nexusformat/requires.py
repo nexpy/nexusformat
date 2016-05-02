@@ -13,5 +13,4 @@
 pkg_requirements = [
     'numpy>=1.6.0',
     'h5py',
-    'six',
 ]

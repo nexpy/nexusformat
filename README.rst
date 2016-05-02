@@ -11,6 +11,10 @@ or::
 
     $ easy_install nexusformat 
 
+or::
+
+    $ conda install -c https://conda.anaconda.org/nexpy nexusformat
+
 If you have trouble with the pip or easy_install installations, you can install
 the package from the source code either by downloading one of the 
 `Github releases <https://github.com/nexpy/nexusformat/releases>`_ or by cloning 
@@ -35,7 +39,6 @@ Library            URL
 =================  ===================================================
 h5py               http://www.h5py.org
 numpy              http://numpy.scipy.org/
-pyro4              http://pythonhosted.org//Pyro4/ (for remote server)
 =================  ===================================================
 
 Versioning

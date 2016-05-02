@@ -78,7 +78,7 @@ def read_image(filename):
         try:
             import pycbf
         except ImportError:
-            raise NeXusError('Reading CBF files requires the pycbf module')
+            raise NeXusError("Please install the 'pycbf' module")
         cbf = pycbf.cbf_handle_struct()
         cbf.read_file(filename, pycbf.MSG_DIGEST)
         cbf.select_datablock(0)

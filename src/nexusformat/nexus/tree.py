@@ -821,6 +821,20 @@ def _getshape(shape):
             raise NeXusError("Invalid shape: %s" % str(shape))
 
     
+def _getmaxshape(maxshape, shape):
+    maxshape, shape = _getshape(maxshape), _getshape(shape)
+    if shape is None:
+        raise NeXusError('Define shape before setting maximum shape')
+    else:
+        if len(maxshape) != len(shape):
+            raise NeXusError('Number of dimensions in maximum shape does not match the field')
+        else:
+            for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
+                if i < j:
+                    raise NeXusError('Maximum shape must be larger than the field shape')
+        return maxshape
+
+    
 def _readaxes(axes):
     """
     Returns a list of axis names stored in the 'axes' attribute.
@@ -1602,8 +1616,7 @@ class NXfield(NXobject):
     """
 
     field_properties = ['dtype', 'shape', 'maxshape', 'compression', 'chunks',
-                        'fillvalue', 'ndim', 'size', 'mask', 
-                        'nxdata', 'nxaxes', 'nxtitle']
+                        'fillvalue', 'mask', 'nxdata']
 
     def __init__(self, value=None, name='field', dtype=None, shape=None, 
                  group=None, attrs=None, **attr):
@@ -1616,7 +1629,7 @@ class NXfield(NXobject):
             attrs = {}
         # Store h5py attributes as private variables
         if 'maxshape' in attr:
-            self._maxshape = attr['maxshape']
+            self._maxshape = _getmaxshape(attr['maxshape'], self._shape)
             del attr['maxshape']
         else:
             self._maxshape = None
@@ -2423,13 +2436,15 @@ class NXfield(NXobject):
     def _setdtype(self, value):
         if self.nxfilemode:
             raise NeXusError('Cannot change the dtype of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the dtype of a field already in core memory')
         self._dtype = _getdtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
 
     def _getshape(self):
         try:
-            return tuple([int(i) for i in self._shape])
+            return _getshape(self._shape)
         except TypeError:
             return ()
 
@@ -2438,21 +2453,18 @@ class NXfield(NXobject):
             raise NeXusError('Cannot change the shape of a field already stored in a file')
         elif self._memfile:
             raise NeXusError('Cannot change the shape of a field already in core memory')
+        _shape = _getshape(value)
         if self._value is not None:
-            if self._value.size != np.prod(value):
+            if self._value.size != np.prod(_shape):
                 raise ValueError('Total size of new array must be unchanged')
-            self._value.shape = tuple(value)
-        self._shape = _getshape(value)
-
-    def _getndim(self):
-        return len(self.shape)
-
-    def _getsize(self):
-        return len(self)
+            self._value.shape = _shape
+        self._shape = _shape
 
     def _getcompression(self):
         if self.nxfilemode:
             self._compression = self.nxfile[self.nxpath].compression
+        elif self._memfile:
+            self._compression = self._memfile['data'].compression
         return self._compression
 
     def _setcompression(self, value):
@@ -2465,6 +2477,8 @@ class NXfield(NXobject):
     def _getfillvalue(self):
         if self.nxfilemode:
             self._fillvalue = self.nxfile[self.nxpath].fillvalue
+        elif self._memfile:
+            self._fillvalue = self._memfile['data'].fillvalue
         return self._fillvalue
 
     def _setfillvalue(self, value):
@@ -2472,11 +2486,13 @@ class NXfield(NXobject):
             raise NeXusError('Cannot change the fill values of a field already stored in a file')
         elif self._memfile:
             raise NeXusError('Cannot change the fill values of a field already in core memory')
-        self._compression = value
+        self._fillvalue = value
         
     def _getchunks(self):
         if self.nxfilemode:
             self._chunks = self.nxfile[self.nxpath].chunks
+        elif self._memfile:
+            self._chunks = self._memfile['data'].chunks
         return self._chunks
 
     def _setchunks(self, value):
@@ -2484,9 +2500,29 @@ class NXfield(NXobject):
             raise NeXusError('Cannot change the chunk sizes of a field already stored in a file')
         elif self._memfile:
             raise NeXusError('Cannot change the chunk sizes of a field already in core memory')
-        elif isinstance(value, (tuple, list)) and len(value) != self.ndim:
+        elif isinstance(value, (tuple, list, np.ndarray)) and len(value) != self.ndim:
             raise NeXusError('Number of chunks does not match the no. of array dimensions')
         self._chunks = tuple(value)
+
+    def _getmaxshape(self):
+        if self.nxfilemode:
+            self._maxshape = self.nxfile[self.nxpath].maxshape
+        elif self._memfile:
+            self._maxshape = self._memfile['data'].maxshape
+        return self._maxshape
+
+    def _setmaxshape(self, value):
+        if self.nxfilemode:
+            raise NeXusError('Cannot change the maximum shape of a field already stored in a file')
+        elif self._memfile:
+            raise NeXusError('Cannot change the maximum shape  of a field already in core memory')
+        self._maxshape = _getmaxshape(value, self.shape) 
+
+    def _getndim(self):
+        return len(self.shape)
+
+    def _getsize(self):
+        return len(self)
 
     nxdata = property(_getdata, _setdata, doc="Property: The data values")
     nxaxes = property(_getaxes, doc="Property: The plotting axes")
@@ -2495,11 +2531,12 @@ class NXfield(NXobject):
     dtype = property(_getdtype, _setdtype, 
                      doc="Property: Data type of NeXus field")
     shape = property(_getshape, _setshape, doc="Property: Shape of NeXus field")
-    ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
-    size = property(_getsize, doc="Property: Size of NeXus field")
     compression = property(_getcompression, _setcompression, doc="Property: Compression of NeXus field")
     fillvalue = property(_getfillvalue, _setfillvalue, doc="Property: Default fill value of NeXus field")
     chunks = property(_getchunks, _setchunks, doc="Property: Chunk sizes of NeXus field")
+    maxshape = property(_getmaxshape, _setmaxshape, doc="Property: Maximum size of NeXus field array")
+    ndim = property(_getndim, doc="Property: No. of dimensions of NeXus field")
+    size = property(_getsize, doc="Property: Size of NeXus field")
 
     @property
     def safe_attrs(self):

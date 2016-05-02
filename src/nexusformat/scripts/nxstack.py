@@ -19,7 +19,7 @@ import subprocess
 import sys
 import time
 import timeit
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 from datetime import datetime
 
 import numpy as np
@@ -54,7 +54,7 @@ def get_files(directory, prefix, extension, first=None, last=None,
     filenames = sorted(glob.glob(os.path.join(directory, prefix+'*'+extension)),
                        key=natural_sort, reverse=reverse)
     if len(filenames) == 0:
-        print "No filenames matched!"
+        print("No filenames matched!")
         exit(0)
     max_index = get_index(filenames[-1])
     if first:
@@ -89,9 +89,9 @@ def read_image(filename):
                              np.int32).reshape(imsize)
     else:
         try:
-            from nexpy.readers.tifffile import tifffile as TIFF
+            import tifffile as TIFF
         except ImportError:
-            raise NeXusError('Reading TIFF files requires the TIFF reader installed with NeXpy')
+            raise NeXusError("Please install the 'tifffile' module")
         if filename.endswith('.bz2'):
             import bz2
             tiff_file = TIFF.TiffFile(bz2.BZ2File(filename))
@@ -370,7 +370,7 @@ def main():
                                     version=__version__, note=note)
                                  
         toc = timeit.default_timer()
-        print (toc-tic, 'seconds for', output_file)
+        print(toc-tic, 'seconds for', output_file)
 
 
 if __name__ == "__main__":

@@ -38,8 +38,7 @@ setup (name =  nexusformat.__package_name__, # NeXpy
        packages = find_packages('src'),
        entry_points={
             # create & install scripts in <python>/bin
-            'console_scripts': ['nxstartserver=nexusformat.pyro.start_server:main',
-                                'nxstack=nexusformat.scripts.nxstack:main'],
+            'console_scripts': ['nxstack=nexusformat.scripts.nxstack:main'],
        },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',

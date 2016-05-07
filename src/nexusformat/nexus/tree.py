@@ -623,8 +623,6 @@ class NXFile(object):
                 value = self.readvalue(self.nxpath)
                 if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
-                if isinstance(value, bytes):
-                    value = text(value)
             except ValueError:
                 value = None
         else:
@@ -754,6 +752,8 @@ def _getvalue(value, dtype=None, shape=None):
         if dtype is not None:
             try:
                 _dtype = _getdtype(dtype)
+                if _dtype.kind == 'S':
+                    value = text(value).encode('utf-8')
                 return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the requested dtype")
@@ -939,7 +939,10 @@ class NXattr(object):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
 
     def __str__(self):
-        return text(self.nxdata)
+        if six.PY3:
+            return text(self.nxdata)
+        else:
+            return text(self.nxdata).encode(NX_ENCODING)
 
     def __unicode__(self):
         return text(self.nxdata)
@@ -1665,6 +1668,19 @@ class NXfield(NXobject):
         else:
             return "NXfield(dtype=%s, shape=%s)" % (self.dtype, self.shape)
 
+    def __str__(self):
+        if self._value is not None:
+            if six.PY3:
+                return text(self._value)
+            else:
+                return text(self._value).encode(NX_ENCODING)
+        return ""
+
+    def __unicode__(self):
+        if self._value is not None:
+            return text(self._value)
+        return u""
+
     def __getattr__(self, name):
         """
         Enables standard numpy ndarray attributes if not otherwise defined.
@@ -2266,26 +2282,6 @@ class NXfield(NXobject):
         else:
             return None
 
-    def __str__(self):
-        """
-        If value is loaded, return the value as a string.  If value is
-        not loaded, return the empty string.  Only the first view values
-        for large arrays will be printed.
-        """
-        if self._value is not None:
-            return text(self._value)
-        return ""
-
-    def __unicode__(self):
-        """
-        If value is loaded, return the value as a unicode string.  If value is
-        not loaded, return the empty string.  Only the first view values
-        for large arrays will be printed.
-        """
-        if self._value is not None:
-            return text(self._value)
-        return u""
-
     def _str_value(self,indent=0):
         v = text(self)
         if '\n' in v:
@@ -2296,13 +2292,13 @@ class NXfield(NXobject):
         dims = 'x'.join([text(n) for n in self.shape])
         s = text(self)
         if self.dtype == string_dtype or self.dtype.kind == 'S':
-            s = repr(s)
             if s.startswith('u'):
                 s = s[1:]
             if len(self.shape) > 0:
                 s = s[1:-1]
             if len(s) > 60:
-                s = s[0:56] + '...' + "'"
+                s = s[0:56] + '...'
+            s = "'" + s + "'"
         elif '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
         try:
@@ -3441,7 +3437,10 @@ class NXlink(NXobject):
         return "NXlink('%s')" % (self._target)
 
     def __str__(self):
-        return text(self.nxlink)
+        if six.PY3:
+            return text(self.nxlink)
+        else:
+            return text(self.nxlink).encode(NX_ENCODING)
 
     def __unicode__(self):
         return text(self.nxlink)

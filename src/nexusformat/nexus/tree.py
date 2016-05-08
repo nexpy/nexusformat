@@ -950,9 +950,9 @@ class NXattr(object):
     def __repr__(self):
         if self.dtype is not None and \
             self.dtype.type == np.string_ or self.dtype == string_dtype:
-            return "NXattr('%s')" % self.nxdata
+            return "NXattr('%s')" % self
         else:
-            return "NXattr(%s)" % self.nxdata
+            return "NXattr(%s)" % self
 
     def __eq__(self, other):
         """

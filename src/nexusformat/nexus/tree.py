@@ -4242,7 +4242,8 @@ class NXdata(NXgroup):
             if 'signal' in current_signal.attrs:
                 del current_signal.attrs['signal']
         self.attrs['signal'] = signal.nxname
-        self[signal.nxname] = signal
+        if id(signal) not in [id(self[x]) for x in self]:
+            self[signal.nxname] = signal
 
     def _axes(self):
         """

@@ -4281,7 +4281,7 @@ class NXdata(NXgroup):
         for axis in axes:
             if axis.nxname not in self:
                 self.insert(axis)
-        axes_attr = ":".join([axis.nxname for axis in axes])
+        axes_attr = [axis.nxname for axis in axes]
         if 'signal' in self.attrs:
             self.attrs['axes'] = axes_attr
 

@@ -958,10 +958,15 @@ class NXattr(object):
         """
         Returns true if the value of the attribute is the same as the other.
         """
-        if isinstance(other, NXattr):
+        if id(self) == id(other):
+            return True
+        elif isinstance(other, NXattr):
             return self.nxdata == other.nxdata
         else:
             return self.nxdata == other
+
+    def __hash__(self):
+        return id(self)
 
     def _getdata(self):
         """
@@ -2056,8 +2061,14 @@ class NXfield(NXobject):
     def __eq__(self, other):
         """
         Returns true if the values of the NXfield are the same.
+        
+        If the two NXfields are the same object, then this returns True. This
+        kind of equality is required when determining if a list of NXfields
+        contains a specific NXfield.
         """
-        if isinstance(other, NXfield):
+        if id(self) == id(other):
+            return True
+        elif isinstance(other, NXfield):
             if isinstance(self.nxdata, np.ndarray) and \
                isinstance(other.nxdata, np.ndarray):
                 return all(self.nxdata == other.nxdata)
@@ -2891,6 +2902,9 @@ class NXgroup(NXobject):
     def _str_value(self,indent=0):
         return ""
 
+    def __hash__(self):
+        return id(self)
+
     def walk(self):
         yield self
         for node in self.values():
@@ -3044,7 +3058,10 @@ class NXgroup(NXobject):
         """
         Implements 'k in d' test
         """
-        return key in self._entries
+        if isinstance(key, NXobject):
+            return key in self
+        else:
+            return key in self._entries
 
     def __iter__(self):
         """
@@ -3062,9 +3079,12 @@ class NXgroup(NXobject):
         """
         Compares the _entries dictionaries
         """
-        if other == None: 
+        if other is None: 
             return False
-        return self._entries == other._entries
+        elif id(self) == id(other):
+            return True
+        else:
+            return self._entries == other._entries
 
     def __deepcopy__(self, memo):
         if isinstance(self, NXlink):
@@ -4242,7 +4262,7 @@ class NXdata(NXgroup):
             if 'signal' in current_signal.attrs:
                 del current_signal.attrs['signal']
         self.attrs['signal'] = signal.nxname
-        if id(signal) not in [id(self[x]) for x in self]:
+        if signal not in self:
             self[signal.nxname] = signal
 
     def _axes(self):

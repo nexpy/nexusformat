@@ -2061,17 +2061,16 @@ class NXfield(NXobject):
     def __eq__(self, other):
         """
         Returns true if the values of the NXfield are the same.
-        
-        If the two NXfields are the same object, then this returns True. This
-        kind of equality is required when determining if a list of NXfields
-        contains a specific NXfield.
         """
         if id(self) == id(other):
             return True
         elif isinstance(other, NXfield):
             if isinstance(self.nxdata, np.ndarray) and \
                isinstance(other.nxdata, np.ndarray):
-                return all(self.nxdata == other.nxdata)
+                try:
+                    return np.array_equal(self, other)
+                except ValueError:
+                    return False
             else:
                 return self.nxdata == other.nxdata
         else:
@@ -2084,7 +2083,10 @@ class NXfield(NXobject):
         if isinstance(other, NXfield):
             if isinstance(self.nxdata, np.ndarray) and \
                isinstance(other.nxdata, np.ndarray):
-                return any(self.nxdata != other.nxdata)
+                try:
+                    return not np.array_equal(self, other)
+                except ValueError:
+                    return True
             else:
                 return self.nxdata != other.nxdata
         else:
@@ -3059,9 +3061,20 @@ class NXgroup(NXobject):
         Implements 'k in d' test
         """
         if isinstance(key, NXobject):
-            return key in self
+            return id(key) in [id(x) for x in self._entries.values()]
         else:
             return key in self._entries
+
+    def __eq__(self, other):
+        """
+        Compares the _entries dictionaries
+        """
+        if other is None: 
+            return False
+        elif id(self) == id(other):
+            return True
+        else:
+            return self._entries == other._entries
 
     def __iter__(self):
         """
@@ -3074,17 +3087,6 @@ class NXgroup(NXobject):
         Returns the number of entries in the group
         """
         return len(self._entries)
-
-    def __eq__(self, other):
-        """
-        Compares the _entries dictionaries
-        """
-        if other is None: 
-            return False
-        elif id(self) == id(other):
-            return True
-        else:
-            return self._entries == other._entries
 
     def __deepcopy__(self, memo):
         if isinstance(self, NXlink):
@@ -3184,6 +3186,8 @@ class NXgroup(NXobject):
                 raise NeXusError("'%s' already exists in group" % name)
             self[name] = value
         else:
+            if name in self._entries:
+                raise NeXusError("'%s' already exists in group" % name)
             self[name] = NXfield(value=value, name=name, group=self)
 
     def makelink(self, target, name=None):
@@ -3914,8 +3918,8 @@ class NXdata(NXgroup):
             for axis in axes:
                 if axis.shape == () or axis.shape == (1,):
                     removed_axes.append(axis)
-            for axis in removed_axes:
-                axes.remove(axis)
+            axes = [ax for ax in axes if ax not in [rax for rax in removed_axes 
+                                                    if rax is ax]]            
             signal = self.nxsignal[idx]
             if self.nxerrors: 
                 errors = self.errors[idx]

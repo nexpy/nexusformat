@@ -1185,11 +1185,12 @@ class NXobject(object):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
         if self.nxgroup is not None:
+            signal = self.nxgroup.nxsignal
             axes = self.nxgroup.nxaxes
         path = self.nxpath
         self.nxname = name
         if self.nxgroup is not None:
-            if self is self.nxgroup.nxsignal:
+            if self is signal:
                 self.nxgroup.nxsignal = self
             elif axes is not None:
                 if [x for x in axes if x is self]:
@@ -3963,8 +3964,8 @@ class NXdata(NXgroup):
         if 'signal' in self.attrs and self.attrs['signal'] == key:
             del self.attrs['signal']
         elif 'axes' in self.attrs:
-            axes = _readaxes(self.attrs['axes'])
-
+            self.attrs['axes'] = [ax if ax != key else ''
+                                  for ax in _readaxes(self.attrs['axes'])]
 
     def __add__(self, other):
         """

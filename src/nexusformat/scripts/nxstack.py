@@ -19,7 +19,10 @@ import subprocess
 import sys
 import time
 import timeit
-from configparser import ConfigParser
+try:
+    from configparser import ConfigParser
+except ImportError:
+    from ConfigParser import ConfigParser
 from datetime import datetime
 
 import numpy as np
@@ -267,11 +270,6 @@ def write_specfile(root, spec_file):
      subentries = read_specfile(spec_file)
      for subentry in subentries:
          root.entry[subentry.nxname] = subentry
-
-
-def natural_sort(key):
-    import re
-    return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]    
 
 
 def main():

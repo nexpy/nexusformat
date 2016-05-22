@@ -1119,7 +1119,7 @@ class NXobject(object):
                 txt3 =  u" = '" + text(self.attrs[k]) + "'"
             else:
                 txt3 = u" = " + text(self.attrs[k])
-            txt = txt1 + txt2 + txt3
+            txt = (txt1 + txt2 + txt3).replace("u'", "'")
             result.append(txt)
         return "\n".join(result)
 
@@ -2309,7 +2309,8 @@ class NXfield(NXobject):
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([text(n) for n in self.shape])
         s = text(self)
-        if self.dtype == string_dtype or self.dtype.kind == 'S':
+        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
+            and len(self) == 1):
             if s.startswith('u'):
                 s = s[1:]
             if len(self.shape) > 0:

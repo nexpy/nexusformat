@@ -258,16 +258,17 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink',
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
-              'NXsample', 'NXinstrument', 'NXaperture', 'NXattenuator', 'NXbeam', 
-              'NXbeam_stop', 'NXbending_magnet', 'NXcapillary', 'NXcharacterization', 
-              'NXcollection', 'NXcollimator', 'NXcrystal', 'NXdetector', 
-              'NXdetector_group', 'NXdisk_chopper', 'NXenvironment', 'NXevent_data', 
-              'NXfermi_chopper', 'NXfilter', 'NXflipper', 'NXgeometry', 'NXguide', 
-              'NXinsertion_device', 'NXmirror', 'NXmoderator', 'NXmonochromator', 
-              'NXnote', 'NXorientation', 'NXparameters', 'NXpolarizer', 
-              'NXpositioner', 'NXprocess', 'NXsensor', 'NXshape', 'NXsource', 
-              'NXsubentry', 'NXtranslation', 'NXuser', 'NXvelocity_selector', 
-              'NXxraylens']
+              'NXsample', 'NXinstrument', 'NXaperture', 'NXattenuator', 
+              'NXbeam', 'NXbeam_stop', 'NXbending_magnet', 'NXcapillary',
+              'NXcharacterization', 'NXcollection', 'NXcollimator', 'NXcrystal',
+              'NXdetector', 'NXdetector_group', 'NXdisk_chopper', 
+              'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter', 
+              'NXflipper', 'NXgeometry', 'NXgoniometer', 'NXguide', 
+              'NXinsertion_device', 'NXmirror', 'NXmoderator', 
+              'NXmonochromator', 'NXnote', 'NXorientation', 'NXparameters', 
+              'NXpolarizer', 'NXpositioner', 'NXprocess', 'NXsensor', 'NXshape', 
+              'NXsource', 'NXsubentry', 'NXtranslation', 'NXuser', 
+              'NXvelocity_selector', 'NXxraylens']
 
 
 np.set_printoptions(threshold=5)
@@ -842,7 +843,7 @@ def _readaxes(axes):
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
     if is_text(axes):
-        return list(filter(lambda x: len(x)>0, re.split(r'[,:; \[\]]+', axes)))
+        return list(re.split(r'[,:; \[\]]?', axes))
     else:
         return list(axes)
 
@@ -958,10 +959,15 @@ class NXattr(object):
         """
         Returns true if the value of the attribute is the same as the other.
         """
-        if isinstance(other, NXattr):
+        if id(self) == id(other):
+            return True
+        elif isinstance(other, NXattr):
             return self.nxdata == other.nxdata
         else:
             return self.nxdata == other
+
+    def __hash__(self):
+        return id(self)
 
     def _getdata(self):
         """
@@ -1113,7 +1119,7 @@ class NXobject(object):
                 txt3 =  u" = '" + text(self.attrs[k]) + "'"
             else:
                 txt3 = u" = " + text(self.attrs[k])
-            txt = txt1 + txt2 + txt3
+            txt = (txt1 + txt2 + txt3).replace("u'", "'")
             result.append(txt)
         return "\n".join(result)
 
@@ -1179,11 +1185,12 @@ class NXobject(object):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
         if self.nxgroup is not None:
+            signal = self.nxgroup.nxsignal
             axes = self.nxgroup.nxaxes
         path = self.nxpath
         self.nxname = name
         if self.nxgroup is not None:
-            if self is self.nxgroup.nxsignal:
+            if self is signal:
                 self.nxgroup.nxsignal = self
             elif axes is not None:
                 if [x for x in axes if x is self]:
@@ -1231,6 +1238,9 @@ class NXobject(object):
         >>> root.save()
         """
         if filename:
+            if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', 
+                                                     '.hdf', '.hdf5', '.cxi']:
+                filename = filename + '.nxs'
             if self.nxclass == "NXroot":
                 root = self
             elif self.nxclass == "NXentry":
@@ -2057,10 +2067,15 @@ class NXfield(NXobject):
         """
         Returns true if the values of the NXfield are the same.
         """
-        if isinstance(other, NXfield):
+        if id(self) == id(other):
+            return True
+        elif isinstance(other, NXfield):
             if isinstance(self.nxdata, np.ndarray) and \
                isinstance(other.nxdata, np.ndarray):
-                return all(self.nxdata == other.nxdata)
+                try:
+                    return np.array_equal(self, other)
+                except ValueError:
+                    return False
             else:
                 return self.nxdata == other.nxdata
         else:
@@ -2073,7 +2088,10 @@ class NXfield(NXobject):
         if isinstance(other, NXfield):
             if isinstance(self.nxdata, np.ndarray) and \
                isinstance(other.nxdata, np.ndarray):
-                return any(self.nxdata != other.nxdata)
+                try:
+                    return not np.array_equal(self, other)
+                except ValueError:
+                    return True
             else:
                 return self.nxdata != other.nxdata
         else:
@@ -2291,7 +2309,8 @@ class NXfield(NXobject):
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         dims = 'x'.join([text(n) for n in self.shape])
         s = text(self)
-        if self.dtype == string_dtype or self.dtype.kind == 'S':
+        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
+            and len(self) == 1):
             if s.startswith('u'):
                 s = s[1:]
             if len(self.shape) > 0:
@@ -2891,6 +2910,9 @@ class NXgroup(NXobject):
     def _str_value(self,indent=0):
         return ""
 
+    def __hash__(self):
+        return id(self)
+
     def walk(self):
         yield self
         for node in self.values():
@@ -3044,7 +3066,21 @@ class NXgroup(NXobject):
         """
         Implements 'k in d' test
         """
-        return key in self._entries
+        if isinstance(key, NXobject):
+            return id(key) in [id(x) for x in self._entries.values()]
+        else:
+            return key in self._entries
+
+    def __eq__(self, other):
+        """
+        Compares the _entries dictionaries
+        """
+        if other is None: 
+            return False
+        elif id(self) == id(other):
+            return True
+        else:
+            return self._entries == other._entries
 
     def __iter__(self):
         """
@@ -3057,14 +3093,6 @@ class NXgroup(NXobject):
         Returns the number of entries in the group
         """
         return len(self._entries)
-
-    def __eq__(self, other):
-        """
-        Compares the _entries dictionaries
-        """
-        if other == None: 
-            return False
-        return self._entries == other._entries
 
     def __deepcopy__(self, memo):
         if isinstance(self, NXlink):
@@ -3164,6 +3192,8 @@ class NXgroup(NXobject):
                 raise NeXusError("'%s' already exists in group" % name)
             self[name] = value
         else:
+            if name in self._entries:
+                raise NeXusError("'%s' already exists in group" % name)
             self[name] = NXfield(value=value, name=name, group=self)
 
     def makelink(self, target, name=None):
@@ -3894,8 +3924,8 @@ class NXdata(NXgroup):
             for axis in axes:
                 if axis.shape == () or axis.shape == (1,):
                     removed_axes.append(axis)
-            for axis in removed_axes:
-                axes.remove(axis)
+            axes = [ax for ax in axes if ax not in [rax for rax in removed_axes 
+                                                    if rax is ax]]            
             signal = self.nxsignal[idx]
             if self.nxerrors: 
                 errors = self.errors[idx]
@@ -3932,6 +3962,14 @@ class NXdata(NXgroup):
                 self.nxsignal[tuple(slices)] = value
         else:
             raise NeXusError('Invalid index')
+
+    def __delitem__(self, key):
+        super(NXdata, self).__delitem__(key)
+        if 'signal' in self.attrs and self.attrs['signal'] == key:
+            del self.attrs['signal']
+        elif 'axes' in self.attrs:
+            self.attrs['axes'] = [ax if ax != key else ''
+                                  for ax in _readaxes(self.attrs['axes'])]
 
     def __add__(self, other):
         """
@@ -4242,18 +4280,27 @@ class NXdata(NXgroup):
             if 'signal' in current_signal.attrs:
                 del current_signal.attrs['signal']
         self.attrs['signal'] = signal.nxname
-        self[signal.nxname] = signal
+        if signal not in self:
+            self[signal.nxname] = signal
 
     def _axes(self):
         """
         Returns a list of NXfields containing the axes.
         """
+        def empty_axis(i):
+            return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
         try:
             if 'axes' in self.attrs:
-                axes = _readaxes(self.attrs['axes'])
+                axis_names = _readaxes(self.attrs['axes'])
             elif self.nxsignal is not None and 'axes' in self.nxsignal.attrs:
-                axes = _readaxes(self.nxsignal.attrs['axes'])
-            return [self[name] for name in axes]
+                axis_names = _readaxes(self.nxsignal.attrs['axes'])
+            axes = [None] * len(axis_names)
+            for i, axis_name in enumerate(axis_names):
+                if axis_name.strip() == '':
+                    axes[i] = empty_axis(i)
+                else:
+                    axes[i] = self[axis_name]
+            return axes
         except (KeyError, AttributeError, UnboundLocalError):
             axes = {}
             for entry in self:
@@ -4272,15 +4319,15 @@ class NXdata(NXgroup):
 
     def _set_axes(self, axes):
         """
-        Setter for the signal attribute.
+        Setter for the axes attribute.
         
         The argument should be a list of valid NXfields within the group.
         """
         if not isinstance(axes, list) and not isinstance(axes, tuple):
             axes = [axes]
         for axis in axes:
-            if axis.nxname not in self:
-                self.insert(axis)
+            if axis not in self:
+                self[axis.nxname] = axis
         axes_attr = [axis.nxname for axis in axes]
         if 'signal' in self.attrs:
             self.attrs['axes'] = axes_attr

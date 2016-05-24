@@ -3715,7 +3715,7 @@ class NXroot(NXgroup):
                              % os.path.realpath(filename))
         import shutil
         shutil.copy2(self._backup, filename)
-        return nxload(filename)
+        self.nxfile = filename
 
     @property
     def plottable_data(self):
@@ -3734,6 +3734,33 @@ class NXroot(NXgroup):
                 if data is not None:
                     return data
         return None
+
+    def _getfile(self):
+        if self._file:
+            return self._file.open()
+        elif self._filename:
+            return NXFile(self._filename, self._mode)
+        else:
+            return None
+
+    def _setfile(self, value):
+        if os.path.exists(value):
+            self._filename = value
+            self._file = NXFile(value, self._mode)
+            root = self._file.readfile()
+            self._entries = root.entries
+            self._attrs = root.attrs
+            self.set_changed()
+        else:
+            raise NeXusError("'%s' does not exist")
+
+    @property
+    def nxbackup(self):
+        """Returns name of backup file if it exists"""
+        return self._backup
+
+    nxfile = property(_getfile, _setfile, 
+                      doc="Property: File handle of NeXus root group's tree")
 
 
 class NXentry(NXgroup):

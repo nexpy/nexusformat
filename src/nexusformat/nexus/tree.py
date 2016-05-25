@@ -1070,6 +1070,7 @@ class NXobject(object):
     _memfile = None
     _uncopied_data = None
     _changed = True
+    _backup = None
 
     def __getstate__(self):
         result = self.__dict__.copy()
@@ -1829,7 +1830,7 @@ class NXfield(NXobject):
         Creates an HDF5 memory-mapped file to store the data
         """
         import tempfile
-        self._memfile = h5.File(tempfile.mktemp(suffix='.nxs'),
+        self._memfile = h5.File(tempfile.mkstemp(suffix='.nxs')[1],
                                 driver='core', backing_store=False).file
 
     def _create_memdata(self):
@@ -3657,6 +3658,7 @@ class NXroot(NXgroup):
 
     def __init__(self, *items, **opts):
         self._class = "NXroot"
+        self._backup = None
         NXgroup.__init__(self, *items, **opts)
 
     def rename(self, name):
@@ -3671,6 +3673,49 @@ class NXroot(NXgroup):
         """Make the tree modifiable"""
         if self._filename:
             self._mode = self._file.mode = 'rw'
+
+    def backup(self, filename=None, dir=None):
+        """Backup the NeXus file.
+        
+        If no backup file is given, the backup is saved to the current
+        directory with a randomized name.
+        """ 
+        if self.nxfilemode is None:
+            raise NeXusError('Only data saved to a NeXus file can be backed up')
+        if filename is None:
+            if dir is None:
+                dir = os.getcwd()
+            import tempfile
+            prefix, suffix = os.path.splitext(os.path.basename(self.nxfilename))
+            prefix = prefix + '_'
+            backup = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dir)[1]
+        else:
+            if dir is not None:
+                filename = os.path.join(dir, filename)
+            if os.path.exists(filename):
+                raise NeXusError("'%s' already exists" 
+                                 % os.path.realpath(filename))
+            else:
+                backup = os.path.realpath(filename)
+        import shutil
+        shutil.copy2(self.nxfilename, backup)
+        self._backup = backup
+
+    def restore(self, filename=None, overwrite=False):
+        """Restore the backup.
+        
+        If no file name is given, the backup replaces the current NeXus file
+        provided 'overwrite' has been set to True."""
+        if self._backup is None:
+            raise NeXusError('No backup exists')
+        if filename is None:
+            filename = self.nxfilename
+        if os.path.exists(filename) and not overwrite:
+            raise NeXusError("To overwrite '%s', set 'overwite' to True"
+                             % os.path.realpath(filename))
+        import shutil
+        shutil.copy2(self._backup, filename)
+        self.nxfile = filename
 
     @property
     def plottable_data(self):
@@ -3689,6 +3734,33 @@ class NXroot(NXgroup):
                 if data is not None:
                     return data
         return None
+
+    def _getfile(self):
+        if self._file:
+            return self._file.open()
+        elif self._filename:
+            return NXFile(self._filename, self._mode)
+        else:
+            return None
+
+    def _setfile(self, value):
+        if os.path.exists(value):
+            self._filename = value
+            self._file = NXFile(value, self._mode)
+            root = self._file.readfile()
+            self._entries = root.entries
+            self._attrs = root.attrs
+            self.set_changed()
+        else:
+            raise NeXusError("'%s' does not exist")
+
+    @property
+    def nxbackup(self):
+        """Returns name of backup file if it exists"""
+        return self._backup
+
+    nxfile = property(_getfile, _setfile, 
+                      doc="Property: File handle of NeXus root group's tree")
 
 
 class NXentry(NXgroup):

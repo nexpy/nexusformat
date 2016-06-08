@@ -252,8 +252,8 @@ NX_ENCODING = sys.getfilesystemencoding()
 np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
-__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 'NXlink', 
-           'NXlinkfield', 'NXlinkdata', 'NXlinkgroup', 'NeXusError', 
+__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
+           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
            'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
            'NX_ENCODING', 'nxsetencoding',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
@@ -446,14 +446,14 @@ class NXFile(object):
 
     def _readchildren(self):
         children = {}
-        parent_path = self.nxpath
-        for name, value in self[parent_path].items():
-            self.nxpath = parent_path + '/' + name
+        items = self[self.nxpath].items()
+        for name, value in items:
+            self.nxpath = self.nxpath + '/' + name
             if isinstance(value, h5.Group):
                 children[name] = self._readgroup(name)
             else:
                 children[name] = self._readdata(name)
-        self.nxpath = parent_path
+            self.nxpath = self.nxparent
         return children
 
     def _readgroup(self, name):
@@ -535,39 +535,37 @@ class NXFile(object):
         """
         Writes the given group structure, including the data.
 
-        NXlinks cannot be written until the linked group is created, so
-        this routine returns the set of links that need to be written.
+        Internal NXlinks cannot be written until the linked group is created, 
+        so this routine returns the set of links that need to be written.
         Call writelinks on the list.
         """
         if group.nxpath != '' and group.nxpath != '/':
-            parent = '/' + self.nxpath.lstrip('/')
-            self.nxpath = parent + '/' + group.nxname
-            if group.nxname not in self[parent]:
+            self.nxpath = self.nxpath + '/' + group.nxname
+            if group.nxname not in self[self.nxparent]:
                 if group._target is not None:
                     if group._filename is not None:
-                        self[self.nxpath] = h5.ExternalLink(group._filename, 
-                                                            group._target)
-                        self.nxpath = parent
+                        self._writeexternal(group)
+                        self.nxpath = self.nxparent
                         return []
                 else:
-                    self[parent].create_group(group.nxname)
+                    self[self.nxparent].create_group(group.nxname)
             if group.nxclass and group.nxclass != 'NXgroup':
                 self[self.nxpath].attrs['NX_class'] = group.nxclass
-        else:
-            parent = self.nxpath = '/'
-
         links = []
         self._writeattrs(group.attrs)
         if group._target is not None:
             links += [(self.nxpath, group._target)]
         for child in group.values():
-            if isinstance(child, NXfield):
+            if isinstance(child, NXlink):
+                if child._filename is not None:
+                    self._writeexternal(child)
+                else:
+                    links += [(self.nxpath+"/"+child.nxname, child._target)]
+            elif isinstance(child, NXfield):
                 links += self._writedata(child)
-            elif child._target is not None:
-                links += [(self.nxpath+"/"+child.nxname, child._target)]
             else:
                 links += self._writegroup(child)
-        self.nxpath = parent
+        self.nxpath = self.nxparent
         return links
 
     def _writedata(self, data):
@@ -578,19 +576,16 @@ class NXFile(object):
         this routine returns the set of links that need to be written.
         Call writelinks on the list.
         """
-
-        parent = '/' + self.nxpath.lstrip('/')
-        self.nxpath = parent + '/' + data.nxname
-
+        self.nxpath = self.nxpath + '/' + data.nxname
         # If the data is linked then
         if data._target is not None:
             if data._filename is not None:
-                self[self.nxpath] = h5.ExternalLink(data._filename, data._target)
-                self.nxpath = parent
+                self._writeexternal(data)
+                self.nxpath = self.nxparent
                 return []
             else:
                 path = self.nxpath
-                self.nxpath = parent
+                self.nxpath = self.nxparent
                 return [(path, data._target)]
         if data._uncopied_data:
             if self.nxpath in self:
@@ -598,23 +593,23 @@ class NXFile(object):
             _file, _path = data._uncopied_data
             if _file._filename != self._filename:
                 with _file as f:
-                    f.copy(_path, self[parent], self.nxpath)
+                    f.copy(_path, self[self.nxparent], self.nxpath)
             else:
-                self._file.copy(_path, self[parent], self.nxpath)
+                self._file.copy(_path, self[self.nxparent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
-            data._memfile.copy('data', self[parent], self.nxpath)
+            data._memfile.copy('data', self[self.nxparent], self.nxpath)
             data._memfile = None
         elif data.nxfilemode and data.nxfile.filename != self.filename:
-            data.nxfile.copy(data.nxpath, self[parent])
+            data.nxfile.copy(data.nxpath, self[self.nxparent])
         elif data.dtype is not None:
-            if data.nxname not in self[parent]:
+            if data.nxname not in self[self.nxparent]:
                 if np.prod(data.shape) > 10000:
                     if not data._chunks:
                         data._chunks = True
                     if not data._compression:
                         data._compression = NX_COMPRESSION
-                self[parent].create_dataset(data.nxname, 
+                self[self.nxparent].create_dataset(data.nxname, 
                                             dtype=data.dtype, shape=data.shape,
                                             compression=data._compression,
                                             chunks=data._chunks,
@@ -626,8 +621,15 @@ class NXFile(object):
             except NeXusError:
                 pass
         self._writeattrs(data.attrs)
-        self.nxpath = parent
+        self.nxpath = self.nxparent
         return []
+
+    def _writeexternal(self, item):
+        self.nxpath = self.nxpath + '/' + item.nxname
+        filename = os.path.relpath(os.path.realpath(item._filename), 
+                       os.path.dirname(os.path.realpath(self.filename)))
+        self[self.nxpath] = h5.ExternalLink(filename, item._target)
+        self.nxpath = self.nxparent
 
     def _writelinks(self, links):
         """
@@ -639,6 +641,13 @@ class NXFile(object):
         for path, target in links:
             if path != target and path not in self['/'] and target in self['/']:
                 self[path] = self[target]
+
+    def readitem(self):
+        item = self.get(self.nxpath)
+        if isinstance(item, h5.Group):
+            return self._readgroup(self.nxname)
+        else:
+            return self._readdata(self.nxname)
 
     def readvalues(self, attrs=None):
         field = self.get(self.nxpath)
@@ -676,18 +685,6 @@ class NXFile(object):
             input_file.copy(entry, self['/']) 
         self._rootattrs()
 
-    def linkexternal(self, link):
-        link_filename = os.path.relpath(link.nxfilename, 
-                                        os.path.dirname(self.filename))
-        if self._isexternal():
-            current_link = self.get(self.nxpath, getlink=True)
-            if current_link.filename == link.nxfilename and \
-               current_link.path == link.nxtarget:
-               return
-            else:
-                del self[self.nxpath]
-        self[self.nxpath] = h5.ExternalLink(link_filename, link.nxtarget)
-
     def _rootattrs(self):
         from datetime import datetime
         self._file.attrs['file_name'] = self.filename
@@ -697,21 +694,23 @@ class NXFile(object):
         from .. import __version__
         self._file.attrs['nexusformat_version'] = __version__
 
-    def update(self, item, path=None):
-        if path is not None:
-            self.nxpath = path
-        else:
-            self.nxpath = item.nxgroup.nxpath
+    def update(self, item):
+        self.nxpath = item.nxpath
         if isinstance(item, AttrDict):
             self._writeattrs(item)
-        elif ((isinstance(item, NXlinkfield) or isinstance(item, NXlinkgroup))
-              and item._filename is None):
-            self._writelinks([(item.nxpath, item._target)])
-        elif isinstance(item, NXfield):
-            self._writedata(item)
-        elif isinstance(item, NXgroup):
-            links = self._writegroup(item)
-            self._writelinks(links)
+        else:
+            self.nxpath = self.nxparent
+            if isinstance(item, NXlink):
+                if item._filename is None:
+                    self._writelinks([(item.nxpath, item._target)])
+                else:
+                    self._writeexternal(item)
+            elif isinstance(item, NXfield):
+                self._writedata(item)
+            elif isinstance(item, NXgroup):
+                links = self._writegroup(item)
+                self._writelinks(links)
+            self.nxpath = item.nxpath
 
     def rename(self, old_path, new_path):
         self._file['/'].move(old_path, new_path)
@@ -762,21 +761,45 @@ class NXFile(object):
     def nxpath(self, value):
         self._path = value.replace('//','/')
 
+    @property
+    def nxparent(self):
+        return '/' + self.nxpath[:self.nxpath.rfind('/')].lstrip('/')
+
+    @property
+    def nxname(self):
+        return self.nxpath[self.nxpath.rfind('/')+1:]
+
+
+def _makeclass(cls, bases=None):
+    docstring = """
+                %s group. This is a subclass of the NXgroup class.
+
+                See the NXgroup documentation for more details.
+                """ % cls
+    if bases is None:
+        bases = (NXgroup,)
+    return type(str(cls), bases, {'_class':cls, '__doc__':docstring})
+
 
 def _getclass(cls, link=False):
-    if link and cls in globals():
-        bases = (NXlinkgroup, globals()[cls])
-        cls = str('NXlink' + cls[2:])
+    if isinstance(cls, type):
+        cls = cls.__name__
+    if not cls.startswith('NX'):
+        return type(object)
+    elif cls in globals() and (not link or cls.startswith('NXlink')):
+        return globals()[cls]
+    if cls.startswith('NXlink'):
+        link = True
+        cls = cls.replace('NXlink', 'NX')
+    if link:
+        if cls in globals():
+            bases = (NXlinkgroup, globals()[cls])
+            cls = cls.replace('NX', 'NXlink')
+            globals()[cls] = _makeclass(cls, bases)
+        else:
+            raise NeXusError("'%s' is not a valid NeXus class" % cls)
     else:
-        bases = (NXgroup, )
-        cls = str(cls)
-    if cls not in globals():
-        docstring = """
-                    %s group. This is a subclass of the NXgroup class.
-
-                    See the NXgroup documentation for more details.
-                    """ % cls
-        globals()[cls] = type(cls, bases, {'_class':cls, '__doc__':docstring})
+        globals()[cls] = _makeclass(cls, (NXgroup,))
     return globals()[cls]
 
 
@@ -906,9 +929,12 @@ class AttrDict(dict):
     def __init__(self, parent=None, attrs={}):
         super(AttrDict, self).__init__()
         self.parent = parent
+        self._setattrs(attrs)
+
+    def _setattrs(self, attrs):
         for key, value in attrs.items():
             super(AttrDict, self).__setitem__(key, NXattr(value))
-
+    
     def __getitem__(self, key):
         return super(AttrDict, self).__getitem__(key).nxdata
 
@@ -1284,9 +1310,7 @@ class NXobject(object):
                 root = NXroot(NXentry(self))
             nx_file = NXFile(filename, mode)
             nx_file.writefile(root)
-            root._filename = nx_file.file.filename
-            root._setattrs(nx_file.attrs)
-            root._mode = nx_file._mode
+            root = nx_file.readfile()
             nx_file.close()
             return root
         else:
@@ -1331,12 +1355,17 @@ class NXobject(object):
         return text(self._class)
 
     @nxclass.setter
-    def nxclass(self, class_):
-        class_ = globals()[text(class_)]
-        if issubclass(class_, NXobject):
-            self.__class__ = class_
-            self._class = self.__class__.__name__
-            self.update()                   
+    def nxclass(self, cls):
+        try:
+            class_ = _getclass(cls)
+            if issubclass(class_, NXobject):
+                self.__class__ = class_
+                self._class = self.__class__.__name__
+                if self._class.startswith('NXlink') and self._class != 'NXlink':
+                    self._class = 'NX' + self._class[6:]
+                self.update()
+        except (TypeError, NameError):
+            raise NeXusError('Invalid NeXus class')               
 
     @property
     def nxname(self):
@@ -2923,7 +2952,7 @@ class NXgroup(NXobject):
             if self.nxname == "unknown" or self.nxname == "": 
                 self._name = self.nxclass[2:]
             try: # If one exists, set the class to a valid NXgroup subclass
-                self.__class__ = globals()[self.nxclass]
+                self.__class__ = _getclass(self._class)
             except KeyError:
                 pass
         for item in items:
@@ -3039,7 +3068,7 @@ class NXgroup(NXobject):
                 value._name = key
                 group.entries[key] = value
             elif key in group:
-                group.entries[key]._setdata(value)
+                group.entries[key].nxdata = value
             else:
                 group.entries[key] = NXfield(value=value, name=key, group=group)
             if isinstance(group.entries[key], NXfield):
@@ -3475,10 +3504,10 @@ class NXlink(NXobject):
         self._name = name
         self._group = group
         self._mode = 'r'
-        self._attrs = {}
+        self._attrs = AttrDict(self)
         self._entries = {}
         if isinstance(target, NXobject):
-            if target.nxclass == "NXlink":
+            if isinstance(target, NXlink):
                 raise NeXusError("Cannot link to another NXlink object")
             if name is None:
                 self._name = target.nxname
@@ -3500,7 +3529,10 @@ class NXlink(NXobject):
             return self.nxlink.__getattribute__(attr)
         except AttributeError:
             try:
-                return self.nxlink.__getattr__(attr)
+                if self.nxlink is not self:
+                    return self.nxlink.__getattr__(attr)
+                else:
+                    return None
             except Exception:
                 return None
 
@@ -3524,7 +3556,24 @@ class NXlink(NXobject):
             return " " * indent + self.nxname + ' -> ' + self._target
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        return " " * indent + self.nxname + ' -> ' + self._target
+        return self._str_name(indent=indent)
+
+    def update(self):
+        if (self._filename and os.path.exists(self._filename) and
+            self.nxroot.nxfilemode == 'rw'):
+            with NXFile(self.nxroot.nxfilename) as f:
+                f.update(self)
+                item = f.readitem()
+                if isinstance(item, NXfield):
+                    self.__class__ = NXlinkfield
+                    self._value, self._shape, self._dtype, _ = f.readvalues()
+                elif isinstance(item, NXgroup):
+                    self.__class__ = _getclass(item.nxclass, link=True)
+                    self._entries = item._entries
+                self.attrs._setattrs(item.attrs)
+        self.set_changed()
+#            except Exception:
+#                pass
 
     @property
     def nxlink(self):
@@ -3589,9 +3638,6 @@ class NXlinkfield(NXlink, NXfield):
             return self
 
 
-NXlinkdata = NXlinkfield # For backward compatibility
-
-
 class NXlinkgroup(NXlink, NXgroup):
 
     """
@@ -3600,11 +3646,13 @@ class NXlinkgroup(NXlink, NXgroup):
     The real group will be accessible by following the link attribute.
     """
     def __init__(self, target=None, file=None, name=None, **opts):
-
         NXlink.__init__(self, target=target, file=file, name=name)
         if 'nxclass' in opts:
             NXgroup.__init__(self, **opts)
             self.__class__ = _getclass(opts['nxclass'], link=True)
+            self._class = 'NX' + self.__class__.__name__[6:]
+        else:
+            self._class = 'NXlink'
 
     def __getitem__(self, key):
         if self.nxlink is self:
@@ -3955,6 +4003,7 @@ class NXdata(NXgroup):
     def __init__(self, signal=None, axes=None, errors=None, *items, **opts):
         self._class = "NXdata"
         NXgroup.__init__(self, *items, **opts)
+        attrs = {}
         if axes is not None:
             if not isinstance(axes, tuple) and not isinstance(axes, list):
                 axes = [axes]
@@ -3971,7 +4020,7 @@ class NXdata(NXgroup):
                     axis_name = "axis%s" % i
                     self[axis_name] = axis
                     axis_names[i] = axis_name
-            self.attrs["axes"] = list(axis_names.values())
+            attrs["axes"] = list(axis_names.values())
         if signal is not None:
             if isinstance(signal, NXfield):
                 if signal.nxname == "unknown" or signal.nxname in self:
@@ -3981,9 +4030,10 @@ class NXdata(NXgroup):
             else:
                 self["signal"] = signal
                 signal_name = "signal"
-            self.attrs["signal"] = signal_name
+            attrs["signal"] = signal_name
         if errors is not None:
             self["errors"] = errors
+        self.attrs._setattrs(attrs)
 
     def __getitem__(self, key):
         """
@@ -4529,9 +4579,10 @@ class NXnote(NXgroup):
 #-------------------------------------------------------------------------
 #Add remaining base classes as subclasses of NXgroup and append to __all__
 
-for _class in nxclasses:
-    _getclass(_class)
-    __all__.append(_class)
+for cls in nxclasses:
+    if cls not in globals():
+        globals()[cls] = _makeclass(cls)
+    __all__.append(cls)
 
 #-------------------------------------------------------------------------
 

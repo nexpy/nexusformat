@@ -3752,7 +3752,7 @@ class NXroot(NXgroup):
                 dir = os.getcwd()
             import tempfile
             prefix, suffix = os.path.splitext(os.path.basename(self.nxfilename))
-            prefix = prefix + '_'
+            prefix = prefix + '_backup_'
             backup = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dir)[1]
         else:
             if dir is not None:

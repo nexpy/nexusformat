@@ -4401,7 +4401,7 @@ class NXdata(NXgroup):
         if 'signal' in self.attrs and self.attrs['signal'] in self:
             return self[self.attrs['signal']]
         for obj in self.values():
-            if 'signal' in obj.attrs and text(obj.signal) == '1':
+            if 'signal' in obj.attrs and text(obj.attrs['signal']) == '1':
                 if isinstance(self[obj.nxname], NXlink):
                     return self[obj.nxname].nxlink
                 else:

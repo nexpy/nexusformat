@@ -2090,7 +2090,7 @@ class NXfield(NXobject):
         """
         Casts the NXfield as an array when it is expected by numpy
         """
-        return self.nxdata
+        return np.asarray(self.nxdata)
 
     def __array_wrap__(self, value):
         """

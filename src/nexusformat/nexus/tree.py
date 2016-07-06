@@ -2953,7 +2953,7 @@ class NXgroup(NXobject):
                 self._name = self.nxclass[2:]
             try: # If one exists, set the class to a valid NXgroup subclass
                 self.__class__ = _getclass(self._class)
-            except KeyError:
+            except Exception:
                 pass
         for item in items:
             try:

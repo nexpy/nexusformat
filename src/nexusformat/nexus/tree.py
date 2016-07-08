@@ -344,10 +344,12 @@ class NXFile(object):
             self._file = h5.File(name, mode, **kwds)
             self._mode = 'rw'
         else:
-            if mode == 'rw':
+            if mode == 'rw' or mode == 'r+':
+                self._mode = 'rw'
                 mode = 'r+'
+            else:
+                self._mode = 'r'
             self._file = h5.File(name, mode, **kwds)
-            self.mode = mode   
         self._filename = self._file.filename                             
         self._path = ''
 
@@ -357,19 +359,19 @@ class NXFile(object):
 
     def __getitem__(self, key):
         """Returns an object from the NeXus file."""
-        return self._file.get(key)
+        return self.file.get(key)
 
     def __setitem__(self, key, value):
         """Sets an object value in the NeXus file."""
-        self._file[key] = value
+        self.file[key] = value
 
     def __delitem__(self, name):
         """ Delete an item from a group. """
-        del self._file[name]
+        del self.file[name]
 
     def __contains__(self, key):
         """Implements 'k in d' test"""
-        return self._file.__contains__(key)
+        return self.file.__contains__(key)
 
     def __enter__(self):
         return self.open()
@@ -378,10 +380,10 @@ class NXFile(object):
         self.close()
 
     def get(self, *args, **kwds):
-        return self._file.get(*args, **kwds)
+        return self.file.get(*args, **kwds)
 
     def copy(self, *args, **kwds):
-        self._file.copy(*args, **kwds)
+        self.file.copy(*args, **kwds)
 
     def open(self, **kwds):
         if not self._file.id:
@@ -601,7 +603,7 @@ class NXFile(object):
                 with _file as f:
                     f.copy(_path, self[self.nxparent], self.nxpath)
             else:
-                self._file.copy(_path, self[self.nxparent], self.nxpath)
+                self.file.copy(_path, self[self.nxparent], self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[self.nxparent], self.nxpath)
@@ -693,12 +695,12 @@ class NXFile(object):
 
     def _rootattrs(self):
         from datetime import datetime
-        self._file.attrs['file_name'] = self.filename
-        self._file.attrs['file_time'] = datetime.now().isoformat()
-        self._file.attrs['HDF5_Version'] = h5.version.hdf5_version
-        self._file.attrs['h5py_version'] = h5.version.version
+        self.file.attrs['file_name'] = self.filename
+        self.file.attrs['file_time'] = datetime.now().isoformat()
+        self.file.attrs['HDF5_Version'] = h5.version.hdf5_version
+        self.file.attrs['h5py_version'] = h5.version.version
         from .. import __version__
-        self._file.attrs['nexusformat_version'] = __version__
+        self.file.attrs['nexusformat_version'] = __version__
 
     def update(self, item):
         self.nxpath = item.nxpath
@@ -719,7 +721,7 @@ class NXFile(object):
             self.nxpath = item.nxpath
 
     def rename(self, old_path, new_path):
-        self._file['/'].move(old_path, new_path)
+        self.file['/'].move(old_path, new_path)
 
     def _islink(self):
         _target, _ = self._readlink()
@@ -738,10 +740,12 @@ class NXFile(object):
     @property
     def filename(self):
         """File name on disk"""
-        return self._file.filename
+        return self.file.filename
 
     @property
     def file(self):
+        if not self._file.id:
+            self.open()
         return self._file
 
     @property
@@ -752,11 +756,11 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self._file.id and self._file.mode == 'r':
+            if self.file.id and self.file.mode == 'r':
                 self.close()
         else:
             self._mode = 'r'   
-            if self._file.id and self._file.mode == 'r+':
+            if self.file.id and self.file.mode == 'r+':
                 self.close()
 
     @property
@@ -1432,10 +1436,10 @@ class NXobject(object):
     @property
     def nxfile(self):
         if self._file:
-            return self._file.open()
+            return self._file
         _root = self.nxroot
         if _root._file:
-            return _root._file.open()
+            return _root._file
         elif _root._filename:
             return NXFile(_root._filename, _root._mode)
         else:
@@ -1444,7 +1448,8 @@ class NXobject(object):
     @property
     def nxfilename(self):
         try:
-            return self.nxfile[self.nxpath].file.filename
+            with self.nxfile as f:
+                return f[self.nxpath].file.filename
         except Exception:
             return ''
 
@@ -2558,7 +2563,8 @@ class NXfield(NXobject):
     @property
     def compression(self):
         if self.nxfilemode:
-            self._compression = self.nxfile[self.nxpath].compression
+            with self.nxfile as f:
+                self._compression = f[self.nxpath].compression
         elif self._memfile:
             self._compression = self._memfile['data'].compression
         return self._compression
@@ -2574,7 +2580,8 @@ class NXfield(NXobject):
     @property
     def fillvalue(self):
         if self.nxfilemode:
-            self._fillvalue = self.nxfile[self.nxpath].fillvalue
+            with self.nxfile as f:
+                self._fillvalue = f[self.nxpath].fillvalue
         elif self._memfile:
             self._fillvalue = self._memfile['data'].fillvalue
         return self._fillvalue
@@ -2590,7 +2597,8 @@ class NXfield(NXobject):
     @property
     def chunks(self):
         if self.nxfilemode:
-            self._chunks = self.nxfile[self.nxpath].chunks
+            with self.nxfile as f:
+                self._chunks = f[self.nxpath].chunks
         elif self._memfile:
             self._chunks = self._memfile['data'].chunks
         return self._chunks
@@ -2608,7 +2616,8 @@ class NXfield(NXobject):
     @property
     def maxshape(self):
         if self.nxfilemode:
-            self._maxshape = self.nxfile[self.nxpath].maxshape
+            with self.nxfile as f:
+                self._maxshape = f[self.nxpath].maxshape
         elif self._memfile:
             self._maxshape = self._memfile['data'].maxshape
         return self._maxshape
@@ -3743,11 +3752,13 @@ class NXroot(NXgroup):
         """Make the tree readonly"""
         if self._filename:
             self._mode = self._file.mode = 'r'
+            self.set_changed()
 
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
             self._mode = self._file.mode = 'rw'
+            self.set_changed()
 
     def backup(self, filename=None, dir=None):
         """Backup the NeXus file.
@@ -3813,7 +3824,7 @@ class NXroot(NXgroup):
     @property
     def nxfile(self):
         if self._file:
-            return self._file.open()
+            return self._file
         elif self._filename:
             return NXFile(self._filename, self._mode)
         else:

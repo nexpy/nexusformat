@@ -396,6 +396,12 @@ class NXFile(object):
         if self._file.id:
             self._file.close()
 
+    def isopen(self):
+        if self._file.id:
+            return True
+        else:
+            return False
+
     def readfile(self):
         """
         Reads the NeXus file structure from the file and returns a tree of 
@@ -746,8 +752,12 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
+            if self._file.id and self._file.mode == 'r':
+                self.close()
         else:
             self._mode = 'r'   
+            if self._file.id and self._file.mode == 'r+':
+                self.close()
 
     @property
     def attrs(self):

@@ -297,6 +297,11 @@ def is_text(value):
         return False
 
 
+def natural_sort(key):
+    """Sort numbers according to their value, not their first character"""
+    return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]    
+
+
 class NeXusError(Exception):
     """NeXus Error"""
     pass
@@ -336,6 +341,7 @@ class NXFile(object):
         """
         Creates an h5py File object for reading and writing.
         """
+        name = os.path.abspath(name)
         if mode == 'w4' or mode == 'wx':
             raise NeXusError('Only HDF5 files supported')
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
@@ -351,7 +357,7 @@ class NXFile(object):
                 self._mode = 'r'
             self._file = h5.File(name, mode, **kwds)
         self._filename = self._file.filename                             
-        self._path = ''
+        self._path = '/'
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -1326,7 +1332,16 @@ class NXobject(object):
             nx_file.writefile(root)
             root = nx_file.readfile()
             nx_file.close()
-            return root
+            if self.nxclass == "NXroot":
+                self._file = nx_file
+                self._entries = root.entries
+                self._attrs = root.attrs
+                self._filename = self._file._filename
+                self._mode = self._file._mode
+                return self
+            else:
+                return root
+            self.set_changed()
         else:
             raise NeXusError("No output file specified")
 
@@ -1398,10 +1413,10 @@ class NXobject(object):
         return self._group
 
     def _getpath(self):
-        if self.nxgroup is None:
-            return ""
-        elif self.nxclass == 'NXroot':
+        if self.nxclass == 'NXroot':
             return "/"
+        elif self.nxgroup is None:
+            return ""
         elif isinstance(self.nxgroup, NXroot):
             return "/" + self.nxname
         else:
@@ -3253,6 +3268,13 @@ class NXgroup(NXobject):
         """
         return self.entries.has_key(name)
 
+    def component(self, nxclass):
+        """
+        Finds all child objects that have a particular class.
+        """
+        return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
+                if self.entries[i].nxclass==nxclass]
+
     def insert(self, value, name='unknown'):
         """
         Adds an attribute to the group.
@@ -3439,12 +3461,6 @@ class NXgroup(NXobject):
             self.plottable_data.implot(**opts)
         except AttributeError:
             raise NeXusError("Data cannot be plotted")
-
-    def component(self, nxclass):
-        """
-        Finds all child objects that have a particular class.
-        """
-        return [E for _name,E in self.items() if E.nxclass==nxclass]
 
     def signals(self):
         """

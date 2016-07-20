@@ -423,7 +423,7 @@ class NXFile(object):
         root = self._readgroup('root')
         root._group = None
         root._file = self
-        root._filename = self.filename
+        root._filename = self._filename
         root._mode = self._mode = _mode
         return root
 
@@ -1335,6 +1335,8 @@ class NXobject(object):
             if self.nxclass == "NXroot":
                 self._file = nx_file
                 self._entries = root.entries
+                for entry in self._entries:
+                    self._entries[entry]._group = self
                 self._attrs = root.attrs
                 self._filename = self._file._filename
                 self._mode = self._file._mode
@@ -1412,7 +1414,8 @@ class NXobject(object):
     def nxgroup(self):
         return self._group
 
-    def _getpath(self):
+    @property
+    def nxpath(self):
         if self.nxclass == 'NXroot':
             return "/"
         elif self.nxgroup is None:
@@ -1425,10 +1428,6 @@ class NXobject(object):
                 return group_path+"/"+self.nxname
             else:
                 return self.nxname
-
-    @property
-    def nxpath(self):
-        return self._getpath()
 
     @property
     def nxroot(self):
@@ -1462,11 +1461,12 @@ class NXobject(object):
 
     @property
     def nxfilename(self):
-        try:
-            with self.nxfile as f:
-                return f[self.nxpath].file.filename
-        except Exception:
-            return ''
+        if self._filename is not None:
+            return os.path.abspath(self._filename)
+        elif self._group is not None:
+            return self._group.nxfilename
+        else:
+            return None
 
     @property
     def nxfilemode(self):
@@ -2655,14 +2655,8 @@ class NXfield(NXobject):
 
     @property
     def safe_attrs(self):
-        _attrs = copy(self.attrs)
-        if 'target' in _attrs:
-            del _attrs['target']
-        if 'signal' in _attrs:
-            del _attrs['signal']
-        if 'axes' in _attrs:
-            del _attrs['axes']
-        return _attrs
+        return {key: self.attrs[key] for key in self.attrs 
+                if (key != 'target' and key != 'signal' and key != 'axes')}
 
     @property
     def reversed(self):
@@ -3547,8 +3541,6 @@ class NXlink(NXobject):
             if name is None:
                 self._name = target.nxname
             self._target = target.nxpath
-            if file is None:
-                self._filename = target.nxfilename
             if isinstance(target, NXfield):
                 self.__class__ = NXlinkfield
             elif isinstance(target, NXgroup):
@@ -3594,9 +3586,10 @@ class NXlink(NXobject):
         return self._str_name(indent=indent)
 
     def update(self):
-        if (self._filename and os.path.exists(self._filename) and
-            self.nxroot.nxfilemode == 'rw'):
-            with NXFile(self.nxroot.nxfilename) as f:
+        root = self.nxroot
+        filename, mode = root.nxfilename, root.nxfilemode
+        if (filename is not None and os.path.exists(filename) and mode == 'rw'):
+            with NXFile(filename) as f:
                 f.update(self)
                 item = f.readitem()
                 if isinstance(item, NXfield):

@@ -3619,6 +3619,19 @@ class NXlink(NXobject):
             return self
 
     @property
+    def nxfilename(self):
+        if self._filename is not None:
+            if os.path.isabs(self._filename):
+                return self._filename
+            else:
+                return os.path.abspath(os.path.join(
+                    os.path.dirname(self.nxroot.nxfilename), self._filename))
+        elif self._group is not None:
+            return self._group.nxfilename
+        else:
+            return None
+
+    @property
     def nxfilemode(self):
         if self._filename is not None:
             return 'r'

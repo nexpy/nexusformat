@@ -614,7 +614,7 @@ class NXFile(object):
         elif data._memfile:
             data._memfile.copy('data', self[self.nxparent], self.nxpath)
             data._memfile = None
-        elif data.nxfilemode and data.nxfile.filename != self.filename:
+        elif data.nxfile and data.nxfile.filename != self.filename:
             data.nxfile.copy(data.nxpath, self[self.nxparent])
         elif data.dtype is not None:
             if data.nxname not in self[self.nxparent]:
@@ -654,6 +654,8 @@ class NXFile(object):
         # link sources to targets
         for path, target in links:
             if path != target and path not in self['/'] and target in self['/']:
+                if 'target' not in self[target].attrs:
+                    self[target].attrs['target'] = target
                 self[path] = self[target]
 
     def readitem(self):
@@ -948,7 +950,7 @@ class AttrDict(dict):
 
     def __init__(self, parent=None, attrs={}):
         super(AttrDict, self).__init__()
-        self.parent = parent
+        self._parent = parent
         self._setattrs(attrs)
 
     def _setattrs(self, attrs):
@@ -962,26 +964,26 @@ class AttrDict(dict):
         if value is None:
             return
         if isinstance(value, NXattr):
-            super(AttrDict, self).__setitem__(key, value)
+            super(AttrDict, self).__setitem__(text(key), value)
         else:
-            super(AttrDict, self).__setitem__(key, NXattr(value))
-        try:
-            if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as f:
-                    f.update(self, self.parent.nxpath)
-        except Exception:
-            pass
+            super(AttrDict, self).__setitem__(text(key), NXattr(value))
+        if self._parent.nxfilemode == 'rw':
+            with self._parent.nxfile as f:
+                f.update(self)
 
     def __delitem__(self, key):
         super(AttrDict, self).__delitem__(key)
         try:
-            if self.parent.nxfilemode == 'rw':
-                with self.parent.nxfile as f:
-                    f.nxpath = self.parent.nxpath
+            if self._parent.nxfilemode == 'rw':
+                with self._parent.nxfile as f:
+                    f.nxpath = self._parent.nxpath
                     del f[f.nxpath].attrs[key]
         except Exception:
             pass
 
+    @property
+    def nxpath(self):
+        return self._parent.nxpath
 
 class NXattr(object):
 
@@ -1280,7 +1282,7 @@ class NXobject(object):
             with self.nxfile as f:
                 f.rename(path, self.nxpath)
 
-    def save(self, filename=None, mode='w'):
+    def save(self, filename=None, mode='w-'):
         """
         Saves the NeXus object to a data file.
         
@@ -1327,23 +1329,20 @@ class NXobject(object):
             elif self.nxclass == "NXentry":
                 root = NXroot(self)
             else:
-                root = NXroot(NXentry(self))
-            nx_file = NXFile(filename, mode)
-            nx_file.writefile(root)
-            root = nx_file.readfile()
-            nx_file.close()
-            if self.nxclass == "NXroot":
-                self._file = nx_file
-                self._entries = root.entries
-                for entry in self._entries:
-                    self._entries[entry]._group = self
-                self._attrs = root.attrs
-                self._filename = self._file._filename
-                self._mode = self._file._mode
-                return self
+                root = NXroot(NXentry(self)) 
+            if mode != 'w':
+                write_mode = 'w-'
             else:
-                return root
+                write_mode = 'w'
+            with NXFile(filename, write_mode) as f:
+                f.writefile(root)
+            if mode == 'w' or mode == 'w-':
+                root._mode = 'rw'
+            else:
+                root._mode = mode
+            root.nxfile = filename
             self.set_changed()
+            return root
         else:
             raise NeXusError("No output file specified")
 
@@ -3536,7 +3535,9 @@ class NXlink(NXobject):
         self._attrs = AttrDict(self)
         self._entries = {}
         if isinstance(target, NXobject):
-            if isinstance(target, NXlink):
+            if file is not None:
+                raise NeXusError("For external links, specify the target as a path")
+            elif isinstance(target, NXlink):
                 raise NeXusError("Cannot link to another NXlink object")
             if name is None:
                 self._name = target.nxname
@@ -3853,16 +3854,19 @@ class NXroot(NXgroup):
             return None
 
     @nxfile.setter
-    def nxfile(self, value):
-        if os.path.exists(value):
-            self._filename = value
-            self._file = NXFile(value, self._mode)
-            root = self._file.readfile()
-            self._entries = root.entries
-            self._attrs = root.attrs
+    def nxfile(self, filename):
+        if os.path.exists(filename):
+            self._filename = os.path.abspath(filename)
+            with NXFile(self._filename, 'r') as f:
+                root = f.readfile()
+            self._entries = root._entries
+            for entry in self._entries:
+                self._entries[entry]._group = self
+            self._attrs._setattrs(root.attrs)
+            self._file = NXFile(self._filename, self._mode)
             self.set_changed()
         else:
-            raise NeXusError("'%s' does not exist")
+            raise NeXusError("'%s' does not exist" % os.path.abspath(filename))
 
     @property
     def nxbackup(self):
@@ -4737,7 +4741,6 @@ def save(filename, group, mode='w'):
     else:
         tree = NXroot(NXentry(group))
     with NXFile(filename, mode) as f:
-        f = NXFile(filename, mode)
         f.writefile(tree)
         f.close()
  

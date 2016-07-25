@@ -451,12 +451,18 @@ class NXFile(object):
 
     def _readlink(self):
         if self._isexternal():
-            link = self.get(self.nxpath, getlink=True)
-            return link.path, link.filename
-        elif 'target' in self.attrs and self.attrs['target'] != self.nxpath:
-            return self.attrs['target'], None
+            _link = self.get(self.nxpath, getlink=True)
+            _target, _filename = _link.path, _link.filename
+        elif 'target' in self.attrs:
+            _target = self.attrs['target']
+            _filename = self.get(self.nxpath).file.filename
+            if _filename == self.filename:
+                _filename = None
+                if  _target == self.nxpath:
+                    _target = None
         else:
-            return None, None
+            _target, _filename = None, None
+        return _target, _filename
 
     def _readchildren(self):
         children = {}
@@ -483,8 +489,8 @@ class NXFile(object):
         else:
             nxclass = 'NXgroup'
         children = self._readchildren()
-        if self.nxpath != '/' and self._islink():
-            _target, _filename = self._readlink()
+        _target, _filename = self._readlink()
+        if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
                                 entries=children, 
                                 target=_target, file=_filename)
@@ -502,8 +508,8 @@ class NXFile(object):
         """
         # Finally some data, but don't read it if it is big
         # Instead record the location, type and size
-        if self._islink():
-            _target, _filename = self._readlink()
+        _target, _filename = self._readlink()
+        if _target is not None:
             if _filename is not None:
                 try:
                     value, shape, dtype, attrs = self.readvalues()
@@ -730,13 +736,6 @@ class NXFile(object):
 
     def rename(self, old_path, new_path):
         self.file['/'].move(old_path, new_path)
-
-    def _islink(self):
-        _target, _ = self._readlink()
-        if _target is not None:
-            return True
-        else:
-            return False
 
     def _isexternal(self):
         try:
@@ -3632,13 +3631,6 @@ class NXlink(NXobject):
         else:
             return None
 
-    @property
-    def nxfilemode(self):
-        if self._filename is not None:
-            return 'r'
-        else:
-            return self.nxlink.nxfilemode
-
 
 class NXlinkfield(NXlink, NXfield):
 
@@ -3672,7 +3664,7 @@ class NXlinkfield(NXlink, NXfield):
     @property
     def nxlink(self):
         try:
-            if self._filename is not None:
+            if self.nxfilename != self.nxroot.nxfilename:
                 return self
             else:
                return self.nxroot[self._target]

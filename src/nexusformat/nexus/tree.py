@@ -3271,15 +3271,20 @@ class NXgroup(NXobject):
         """
         Adds an attribute to the group.
 
-        If it is not a valid NeXus object (NXfield or NXgroup), the attribute
-        is converted to an NXfield.
+        If it is not a valid NeXus object, the attribute is converted to an 
+        NXfield. If the object is an internal link within an externally linked
+        file, the linked object in the external file is copied.
         """
         if isinstance(value, NXobject):
             if name == 'unknown': 
                 name = value.nxname
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
-            self[name] = value
+            if (isinstance(value, NXlink) and 
+                value.nxfilename != self.nxfilename):
+                self[name] = value.nxlink
+            else:
+                self[name] = value
         else:
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
@@ -3535,7 +3540,8 @@ class NXlink(NXobject):
         self._entries = {}
         if isinstance(target, NXobject):
             if file is not None:
-                raise NeXusError("For external links, specify the target as a path")
+                raise NeXusError(
+                    "Use the NXgroup makelink function for external links")
             elif isinstance(target, NXlink):
                 raise NeXusError("Cannot link to another NXlink object")
             if name is None:

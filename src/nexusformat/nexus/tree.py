@@ -4331,16 +4331,20 @@ class NXdata(NXgroup):
         axes = self.nxaxes
         slices = []
         for i,ind in enumerate(idx):
-            if signal.shape[i] < axes[i].shape[0]:
-                axis = axes[i].centers()
+            if signal.shape[i] == axes[i].shape[0]:
+                axis = axes[i].boundaries()
             else:
                 axis = axes[i]
             ind = convert_index(ind, axis)
+            if signal.shape[i] < axes[i].shape[0]:
+                axes[i] = axes[i][ind]
+                if isinstance(ind, slice) and ind.stop is not None:
+                    ind = slice(ind.start, ind.stop-1)
+            elif (signal.shape[i] == axes[i].shape[0]):
+                if isinstance(ind, slice) and ind.stop is not None:
+                    ind = slice(ind.start, ind.stop-1)
+                axes[i] = axes[i][ind]
             slices.append(ind)
-            if (signal.shape[i] < axes[i].shape[0] and
-                isinstance(ind, slice) and ind.stop is not None):
-                ind = slice(ind.start, ind.stop+1)
-            axes[i] = axis[ind]
         return tuple(slices), axes
 
     @property

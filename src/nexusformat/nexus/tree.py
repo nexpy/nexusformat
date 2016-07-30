@@ -1047,8 +1047,8 @@ class NXattr(object):
         return text(self.nxdata)
 
     def __repr__(self):
-        if self.dtype is not None and \
-            self.dtype.type == np.string_ or self.dtype == string_dtype:
+        if (self.dtype is not None and
+                self.dtype.type == np.string_ or self.dtype == string_dtype):
             return "NXattr('%s')" % self
         else:
             return "NXattr(%s)" % self
@@ -1809,8 +1809,8 @@ class NXfield(NXobject):
         name starts with 'nx' or '_', or unless it is one of the standard Python
         attributes for the NXfield class.
         """
-        if name.startswith('_') or name.startswith('nx') or \
-           name in self.field_properties:
+        if (name.startswith('_') or name.startswith('nx') or
+               name in self.field_properties):
             if isinstance(value, NXfield):
                 value = value.nxdata
             object.__setattr__(self, name, value)
@@ -2169,8 +2169,8 @@ class NXfield(NXobject):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and \
-               isinstance(other.nxdata, np.ndarray):
+            if (isinstance(self.nxdata, np.ndarray) and
+                   isinstance(other.nxdata, np.ndarray)):
                 try:
                     return np.array_equal(self, other)
                 except ValueError:
@@ -2185,8 +2185,8 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are not the same.
         """
         if isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and \
-               isinstance(other.nxdata, np.ndarray):
+            if (isinstance(self.nxdata, np.ndarray) and
+                   isinstance(other.nxdata, np.ndarray)):
                 try:
                     return not np.array_equal(self, other)
                 except ValueError:
@@ -2476,8 +2476,8 @@ class NXfield(NXobject):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file is locked')
         else:
-            self._value, self._dtype, self._shape = \
-                _getvalue(value, self._dtype, self._shape)
+            self._value, self._dtype, self._shape = _getvalue(
+                value, self._dtype, self._shape)
             self.update()
 
     @property
@@ -3406,8 +3406,8 @@ class NXgroup(NXobject):
             raise NeXusError("Higher moments not yet implemented")
         if not hasattr(self,"nxclass"):
             raise NeXusError("Operation not allowed for groups of unknown class")
-        return (centers(self.nxsignal,self.nxaxes)*self.nxsignal).sum() \
-                /self.nxsignal.sum()
+        return ((centers(self.nxsignal, self.nxaxes) * self.nxsignal).sum()
+                   / self.nxsignal.sum())
 
     def is_plottable(self):
         plottable = False
@@ -4325,7 +4325,8 @@ class NXdata(NXgroup):
         return result        
 
     def slab(self, idx):
-        if (isinstance(idx, numbers.Real) or isinstance(idx, slice)):
+        if (isinstance(idx, numbers.Real) or isinstance(idx, numbers.Integral)
+                or isinstance(idx, slice)):
             idx = [idx]
         signal = self.nxsignal
         axes = self.nxaxes
@@ -4634,6 +4635,26 @@ for cls in nxclasses:
     __all__.append(cls)
 
 #-------------------------------------------------------------------------
+def is_real_slice(idx):
+    if idx is None or isinstance(idx, numbers.Integral):
+        return False
+    elif isinstance(idx, numbers.Real):
+        return True
+    elif isinstance(idx, slice):
+        if (isinstance(idx.start, numbers.Integral) and 
+               isinstance(idx.stop, numbers.Integral)):
+            return False
+        else:
+            return True
+    else:
+        for ind in idx:
+            if isinstance(ind, slice):
+                if not (isinstance(ind.start, numbers.Integral) and 
+                        isinstance(ind.stop, numbers.Integral)):
+                    return True
+            elif ind is not None and not isinstance(ind, numbers.Integral):
+                return True
+        return False
 
 def convert_index(idx, axis):
     """
@@ -4642,11 +4663,15 @@ def convert_index(idx, axis):
     This is for one-dimensional axes only. If the index is a tuple of slices, 
     i.e., for two or more dimensional data, the index is returned unchanged.
     """
+    if is_real_slice(idx) and axis.ndim > 1: 
+        raise NeXusError(
+            'NXfield must be one-dimensional for floating point slices')
+    elif ((isinstance(idx, tuple) or isinstance(idx, list)) and 
+             len(idx) > axis.ndim):
+        raise NeXusError('Slice dimension incompatible with NXfield')
     if len(axis) == 1:
         idx = 0
-    elif isinstance(idx, slice) and \
-            (idx.start is None or isinstance(idx.start, numbers.Integral)) and \
-            (idx.stop is None or isinstance(idx.stop, numbers.Integral)):
+    elif isinstance(idx, slice) and not is_real_slice(idx):
         if idx.start is not None and idx.stop is not None:
             if idx.stop == idx.start or idx.stop == idx.start + 1:
                 idx = idx.start
@@ -4671,8 +4696,8 @@ def convert_index(idx, axis):
             idx = start
         else:
             idx = slice(start, stop)
-    elif not isinstance(idx, numbers.Integral) and \
-             isinstance(idx, numbers.Real):
+    elif (not isinstance(idx, numbers.Integral) and
+             isinstance(idx, numbers.Real)):
         idx = axis.index(idx)
     return idx
 

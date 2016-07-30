@@ -4132,15 +4132,19 @@ class NXdata(NXgroup):
             NXgroup.__setitem__(self, idx, value)
         elif self.nxsignal is not None:
             if isinstance(idx, numbers.Integral) or isinstance(idx, slice):
-                axes = self.nxaxes
-                idx = convert_index(idx, axes[0])
+                idx = convert_index(idx, self.nxaxes[0])
                 self.nxsignal[idx] = value
             else:
                 slices = []
                 axes = self.nxaxes
                 for i,ind in enumerate(idx):
-                    ind = convert_index(ind, axes[i])
-                    axes[i] = axes[i][ind]
+                    if self.nxsignal.shape[i] == axes[i].shape[0]:
+                        axis = axes[i].boundaries()
+                    else:
+                        axis = axes[i]
+                    ind = convert_index(ind, axis)
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
                     slices.append(ind)
                 self.nxsignal[tuple(slices)] = value
         else:
@@ -4332,20 +4336,27 @@ class NXdata(NXgroup):
         axes = self.nxaxes
         slices = []
         for i,ind in enumerate(idx):
-            if signal.shape[i] == axes[i].shape[0]:
-                axis = axes[i].boundaries()
+            if is_real_slice(ind):
+                if signal.shape[i] == axes[i].shape[0]:
+                    axis = axes[i].boundaries()
+                else:
+                    axis = axes[i]
+                ind = convert_index(ind, axis)
+                if signal.shape[i] < axes[i].shape[0]:
+                    axes[i] = axes[i][ind]
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
+                elif (signal.shape[i] == axes[i].shape[0]):
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
+                    axes[i] = axes[i][ind]
+                slices.append(ind)
             else:
-                axis = axes[i]
-            ind = convert_index(ind, axis)
-            if signal.shape[i] < axes[i].shape[0]:
+                slices.append(ind)
+                if (signal.shape[i] < axes[i].shape[0] and 
+                       isinstance(ind, slice)):
+                    ind = slice(ind.start, ind.stop+1, ind.step)
                 axes[i] = axes[i][ind]
-                if isinstance(ind, slice) and ind.stop is not None:
-                    ind = slice(ind.start, ind.stop-1)
-            elif (signal.shape[i] == axes[i].shape[0]):
-                if isinstance(ind, slice) and ind.stop is not None:
-                    ind = slice(ind.start, ind.stop-1)
-                axes[i] = axes[i][ind]
-            slices.append(ind)
         return tuple(slices), axes
 
     @property
@@ -4677,11 +4688,11 @@ def convert_index(idx, axis):
                 idx = idx.start
     elif isinstance(idx, slice):
         if isinstance(idx.start, NXfield) and isinstance(idx.stop, NXfield):
-            idx = slice(idx.start.nxdata, idx.stop.nxdata)
+            idx = slice(idx.start.nxdata, idx.stop.nxdata, idx.step)
         if (idx.start is not None and idx.stop is not None and
             ((axis.reversed and idx.start < idx.stop) or
              (not axis.reversed and idx.start > idx.stop))):
-            idx = slice(idx.stop, idx.start)
+            idx = slice(idx.stop, idx.start, idx.step)
         if idx.start is None:
             start = None
         else:
@@ -4691,11 +4702,11 @@ def convert_index(idx, axis):
         else:
             stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
-            idx = slice(start, stop)
+            idx = slice(start, stop, idx.step)
         elif stop <= start+1:
             idx = start
         else:
-            idx = slice(start, stop)
+            idx = slice(start, stop, idx.step)
     elif (not isinstance(idx, numbers.Integral) and
              isinstance(idx, numbers.Real)):
         idx = axis.index(idx)

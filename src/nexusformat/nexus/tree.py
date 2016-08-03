@@ -1869,6 +1869,7 @@ class NXfield(NXobject):
         """
         Assigns a slice to the NXfield.
         """
+        idx = convert_index(idx, self)
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
         if value is np.ma.masked:
@@ -4132,7 +4133,10 @@ class NXdata(NXgroup):
             NXgroup.__setitem__(self, idx, value)
         elif self.nxsignal is not None:
             if isinstance(idx, numbers.Integral) or isinstance(idx, slice):
-                idx = convert_index(idx, self.nxaxes[0])
+                axis = self.nxaxes[0]
+                if self.nxsignal.shape[i] == axis.shape[0]:
+                    axis = axis.boundaries()
+                idx = convert_index(idx, axis)
                 self.nxsignal[idx] = value
             else:
                 slices = []
@@ -4647,21 +4651,25 @@ for cls in nxclasses:
 
 #-------------------------------------------------------------------------
 def is_real_slice(idx):
+    def is_not_real(i):
+        if ((isinstance(i.start, numbers.Integral) or i.start is None) and
+               (isinstance(i.stop, numbers.Integral) or i.stop is None)):
+            return True
+        else:
+            return False
     if idx is None or isinstance(idx, numbers.Integral):
         return False
     elif isinstance(idx, numbers.Real):
         return True
     elif isinstance(idx, slice):
-        if (isinstance(idx.start, numbers.Integral) and 
-               isinstance(idx.stop, numbers.Integral)):
+        if is_not_real(idx):
             return False
         else:
             return True
     else:
         for ind in idx:
             if isinstance(ind, slice):
-                if not (isinstance(ind.start, numbers.Integral) and 
-                        isinstance(ind.stop, numbers.Integral)):
+                if not is_not_real(ind):
                     return True
             elif ind is not None and not isinstance(ind, numbers.Integral):
                 return True
@@ -4703,7 +4711,7 @@ def convert_index(idx, axis):
             stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
             idx = slice(start, stop, idx.step)
-        elif stop <= start+1:
+        elif stop <= start+1 or np.isclose(idx.start, idx.stop):
             idx = start
         else:
             idx = slice(start, stop, idx.step)

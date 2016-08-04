@@ -462,7 +462,11 @@ class NXFile(object):
                     _target = None
         else:
             _target, _filename = None, None
-        return _target, _filename
+        if _filename:
+            _abspath = os.path.isabs(_filename)
+        else:
+            _abspath = False
+        return _target, _filename, _abspath
 
     def _readchildren(self):
         children = {}
@@ -489,11 +493,11 @@ class NXFile(object):
         else:
             nxclass = 'NXgroup'
         children = self._readchildren()
-        _target, _filename = self._readlink()
+        _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
                                 entries=children, 
-                                target=_target, file=_filename)
+                                target=_target, file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
                             entries=children)
@@ -508,17 +512,19 @@ class NXFile(object):
         """
         # Finally some data, but don't read it if it is big
         # Instead record the location, type and size
-        _target, _filename = self._readlink()
+        _target, _filename, _abspath = self._readlink()
         if _target is not None:
             if _filename is not None:
                 try:
                     value, shape, dtype, attrs = self.readvalues()
-                    return NXlinkfield(target=_target, file=_filename,
+                    return NXlinkfield(
+                        target=_target, file=_filename, abspath=_abspath,
                         name=name, value=value, dtype=dtype, shape=shape, 
                         attrs=attrs)
                 except Exception:
                     pass
-            return NXlinkfield(name=name, target=_target, file=_filename)
+            return NXlinkfield(name=name, target=_target, file=_filename, 
+                               abspath=_abspath)
         else:
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
@@ -646,8 +652,11 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        filename = os.path.relpath(os.path.realpath(item._filename), 
-                       os.path.dirname(os.path.realpath(self.filename)))
+        if item._abspath and os.path.isabs(item._filename):
+            filename = item._filename
+        else:
+            filename = os.path.relpath(os.path.realpath(item._filename), 
+                           os.path.dirname(os.path.realpath(self.filename)))
         self[self.nxpath] = h5.ExternalLink(filename, item._target)
         self.nxpath = self.nxparent
 
@@ -663,6 +672,10 @@ class NXFile(object):
                 if 'target' not in self[target].attrs:
                     self[target].attrs['target'] = target
                 self[path] = self[target]
+
+    def readpath(self, path):
+        self.nxpath = path
+        return self.readitem()
 
     def readitem(self):
         item = self.get(self.nxpath)
@@ -809,7 +822,7 @@ def _getclass(cls, link=False):
         return type(object)
     elif cls in globals() and (not link or cls.startswith('NXlink')):
         return globals()[cls]
-    if cls.startswith('NXlink'):
+    if cls != 'NXlink' and cls.startswith('NXlink'):
         link = True
         cls = cls.replace('NXlink', 'NX')
     if link:
@@ -1047,8 +1060,8 @@ class NXattr(object):
         return text(self.nxdata)
 
     def __repr__(self):
-        if self.dtype is not None and \
-            self.dtype.type == np.string_ or self.dtype == string_dtype:
+        if (self.dtype is not None and
+                self.dtype.type == np.string_ or self.dtype == string_dtype):
             return "NXattr('%s')" % self
         else:
             return "NXattr(%s)" % self
@@ -1164,8 +1177,9 @@ class NXobject(object):
     _group = None
     _file = None
     _filename = None
-    _mode = None
+    _abspath = False
     _target = None
+    _mode = None
     _memfile = None
     _uncopied_data = None
     _changed = True
@@ -1340,6 +1354,7 @@ class NXobject(object):
             else:
                 root._mode = mode
             root.nxfile = filename
+            root.nxfile.close()
             self.set_changed()
             return root
         else:
@@ -1809,8 +1824,8 @@ class NXfield(NXobject):
         name starts with 'nx' or '_', or unless it is one of the standard Python
         attributes for the NXfield class.
         """
-        if name.startswith('_') or name.startswith('nx') or \
-           name in self.field_properties:
+        if (name.startswith('_') or name.startswith('nx') or
+               name in self.field_properties):
             if isinstance(value, NXfield):
                 value = value.nxdata
             object.__setattr__(self, name, value)
@@ -1869,6 +1884,7 @@ class NXfield(NXobject):
         """
         Assigns a slice to the NXfield.
         """
+        idx = convert_index(idx, self)
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file opened as readonly')
         if value is np.ma.masked:
@@ -2169,8 +2185,8 @@ class NXfield(NXobject):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and \
-               isinstance(other.nxdata, np.ndarray):
+            if (isinstance(self.nxdata, np.ndarray) and
+                   isinstance(other.nxdata, np.ndarray)):
                 try:
                     return np.array_equal(self, other)
                 except ValueError:
@@ -2185,8 +2201,8 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are not the same.
         """
         if isinstance(other, NXfield):
-            if isinstance(self.nxdata, np.ndarray) and \
-               isinstance(other.nxdata, np.ndarray):
+            if (isinstance(self.nxdata, np.ndarray) and
+                   isinstance(other.nxdata, np.ndarray)):
                 try:
                     return not np.array_equal(self, other)
                 except ValueError:
@@ -2447,14 +2463,17 @@ class NXfield(NXobject):
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
-            if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1024*1024:
-                if self.nxfilemode:
-                    self._value = self._get_filedata()
-                elif self._uncopied_data:
-                    self._get_uncopied_data()
-                if self._memfile:
-                    self._value = self._get_memdata()
-                    self._memfile = None
+            if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1000*1000:
+                try:
+                    if self.nxfilemode:
+                        self._value = self._get_filedata()
+                    elif self._uncopied_data:
+                        self._get_uncopied_data()
+                    if self._memfile:
+                        self._value = self._get_memdata()
+                        self._memfile = None
+                except Exception:
+                    raise NeXusError("Cannot read data for '%s'" % self.nxname)
                 if self._value is not None:
                     self._value.shape = self._shape
             else:
@@ -2476,8 +2495,8 @@ class NXfield(NXobject):
         if self.nxfilemode == 'r':
             raise NeXusError('NeXus file is locked')
         else:
-            self._value, self._dtype, self._shape = \
-                _getvalue(value, self._dtype, self._shape)
+            self._value, self._dtype, self._shape = _getvalue(
+                value, self._dtype, self._shape)
             self.update()
 
     @property
@@ -3281,7 +3300,7 @@ class NXgroup(NXobject):
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
             if (isinstance(value, NXlink) and 
-                value.nxfilename != self.nxfilename):
+                   value.nxfilename == self.nxfilename):
                 self[name] = value.nxlink
             else:
                 self[name] = value
@@ -3302,6 +3321,8 @@ class NXgroup(NXobject):
         if isinstance(self.nxroot, NXroot):
             if self.nxroot == target.nxroot:
                 if isinstance(target, NXobject):
+                    if isinstance(target, NXlink):
+                        target = target.nxlink
                     if name is None:
                         name = target.nxname
                     if name in self:
@@ -3406,8 +3427,8 @@ class NXgroup(NXobject):
             raise NeXusError("Higher moments not yet implemented")
         if not hasattr(self,"nxclass"):
             raise NeXusError("Operation not allowed for groups of unknown class")
-        return (centers(self.nxsignal,self.nxaxes)*self.nxsignal).sum() \
-                /self.nxsignal.sum()
+        return ((centers(self.nxsignal, self.nxaxes) * self.nxsignal).sum()
+                   / self.nxsignal.sum())
 
     def is_plottable(self):
         plottable = False
@@ -3531,10 +3552,12 @@ class NXlink(NXobject):
 
     _class = "NXlink"
 
-    def __init__(self, target=None, file=None, name=None, group=None):
+    def __init__(self, target=None, file=None, name=None, group=None, 
+                 abspath=False):
         self._class = "NXlink"
         self._name = name
         self._group = group
+        self._abspath = abspath
         self._mode = 'r'
         self._attrs = AttrDict(self)
         self._entries = {}
@@ -3548,11 +3571,11 @@ class NXlink(NXobject):
                 self._name = target.nxname
             self._target = target.nxpath
             if isinstance(target, NXfield):
-                self.__class__ = NXlinkfield
+                self.nxclass = NXlinkfield
             elif isinstance(target, NXgroup):
-                self.__class__ = NXlinkgroup
+                self.nxclass = NXlinkgroup
         else:
-            if name is None:
+            if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = target
             self._filename = file
@@ -3594,20 +3617,25 @@ class NXlink(NXobject):
     def update(self):
         root = self.nxroot
         filename, mode = root.nxfilename, root.nxfilemode
+        item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename) as f:
                 f.update(self)
-                item = f.readitem()
+        try:
+            with NXFile(self.nxfilename) as f:
+                item = f.readpath(self._target)
                 if isinstance(item, NXfield):
-                    self.__class__ = NXlinkfield
+                    self.nxclass = NXlinkfield
                     self._value, self._shape, self._dtype, _ = f.readvalues()
                 elif isinstance(item, NXgroup):
-                    self.__class__ = _getclass(item.nxclass, link=True)
+                    self.nxclass = _getclass(item.nxclass, link=True)
                     self._entries = item._entries
+                    for entry in self._entries:
+                        self._entries[entry]._group = self
                 self.attrs._setattrs(item.attrs)
+        except Exception:
+            pass
         self.set_changed()
-#            except Exception:
-#                pass
 
     @property
     def nxlink(self):
@@ -3617,9 +3645,9 @@ class NXlink(NXobject):
             else:
                 _link = self.nxroot[self._target]
             if isinstance(_link, NXfield):
-                self.__class__ = NXlinkfield
+                self.nxclass = NXlinkfield
             elif isinstance(_link, NXgroup):
-                self.__class__ = _getclass(_link.nxclass, link=True)
+                self.nxclass = _getclass(_link.nxclass, link=True)
             return _link
         except Exception:
             return self
@@ -3627,7 +3655,8 @@ class NXlink(NXobject):
     @property
     def nxfilename(self):
         if self._filename is not None:
-            if os.path.isabs(self._filename):
+            if (self is self.nxroot or self.nxroot.nxfilename is None or
+                   os.path.isabs(self._filename)):
                 return self._filename
             else:
                 return os.path.abspath(os.path.join(
@@ -3645,8 +3674,9 @@ class NXlinkfield(NXlink, NXfield):
 
     The real field will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, **opts):
-        NXlink.__init__(self, target=target, file=file, name=name)
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
+        NXlink.__init__(self, target=target, file=file, name=name, 
+                        abspath=abspath)
         if self._filename is not None:
             NXfield.__init__(self, name=name, **opts)
         self._class = "NXfield"
@@ -3685,12 +3715,12 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, **opts):
-        NXlink.__init__(self, target=target, file=file, name=name)
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
+        NXlink.__init__(self, target=target, file=file, name=name, 
+                        abspath=abspath)
         if 'nxclass' in opts:
             NXgroup.__init__(self, **opts)
-            self.__class__ = _getclass(opts['nxclass'], link=True)
-            self._class = 'NX' + self.__class__.__name__[6:]
+            self.nxclass = _getclass(opts['nxclass'], link=True)
         else:
             self._class = 'NXlink'
 
@@ -3823,6 +3853,11 @@ class NXroot(NXgroup):
         import shutil
         shutil.copy2(self._backup, filename)
         self.nxfile = filename
+
+    def close(self):
+        """Close the underlying HDF5 file."""
+        if self.nxfile:
+            self.nxfile.close()
 
     @property
     def plottable_data(self):
@@ -4132,15 +4167,22 @@ class NXdata(NXgroup):
             NXgroup.__setitem__(self, idx, value)
         elif self.nxsignal is not None:
             if isinstance(idx, numbers.Integral) or isinstance(idx, slice):
-                axes = self.nxaxes
-                idx = convert_index(idx, axes[0])
+                axis = self.nxaxes[0]
+                if self.nxsignal.shape[i] == axis.shape[0]:
+                    axis = axis.boundaries()
+                idx = convert_index(idx, axis)
                 self.nxsignal[idx] = value
             else:
                 slices = []
                 axes = self.nxaxes
                 for i,ind in enumerate(idx):
-                    ind = convert_index(ind, axes[i])
-                    axes[i] = axes[i][ind]
+                    if self.nxsignal.shape[i] == axes[i].shape[0]:
+                        axis = axes[i].boundaries()
+                    else:
+                        axis = axes[i]
+                    ind = convert_index(ind, axis)
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
                     slices.append(ind)
                 self.nxsignal[tuple(slices)] = value
         else:
@@ -4325,22 +4367,35 @@ class NXdata(NXgroup):
         return result        
 
     def slab(self, idx):
-        if (isinstance(idx, numbers.Real) or isinstance(idx, slice)):
+        if (isinstance(idx, numbers.Real) or isinstance(idx, numbers.Integral)
+                or isinstance(idx, slice)):
             idx = [idx]
         signal = self.nxsignal
         axes = self.nxaxes
         slices = []
         for i,ind in enumerate(idx):
-            if signal.shape[i] < axes[i].shape[0]:
-                axis = axes[i].centers()
+            if is_real_slice(ind):
+                if signal.shape[i] == axes[i].shape[0]:
+                    axis = axes[i].boundaries()
+                else:
+                    axis = axes[i]
+                ind = convert_index(ind, axis)
+                if signal.shape[i] < axes[i].shape[0]:
+                    axes[i] = axes[i][ind]
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
+                elif (signal.shape[i] == axes[i].shape[0]):
+                    if isinstance(ind, slice) and ind.stop is not None:
+                        ind = slice(ind.start, ind.stop-1, ind.step)
+                    axes[i] = axes[i][ind]
+                slices.append(ind)
             else:
-                axis = axes[i]
-            ind = convert_index(ind, axis)
-            slices.append(ind)
-            if (signal.shape[i] < axes[i].shape[0] and
-                isinstance(ind, slice) and ind.stop is not None):
-                ind = slice(ind.start, ind.stop+1)
-            axes[i] = axis[ind]
+                ind = convert_index(ind, axes[i])
+                slices.append(ind)
+                if (signal.shape[i] < axes[i].shape[0] and 
+                       isinstance(ind, slice)):
+                    ind = slice(ind.start, ind.stop+1, ind.step)
+                axes[i] = axes[i][ind]
         return tuple(slices), axes
 
     @property
@@ -4630,6 +4685,30 @@ for cls in nxclasses:
     __all__.append(cls)
 
 #-------------------------------------------------------------------------
+def is_real_slice(idx):
+    def is_not_real(i):
+        if ((isinstance(i.start, numbers.Integral) or i.start is None) and
+               (isinstance(i.stop, numbers.Integral) or i.stop is None)):
+            return True
+        else:
+            return False
+    if idx is None or isinstance(idx, numbers.Integral):
+        return False
+    elif isinstance(idx, numbers.Real):
+        return True
+    elif isinstance(idx, slice):
+        if is_not_real(idx):
+            return False
+        else:
+            return True
+    else:
+        for ind in idx:
+            if isinstance(ind, slice):
+                if not is_not_real(ind):
+                    return True
+            elif ind is not None and not isinstance(ind, numbers.Integral):
+                return True
+        return False
 
 def convert_index(idx, axis):
     """
@@ -4638,21 +4717,25 @@ def convert_index(idx, axis):
     This is for one-dimensional axes only. If the index is a tuple of slices, 
     i.e., for two or more dimensional data, the index is returned unchanged.
     """
+    if is_real_slice(idx) and axis.ndim > 1: 
+        raise NeXusError(
+            'NXfield must be one-dimensional for floating point slices')
+    elif ((isinstance(idx, tuple) or isinstance(idx, list)) and 
+             len(idx) > axis.ndim):
+        raise NeXusError('Slice dimension incompatible with NXfield')
     if len(axis) == 1:
         idx = 0
-    elif isinstance(idx, slice) and \
-            (idx.start is None or isinstance(idx.start, numbers.Integral)) and \
-            (idx.stop is None or isinstance(idx.stop, numbers.Integral)):
+    elif isinstance(idx, slice) and not is_real_slice(idx):
         if idx.start is not None and idx.stop is not None:
             if idx.stop == idx.start or idx.stop == idx.start + 1:
                 idx = idx.start
     elif isinstance(idx, slice):
         if isinstance(idx.start, NXfield) and isinstance(idx.stop, NXfield):
-            idx = slice(idx.start.nxdata, idx.stop.nxdata)
+            idx = slice(idx.start.nxdata, idx.stop.nxdata, idx.step)
         if (idx.start is not None and idx.stop is not None and
             ((axis.reversed and idx.start < idx.stop) or
              (not axis.reversed and idx.start > idx.stop))):
-            idx = slice(idx.stop, idx.start)
+            idx = slice(idx.stop, idx.start, idx.step)
         if idx.start is None:
             start = None
         else:
@@ -4662,13 +4745,13 @@ def convert_index(idx, axis):
         else:
             stop = axis.index(idx.stop, max=True) + 1
         if start is None or stop is None:
-            idx = slice(start, stop)
-        elif stop <= start+1:
+            idx = slice(start, stop, idx.step)
+        elif stop <= start+1 or np.isclose(idx.start, idx.stop):
             idx = start
         else:
-            idx = slice(start, stop)
-    elif not isinstance(idx, numbers.Integral) and \
-             isinstance(idx, numbers.Real):
+            idx = slice(start, stop, idx.step)
+    elif (not isinstance(idx, numbers.Integral) and
+             isinstance(idx, numbers.Real)):
         idx = axis.index(idx)
     return idx
 

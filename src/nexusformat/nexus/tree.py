@@ -462,7 +462,11 @@ class NXFile(object):
                     _target = None
         else:
             _target, _filename = None, None
-        return _target, _filename
+        if _filename:
+            _abspath = os.path.isabs(_filename)
+        else:
+            _abspath = False
+        return _target, _filename, _abspath
 
     def _readchildren(self):
         children = {}
@@ -489,11 +493,11 @@ class NXFile(object):
         else:
             nxclass = 'NXgroup'
         children = self._readchildren()
-        _target, _filename = self._readlink()
+        _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
                                 entries=children, 
-                                target=_target, file=_filename)
+                                target=_target, file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
                             entries=children)
@@ -508,17 +512,19 @@ class NXFile(object):
         """
         # Finally some data, but don't read it if it is big
         # Instead record the location, type and size
-        _target, _filename = self._readlink()
+        _target, _filename, _abspath = self._readlink()
         if _target is not None:
             if _filename is not None:
                 try:
                     value, shape, dtype, attrs = self.readvalues()
-                    return NXlinkfield(target=_target, file=_filename,
+                    return NXlinkfield(
+                        target=_target, file=_filename, abspath=_abspath,
                         name=name, value=value, dtype=dtype, shape=shape, 
                         attrs=attrs)
                 except Exception:
                     pass
-            return NXlinkfield(name=name, target=_target, file=_filename)
+            return NXlinkfield(name=name, target=_target, file=_filename, 
+                               abspath=_abspath)
         else:
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
@@ -646,8 +652,11 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        filename = os.path.relpath(os.path.realpath(item._filename), 
-                       os.path.dirname(os.path.realpath(self.filename)))
+        if item._abspath and os.path.isabs(item._filename):
+            filename = item._filename
+        else:
+            filename = os.path.relpath(os.path.realpath(item._filename), 
+                           os.path.dirname(os.path.realpath(self.filename)))
         self[self.nxpath] = h5.ExternalLink(filename, item._target)
         self.nxpath = self.nxparent
 
@@ -663,6 +672,10 @@ class NXFile(object):
                 if 'target' not in self[target].attrs:
                     self[target].attrs['target'] = target
                 self[path] = self[target]
+
+    def readpath(self, path):
+        self.nxpath = path
+        return self.readitem()
 
     def readitem(self):
         item = self.get(self.nxpath)
@@ -809,7 +822,7 @@ def _getclass(cls, link=False):
         return type(object)
     elif cls in globals() and (not link or cls.startswith('NXlink')):
         return globals()[cls]
-    if cls.startswith('NXlink'):
+    if cls != 'NXlink' and cls.startswith('NXlink'):
         link = True
         cls = cls.replace('NXlink', 'NX')
     if link:
@@ -1164,8 +1177,9 @@ class NXobject(object):
     _group = None
     _file = None
     _filename = None
-    _mode = None
+    _abspath = False
     _target = None
+    _mode = None
     _memfile = None
     _uncopied_data = None
     _changed = True
@@ -1340,6 +1354,7 @@ class NXobject(object):
             else:
                 root._mode = mode
             root.nxfile = filename
+            root.nxfile.close()
             self.set_changed()
             return root
         else:
@@ -2448,14 +2463,17 @@ class NXfield(NXobject):
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
-            if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1024*1024:
-                if self.nxfilemode:
-                    self._value = self._get_filedata()
-                elif self._uncopied_data:
-                    self._get_uncopied_data()
-                if self._memfile:
-                    self._value = self._get_memdata()
-                    self._memfile = None
+            if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1000*1000:
+                try:
+                    if self.nxfilemode:
+                        self._value = self._get_filedata()
+                    elif self._uncopied_data:
+                        self._get_uncopied_data()
+                    if self._memfile:
+                        self._value = self._get_memdata()
+                        self._memfile = None
+                except Exception:
+                    raise NeXusError("Cannot read data for '%s'" % self.nxname)
                 if self._value is not None:
                     self._value.shape = self._shape
             else:
@@ -3282,7 +3300,7 @@ class NXgroup(NXobject):
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
             if (isinstance(value, NXlink) and 
-                value.nxfilename != self.nxfilename):
+                   value.nxfilename == self.nxfilename):
                 self[name] = value.nxlink
             else:
                 self[name] = value
@@ -3303,6 +3321,8 @@ class NXgroup(NXobject):
         if isinstance(self.nxroot, NXroot):
             if self.nxroot == target.nxroot:
                 if isinstance(target, NXobject):
+                    if isinstance(target, NXlink):
+                        target = target.nxlink
                     if name is None:
                         name = target.nxname
                     if name in self:
@@ -3532,10 +3552,12 @@ class NXlink(NXobject):
 
     _class = "NXlink"
 
-    def __init__(self, target=None, file=None, name=None, group=None):
+    def __init__(self, target=None, file=None, name=None, group=None, 
+                 abspath=False):
         self._class = "NXlink"
         self._name = name
         self._group = group
+        self._abspath = abspath
         self._mode = 'r'
         self._attrs = AttrDict(self)
         self._entries = {}
@@ -3549,11 +3571,11 @@ class NXlink(NXobject):
                 self._name = target.nxname
             self._target = target.nxpath
             if isinstance(target, NXfield):
-                self.__class__ = NXlinkfield
+                self.nxclass = NXlinkfield
             elif isinstance(target, NXgroup):
-                self.__class__ = NXlinkgroup
+                self.nxclass = NXlinkgroup
         else:
-            if name is None:
+            if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = target
             self._filename = file
@@ -3595,20 +3617,25 @@ class NXlink(NXobject):
     def update(self):
         root = self.nxroot
         filename, mode = root.nxfilename, root.nxfilemode
+        item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename) as f:
                 f.update(self)
-                item = f.readitem()
+        try:
+            with NXFile(self.nxfilename) as f:
+                item = f.readpath(self._target)
                 if isinstance(item, NXfield):
-                    self.__class__ = NXlinkfield
+                    self.nxclass = NXlinkfield
                     self._value, self._shape, self._dtype, _ = f.readvalues()
                 elif isinstance(item, NXgroup):
-                    self.__class__ = _getclass(item.nxclass, link=True)
+                    self.nxclass = _getclass(item.nxclass, link=True)
                     self._entries = item._entries
+                    for entry in self._entries:
+                        self._entries[entry]._group = self
                 self.attrs._setattrs(item.attrs)
+        except Exception:
+            pass
         self.set_changed()
-#            except Exception:
-#                pass
 
     @property
     def nxlink(self):
@@ -3618,9 +3645,9 @@ class NXlink(NXobject):
             else:
                 _link = self.nxroot[self._target]
             if isinstance(_link, NXfield):
-                self.__class__ = NXlinkfield
+                self.nxclass = NXlinkfield
             elif isinstance(_link, NXgroup):
-                self.__class__ = _getclass(_link.nxclass, link=True)
+                self.nxclass = _getclass(_link.nxclass, link=True)
             return _link
         except Exception:
             return self
@@ -3628,7 +3655,8 @@ class NXlink(NXobject):
     @property
     def nxfilename(self):
         if self._filename is not None:
-            if os.path.isabs(self._filename):
+            if (self is self.nxroot or self.nxroot.nxfilename is None or
+                   os.path.isabs(self._filename)):
                 return self._filename
             else:
                 return os.path.abspath(os.path.join(
@@ -3646,8 +3674,9 @@ class NXlinkfield(NXlink, NXfield):
 
     The real field will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, **opts):
-        NXlink.__init__(self, target=target, file=file, name=name)
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
+        NXlink.__init__(self, target=target, file=file, name=name, 
+                        abspath=abspath)
         if self._filename is not None:
             NXfield.__init__(self, name=name, **opts)
         self._class = "NXfield"
@@ -3686,12 +3715,12 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, **opts):
-        NXlink.__init__(self, target=target, file=file, name=name)
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
+        NXlink.__init__(self, target=target, file=file, name=name, 
+                        abspath=abspath)
         if 'nxclass' in opts:
             NXgroup.__init__(self, **opts)
-            self.__class__ = _getclass(opts['nxclass'], link=True)
-            self._class = 'NX' + self.__class__.__name__[6:]
+            self.nxclass = _getclass(opts['nxclass'], link=True)
         else:
             self._class = 'NXlink'
 
@@ -3824,6 +3853,11 @@ class NXroot(NXgroup):
         import shutil
         shutil.copy2(self._backup, filename)
         self.nxfile = filename
+
+    def close(self):
+        """Close the underlying HDF5 file."""
+        if self.nxfile:
+            self.nxfile.close()
 
     @property
     def plottable_data(self):
@@ -4356,6 +4390,7 @@ class NXdata(NXgroup):
                     axes[i] = axes[i][ind]
                 slices.append(ind)
             else:
+                ind = convert_index(ind, axes[i])
                 slices.append(ind)
                 if (signal.shape[i] < axes[i].shape[0] and 
                        isinstance(ind, slice)):

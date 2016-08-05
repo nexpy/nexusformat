@@ -652,11 +652,11 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        if item._abspath and os.path.isabs(item._filename):
-            filename = item._filename
-        else:
+        if os.path.isabs(item._filename) and not item._abspath:
             filename = os.path.relpath(os.path.realpath(item._filename), 
                            os.path.dirname(os.path.realpath(self.filename)))
+        else:
+            filename = item._filename
         self[self.nxpath] = h5.ExternalLink(filename, item._target)
         self.nxpath = self.nxparent
 

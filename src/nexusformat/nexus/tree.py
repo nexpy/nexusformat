@@ -1278,11 +1278,11 @@ class NXobject(object):
         return self._str_tree(attrs=False, recursive=True)
 
     def rename(self, name):
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
-        if self.nxgroup is not None:
+        if self.nxgroup is not None and self.nxgroup.nxfilemode != 'r':
             signal = self.nxgroup.nxsignal
             axes = self.nxgroup.nxaxes
+        elif self.nxfilemode == 'r':
+            raise NeXusError('NeXus file opened as readonly')
         path = self.nxpath
         self.nxname = name
         if self.nxgroup is not None:
@@ -1291,7 +1291,7 @@ class NXobject(object):
             elif axes is not None:
                 if [x for x in axes if x is self]:
                     self.nxgroup.nxaxes = axes
-        if self.nxfilemode == 'rw':
+        if self.nxgroup is not None and self.nxgroup.nxfilemode == 'rw':
             with self.nxfile as f:
                 f.rename(path, self.nxpath)
 

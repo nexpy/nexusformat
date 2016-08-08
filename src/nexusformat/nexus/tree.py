@@ -4091,7 +4091,7 @@ class NXdata(NXgroup):
             i = 0
             for axis in axes:
                 i += 1
-                if isinstance(axis, NXfield):
+                if isinstance(axis, NXfield) or isinstance(axis, NXlink):
                     if axis._name == "unknown": 
                         axis._name = "axis%s" % i
                     self[axis.nxname] = axis
@@ -4102,7 +4102,7 @@ class NXdata(NXgroup):
                     axis_names[i] = axis_name
             attrs["axes"] = list(axis_names.values())
         if signal is not None:
-            if isinstance(signal, NXfield):
+            if isinstance(signal, NXfield) or isinstance(signal, NXlink):
                 if signal.nxname == "unknown" or signal.nxname in self:
                     signal.nxname = "signal"
                 self[signal.nxname] = signal

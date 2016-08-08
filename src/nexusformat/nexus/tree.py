@@ -3621,20 +3621,19 @@ class NXlink(NXobject):
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename) as f:
                 f.update(self)
-        try:
+        if os.path.exists(self.nxfilename):
             with NXFile(self.nxfilename) as f:
-                item = f.readpath(self._target)
-                if isinstance(item, NXfield):
-                    self.nxclass = NXlinkfield
-                    self._value, self._shape, self._dtype, _ = f.readvalues()
-                elif isinstance(item, NXgroup):
-                    self.nxclass = _getclass(item.nxclass, link=True)
-                    self._entries = item._entries
-                    for entry in self._entries:
-                        self._entries[entry]._group = self
-                self.attrs._setattrs(item.attrs)
-        except Exception:
-            pass
+                if self._target in f:
+                    item = f.readpath(self._target)
+                    if isinstance(item, NXfield):
+                        self.nxclass = NXlinkfield
+                        self._value, self._shape, self._dtype, _ = f.readvalues()
+                    elif isinstance(item, NXgroup):
+                        self.nxclass = _getclass(item.nxclass, link=True)
+                        self._entries = item._entries
+                        for entry in self._entries:
+                            self._entries[entry]._group = self
+                    self.attrs._setattrs(item.attrs)
         self.set_changed()
 
     @property

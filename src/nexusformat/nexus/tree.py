@@ -1407,7 +1407,7 @@ class NXobject(object):
                 self._class = self.__class__.__name__
                 if self._class.startswith('NXlink') and self._class != 'NXlink':
                     self._class = 'NX' + self._class[6:]
-                self.update()
+            self.set_changed()
         except (TypeError, NameError):
             raise NeXusError('Invalid NeXus class')               
 

@@ -454,7 +454,7 @@ class NXFile(object):
             _link = self.get(self.nxpath, getlink=True)
             _target, _filename = _link.path, _link.filename
         elif 'target' in self.attrs:
-            _target = self.attrs['target']
+            _target = text(self.attrs['target'])
             _filename = self.get(self.nxpath).file.filename
             if _filename == self.filename:
                 _filename = None
@@ -3577,7 +3577,7 @@ class NXlink(NXobject):
         else:
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
-            self._target = target
+            self._target = text(target)
             self._filename = file
 
     def __getattr__(self, attr):
@@ -3606,10 +3606,10 @@ class NXlink(NXobject):
 
     def _str_name(self, indent=0):
         if self._filename:
-            return (" " * indent + self.nxname + ' -> ' + self._filename +
-                    "['" + self._target + "']")
+            return (" " * indent + self.nxname + ' -> ' + text(self._filename) +
+                    "['" + text(self._target) + "']")
         else:
-            return " " * indent + self.nxname + ' -> ' + self._target
+            return " " * indent + self.nxname + ' -> ' + text(self._target)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return self._str_name(indent=indent)
@@ -3744,10 +3744,11 @@ class NXlinkgroup(NXlink, NXgroup):
     def _str_name(self, indent=0):
         if self._filename:
             return (" " * indent + self.nxname + ':' + self.nxclass + 
-                    ' -> ' + self._filename + "['" + self._target + "']")
+                    ' -> ' + text(self._filename) + 
+                    "['" + text(self._target) + "']")
         else:
             return (" " * indent + self.nxname + ':' + self.nxclass + 
-                    ' -> ' + self._target)
+                    ' -> ' + text(self._target))
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return NXgroup._str_tree(self, indent=indent, attrs=attrs, 

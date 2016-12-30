@@ -3864,6 +3864,14 @@ class NXroot(NXgroup):
         """
         Returns the first NXdata group within the group's tree.
         """
+        if 'default' in self.attrs and self.attrs['default'] in self:
+            group = self[self.attrs['default']]
+            if isinstance(group, NXdata):
+                return group
+            elif isinstance(group, NXentry):
+                plottable_data = group.plottable_data
+                if isinstance(plottable_data, NXdata):
+                    return plottable_data
         if self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:
@@ -3975,6 +3983,10 @@ class NXentry(NXgroup):
         """
         Returns the first NXdata group within the group's tree.
         """
+        if 'default' in self.attrs and self.attrs['default'] in self:
+            plottable_data = self[self.attrs['default']]
+            if isinstance(plottable_data, NXdata):
+                return plottable_data
         if self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:

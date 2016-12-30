@@ -89,7 +89,7 @@ class PylabPlotter(object):
         logy = opts.pop("logy", False)
 
         signal = data_group.nxsignal
-        if signal.ndim > 2:
+        if signal.ndim > 2 and not image:
             raise NeXusError(
                 "Can only plot 1D and 2D data - please select a slice")
         elif signal.ndim > 1 and over:

@@ -454,7 +454,7 @@ class NXFile(object):
             _link = self.get(self.nxpath, getlink=True)
             _target, _filename = _link.path, _link.filename
         elif 'target' in self.attrs:
-            _target = self.attrs['target']
+            _target = text(self.attrs['target'])
             _filename = self.get(self.nxpath).file.filename
             if _filename == self.filename:
                 _filename = None
@@ -3450,8 +3450,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.plot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def oplot(self, **opts):
         """
@@ -3459,8 +3459,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.oplot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def logplot(self, **opts):
         """
@@ -3468,8 +3468,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.logplot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def implot(self, **opts):
         """
@@ -3477,8 +3477,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.implot(**opts)
-        except AttributeError:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def signals(self):
         """
@@ -3577,7 +3577,7 @@ class NXlink(NXobject):
         else:
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
-            self._target = target
+            self._target = text(target)
             self._filename = file
 
     def __getattr__(self, attr):
@@ -3606,10 +3606,10 @@ class NXlink(NXobject):
 
     def _str_name(self, indent=0):
         if self._filename:
-            return (" " * indent + self.nxname + ' -> ' + self._filename +
-                    "['" + self._target + "']")
+            return (" " * indent + self.nxname + ' -> ' + text(self._filename) +
+                    "['" + text(self._target) + "']")
         else:
-            return " " * indent + self.nxname + ' -> ' + self._target
+            return " " * indent + self.nxname + ' -> ' + text(self._target)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return self._str_name(indent=indent)
@@ -3744,10 +3744,11 @@ class NXlinkgroup(NXlink, NXgroup):
     def _str_name(self, indent=0):
         if self._filename:
             return (" " * indent + self.nxname + ':' + self.nxclass + 
-                    ' -> ' + self._filename + "['" + self._target + "']")
+                    ' -> ' + text(self._filename) + 
+                    "['" + text(self._target) + "']")
         else:
             return (" " * indent + self.nxname + ':' + self.nxclass + 
-                    ' -> ' + self._target)
+                    ' -> ' + text(self._target))
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return NXgroup._str_tree(self, indent=indent, attrs=attrs, 
@@ -3863,6 +3864,14 @@ class NXroot(NXgroup):
         """
         Returns the first NXdata group within the group's tree.
         """
+        if 'default' in self.attrs and self.attrs['default'] in self:
+            group = self[self.attrs['default']]
+            if isinstance(group, NXdata):
+                return group
+            elif isinstance(group, NXentry):
+                plottable_data = group.plottable_data
+                if isinstance(plottable_data, NXdata):
+                    return plottable_data
         if self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:
@@ -3974,6 +3983,10 @@ class NXentry(NXgroup):
         """
         Returns the first NXdata group within the group's tree.
         """
+        if 'default' in self.attrs and self.attrs['default'] in self:
+            plottable_data = self[self.attrs['default']]
+            if isinstance(plottable_data, NXdata):
+                return plottable_data
         if self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:
@@ -4396,6 +4409,16 @@ class NXdata(NXgroup):
                     ind = slice(ind.start, ind.stop+1, ind.step)
                 axes[i] = axes[i][ind]
         return tuple(slices), axes
+
+    @property
+    def plottable_data(self):
+        """
+        Returns self.
+        """
+        if self.nxsignal is not None:
+            return self
+        else:
+            return None
 
     @property
     def plot_shape(self):

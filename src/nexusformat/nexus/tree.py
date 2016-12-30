@@ -3450,8 +3450,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.plot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def oplot(self, **opts):
         """
@@ -3459,8 +3459,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.oplot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def logplot(self, **opts):
         """
@@ -3468,8 +3468,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.logplot(**opts)
-        except Exception:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def implot(self, **opts):
         """
@@ -3477,8 +3477,8 @@ class NXgroup(NXobject):
         """
         try:
             self.plottable_data.implot(**opts)
-        except AttributeError:
-            raise NeXusError("Data cannot be plotted")
+        except Exception as error:
+            raise NeXusError(error)
 
     def signals(self):
         """

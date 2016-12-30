@@ -4411,6 +4411,16 @@ class NXdata(NXgroup):
         return tuple(slices), axes
 
     @property
+    def plottable_data(self):
+        """
+        Returns self.
+        """
+        if self.nxsignal is not None:
+            return self
+        else:
+            return None
+
+    @property
     def plot_shape(self):
         if self.nxsignal is not None:
             return self.nxsignal.plot_shape

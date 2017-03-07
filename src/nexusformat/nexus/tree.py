@@ -337,17 +337,19 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode=None, **kwds):
+    def __init__(self, name, mode='r', **kwds):
         """
         Creates an h5py File object for reading and writing.
         """
+        self.h5 = h5
         name = os.path.abspath(name)
+        self.name = name
         if mode == 'w4' or mode == 'wx':
             raise NeXusError('Only HDF5 files supported')
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
-            self._file = h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **kwds)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -355,7 +357,7 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            self._file = h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **kwds)
         self._filename = self._file.filename                             
         self._path = '/'
 
@@ -392,16 +394,17 @@ class NXFile(object):
         self.file.copy(*args, **kwds)
 
     def open(self, **kwds):
-        if not self._file.id:
+        if not self.isopen():
             if self._mode == 'rw':
-                self._file = h5.File(self._filename, 'r+', **kwds)
+                _mode = 'r+'
             else:
-                self._file = h5.File(self._filename, self._mode, **kwds)
-            self.nxpath = '/'
+                _mode = 'r'
+            self._file = self.h5.File(self._filename, _mode, **kwds)
+        self.nxpath = '/'
         return self
 
     def close(self):
-        if self._file.id:
+        if self.isopen():
             self._file.close()
 
     def isopen(self):
@@ -428,17 +431,7 @@ class NXFile(object):
         return root
 
     def _readattrs(self):
-        item = self.get(self.nxpath)
-        if item is not None:
-            attrs = {}
-            for key in item.attrs:
-                if isinstance(item.attrs[key], bytes):
-                    attrs[key] = text(item.attrs[key])
-                else:
-                    attrs[key] = item.attrs[key]
-            return attrs
-        else:
-            return {}
+        return dict(self[self.nxpath].attrs.items())
 
     def _readnxclass(self, attrs):
         nxclass = attrs.get('NX_class', None)
@@ -473,14 +466,14 @@ class NXFile(object):
         items = self[self.nxpath].items()
         for name, value in items:
             self.nxpath = self.nxpath + '/' + name
-            if isinstance(value, h5.Group):
-                children[name] = self._readgroup(name)
+            if isinstance(value, self.h5.Group):
+                children[name] = self._readgroup(name, value)
             else:
-                children[name] = self._readdata(name)
+                children[name] = self._readdata(name, value)
             self.nxpath = self.nxparent
         return children
 
-    def _readgroup(self, name):
+    def _readgroup(self, name, group):
         """
         Reads the group with the current path and returns it as an NXgroup.
         """
@@ -492,12 +485,12 @@ class NXFile(object):
             nxclass = 'NXroot'
         else:
             nxclass = 'NXgroup'
-        children = self._readchildren()
+        children = self._readchildren(group)
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
-                                entries=children, 
-                                target=_target, file=_filename, abspath=_abspath)
+                                entries=children, target=_target, 
+                                file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
                             entries=children)
@@ -506,7 +499,7 @@ class NXFile(object):
         group._changed = True
         return group
 
-    def _readdata(self, name):
+    def _readdata(self, name, field):
         """
         Reads a data object and returns it as an NXfield or NXlink.
         """
@@ -516,7 +509,7 @@ class NXFile(object):
         if _target is not None:
             if _filename is not None:
                 try:
-                    value, shape, dtype, attrs = self.readvalues()
+                    value, shape, dtype, attrs = self.readvalues(field)
                     return NXlinkfield(
                         target=_target, file=_filename, abspath=_abspath,
                         name=name, value=value, dtype=dtype, shape=shape, 
@@ -526,7 +519,7 @@ class NXFile(object):
             return NXlinkfield(name=name, target=_target, file=_filename, 
                                abspath=_abspath)
         else:
-            value, shape, dtype, attrs = self.readvalues()
+            value, shape, dtype, attrs = self.readvalues(field)
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
                            attrs=attrs)
  
@@ -657,7 +650,7 @@ class NXFile(object):
                            os.path.dirname(os.path.realpath(self.filename)))
         else:
             filename = item._filename
-        self[self.nxpath] = h5.ExternalLink(filename, item._target)
+        self[self.nxpath] = self.h5.ExternalLink(filename, item._target)
         self.nxpath = self.nxparent
 
     def _writelinks(self, links):
@@ -679,22 +672,23 @@ class NXFile(object):
 
     def readitem(self):
         item = self.get(self.nxpath)
-        if isinstance(item, h5.Group):
+        if isinstance(item, self.h5.Group):
             return self._readgroup(self.nxname)
         else:
             return self._readdata(self.nxname)
 
-    def readvalues(self, attrs=None):
-        field = self.get(self.nxpath)
+    def readvalues(self, field=None, attrs=None):
         if field is None:
-            return None, None, None, {}
+            field = self.get(self.nxpath)
+            if field is None:
+                return None, None, None, {}
         shape, dtype = field.shape, field.dtype
         if shape == (1,):
             shape = ()
         #Read in the data if it's not too large
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
-                value = self.readvalue(self.nxpath)
+                value = field[()]
                 if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
             except ValueError:
@@ -724,8 +718,8 @@ class NXFile(object):
         from datetime import datetime
         self.file.attrs['file_name'] = self.filename
         self.file.attrs['file_time'] = datetime.now().isoformat()
-        self.file.attrs['HDF5_Version'] = h5.version.hdf5_version
-        self.file.attrs['h5py_version'] = h5.version.version
+        self.file.attrs['HDF5_Version'] = self.h5.version.hdf5_version
+        self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
 
@@ -753,7 +747,7 @@ class NXFile(object):
     def _isexternal(self):
         try:
             return (self.get(self.nxpath, getclass=True, getlink=True)
-                    == h5.ExternalLink)
+                    == self.h5.ExternalLink)
         except Exception:
             return False
 
@@ -763,8 +757,15 @@ class NXFile(object):
         return self.file.filename
 
     @property
+    def domain(self):
+        domain = self.name.split('.')[0].split('/')
+        domain.reverse()
+        domain.append('exfac')
+        return '.'.join(domain)
+
+    @property
     def file(self):
-        if not self._file.id:
+        if not self.isopen():
             self.open()
         return self._file
 
@@ -776,11 +777,11 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self.file.id and self.file.mode == 'r':
+            if self.isopen() and self.file.mode == 'r':
                 self.close()
         else:
             self._mode = 'r'   
-            if self.file.id and self.file.mode == 'r+':
+            if self.isopen() and self.file.mode == 'r+':
                 self.close()
 
     @property

@@ -396,11 +396,10 @@ class NXFile(object):
     def open(self, **kwds):
         if not self.isopen():
             if self._mode == 'rw':
-                _mode = 'r+'
+                self._file = self.h5.File(self._filename, 'r+', **kwds)
             else:
-                _mode = 'r'
-            self._file = self.h5.File(self._filename, _mode, **kwds)
-        self.nxpath = '/'
+                self._file = self.h5.File(self._filename, self._mode, **kwds)
+            self.nxpath = '/'
         return self
 
     def close(self):
@@ -431,7 +430,17 @@ class NXFile(object):
         return root
 
     def _readattrs(self):
-        return dict(self[self.nxpath].attrs.items())
+        item = self.get(self.nxpath)
+        if item is not None:
+            attrs = {}
+            for key in item.attrs:
+                if isinstance(item.attrs[key], bytes):
+                    attrs[key] = text(item.attrs[key])
+                else:
+                    attrs[key] = item.attrs[key]
+            return attrs
+        else:
+            return {}
 
     def _readnxclass(self, attrs):
         nxclass = attrs.get('NX_class', None)
@@ -467,13 +476,13 @@ class NXFile(object):
         for name, value in items:
             self.nxpath = self.nxpath + '/' + name
             if isinstance(value, self.h5.Group):
-                children[name] = self._readgroup(name, value)
+                children[name] = self._readgroup(name)
             else:
-                children[name] = self._readdata(name, value)
+                children[name] = self._readdata(name)
             self.nxpath = self.nxparent
         return children
 
-    def _readgroup(self, name, group):
+    def _readgroup(self, name):
         """
         Reads the group with the current path and returns it as an NXgroup.
         """
@@ -485,7 +494,7 @@ class NXFile(object):
             nxclass = 'NXroot'
         else:
             nxclass = 'NXgroup'
-        children = self._readchildren(group)
+        children = self._readchildren()
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
@@ -499,7 +508,7 @@ class NXFile(object):
         group._changed = True
         return group
 
-    def _readdata(self, name, field):
+    def _readdata(self, name):
         """
         Reads a data object and returns it as an NXfield or NXlink.
         """
@@ -509,7 +518,7 @@ class NXFile(object):
         if _target is not None:
             if _filename is not None:
                 try:
-                    value, shape, dtype, attrs = self.readvalues(field)
+                    value, shape, dtype, attrs = self.readvalues()
                     return NXlinkfield(
                         target=_target, file=_filename, abspath=_abspath,
                         name=name, value=value, dtype=dtype, shape=shape, 
@@ -519,7 +528,7 @@ class NXFile(object):
             return NXlinkfield(name=name, target=_target, file=_filename, 
                                abspath=_abspath)
         else:
-            value, shape, dtype, attrs = self.readvalues(field)
+            value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
                            attrs=attrs)
  
@@ -677,18 +686,17 @@ class NXFile(object):
         else:
             return self._readdata(self.nxname)
 
-    def readvalues(self, field=None, attrs=None):
+    def readvalues(self, attrs=None):
+        field = self.get(self.nxpath)
         if field is None:
-            field = self.get(self.nxpath)
-            if field is None:
-                return None, None, None, {}
+            return None, None, None, {}
         shape, dtype = field.shape, field.dtype
         if shape == (1,):
             shape = ()
         #Read in the data if it's not too large
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
-                value = field[()]
+                value = self.readvalue(self.nxpath)
                 if isinstance(value, np.ndarray) and value.shape == (1,):
                     value = np.asscalar(value)
             except ValueError:
@@ -755,13 +763,6 @@ class NXFile(object):
     def filename(self):
         """File name on disk"""
         return self.file.filename
-
-    @property
-    def domain(self):
-        domain = self.name.split('.')[0].split('/')
-        domain.reverse()
-        domain.append('exfac')
-        return '.'.join(domain)
 
     @property
     def file(self):

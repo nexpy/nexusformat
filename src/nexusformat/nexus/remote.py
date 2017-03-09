@@ -16,10 +16,12 @@ import h5pyd as h5
 
 from nexusformat.nexus import *
 
-NX_SERVER = 'hdfgroup.org:5000'
-NX_DOMAIN = 'exfac'
+NX_SERVER = 'http://hdfgroup.org:5000'
+NX_DOMAIN = 'exfac.org'
 
-__all__ = ['NXRemoteFile', 'nxloadremote']
+__all__ = ['NXRemoteFile', 'nxloadremote', 
+           'nxgetserver', 'nxsetserver', 'NX_SERVER', 
+           'nxgetdomain', 'nxsetdomain', 'NX_DOMAIN']
 
 class NXRemoteFile(NXFile):
 
@@ -51,7 +53,7 @@ class NXRemoteFile(NXFile):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', server=NX_SERVER,  domain=NX_DOMAIN, 
+    def __init__(self, name, mode='r', server=None,  domain=None, 
                  **kwds):
         """
         Creates an h5py File object for reading and writing.
@@ -59,7 +61,11 @@ class NXRemoteFile(NXFile):
         self.h5 = h5
         self.name = name
         self._mode = 'r'
+        if server is None:
+            server = NX_SERVER
         self._server = server
+        if domain is None:
+            domain = NX_DOMAIN
         self._domain = domain
         self._file = self.h5.File(self.domain, mode, endpoint=server)
         self._filename = self.domain                             
@@ -181,11 +187,42 @@ class NXRemoteFile(NXFile):
         attrs = self.attrs
         return value, shape, dtype, attrs
 
+def getserver():
+    global NX_SERVER
+    return NX_SERVER
 
-def loadremote(filename, endpoint=NX_SERVER, mode='r'):
+nxgetserver = getserver
+
+def setserver(value):
+    """
+    Sets the default server and port for remote access.
+    """
+    global NX_SERVER
+    NX_SERVER = value
+
+nxsetserver = setserver
+
+def getdomain():
+    global NX_DOMAIN
+    return NX_DOMAIN
+
+nxgetdomain = getdomain
+
+def setdomain(value):
+    """
+    Sets the default domain for remote access.
+    """
+    global NX_DOMAIN
+    NX_DOMAIN = value
+
+nxsetdomain = setdomain
+
+def loadremote(filename, endpoint=None, mode='r'):
     """
     Reads a remote NeXus file returning a tree of objects.
     """
+    if endpoint is None:
+        endpoint = NX_SERVER
     with NXRemoteFile(filename, mode, endpoint) as f:
         tree = f.readfile()
     return tree

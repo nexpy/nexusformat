@@ -17,6 +17,8 @@ import h5pyd as h5
 from nexusformat.nexus import *
 
 NX_SERVER = 'hdfgroup.org:5000'
+NX_DOMAIN = 'exfac'
+
 __all__ = ['NXRemoteFile', 'nxloadremote']
 
 class NXRemoteFile(NXFile):
@@ -49,7 +51,8 @@ class NXRemoteFile(NXFile):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', server=NX_SERVER,  **kwds):
+    def __init__(self, name, mode='r', server=NX_SERVER,  domain=NX_DOMAIN, 
+                 **kwds):
         """
         Creates an h5py File object for reading and writing.
         """
@@ -57,6 +60,7 @@ class NXRemoteFile(NXFile):
         self.name = name
         self._mode = 'r'
         self._server = server
+        self._domain = domain
         self._file = self.h5.File(self.domain, mode, endpoint=server)
         self._filename = self.domain                             
         self._path = '/'
@@ -86,7 +90,7 @@ class NXRemoteFile(NXFile):
     def domain(self):
         domain = self.name.split('.')[0].split('/')
         domain.reverse()
-        domain.append('exfac')
+        domain.append(self._domain)
         return '.'.join(domain)
 
     @property

@@ -178,7 +178,7 @@ class NXRemoteFile(NXFile):
         return value, shape, dtype, attrs
 
 
-def loadremote(filename, endpoint='http://34.193.81.207:5000', mode='r'):
+def loadremote(filename, endpoint=NX_SERVER, mode='r'):
     """
     Reads a remote NeXus file returning a tree of objects.
     """

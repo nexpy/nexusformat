@@ -120,12 +120,9 @@ class NXRemoteFile(NXFile):
         root._mode = self._mode
         return root
 
-    def _readattrs(self):
-        return dict(self[self.nxpath].attrs.items())
-
-    def _readchildren(self):
+    def _readchildren(self, group):
         children = {}
-        for name, value in self._file[self.nxpath].items():
+        for name, value in group.items():
             self.nxpath = self.nxpath + '/' + name
             if isinstance(value, self.h5.Group):
                 children[name] = self._readgroup(name, value)
@@ -148,7 +145,7 @@ class NXRemoteFile(NXFile):
             nxclass = 'NXroot'
         else:
             nxclass = 'NXgroup'
-        children = self._readchildren()
+        children = self._readchildren(group)
         group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
                         entries=children)
         for obj in children.values():
@@ -170,6 +167,9 @@ class NXRemoteFile(NXFile):
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
                            attrs=attrs)
  
+    def _readattrs(self):
+        return dict(self[self.nxpath].attrs.items())
+
     def readvalues(self, field):
         shape, dtype = field.shape, field.dtype
         if shape == (1,):
@@ -217,13 +217,15 @@ def setdomain(value):
 
 nxsetdomain = setdomain
 
-def loadremote(filename, endpoint=None, mode='r'):
+def loadremote(filename, server=None, domain=None, mode='r'):
     """
     Reads a remote NeXus file returning a tree of objects.
     """
-    if endpoint is None:
-        endpoint = NX_SERVER
-    with NXRemoteFile(filename, mode, endpoint) as f:
+    if server is None:
+        server = NX_SERVER
+    if domain is None:
+        domain = NX_DOMAIN
+    with NXRemoteFile(filename, mode, server=server, domain=domain) as f:
         tree = f.readfile()
     return tree
 

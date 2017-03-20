@@ -254,8 +254,9 @@ string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
-           'NX_ENCODING', 'nxsetencoding',
+           'NX_MEMORY', 'nxgetmemory', 'nxsetmemory', 
+           'NX_COMPRESSION', 'nxgetcompression', 'nxsetcompression',
+           'NX_ENCODING', 'nxgetencoding', 'nxsetencoding',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
@@ -4793,6 +4794,15 @@ def centers(signal, axes):
             return axis.nxdata
     return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
 
+def getmemory():
+    """
+    Returns the memory limit for data arrays (in MB).
+    """
+    global NX_MEMORY
+    return NX_MEMORY
+
+nxgetmemory = getmemory
+
 def setmemory(value):
     """
     Sets the memory limit for data arrays (in MB).
@@ -4801,6 +4811,15 @@ def setmemory(value):
     NX_MEMORY = value
 
 nxsetmemory = setmemory
+
+def getcompression():
+    """
+    Returns default compression filter.
+    """
+    global NX_COMPRESSION
+    return NX_COMPRESSION
+
+nxgetcompression = getcompression
 
 def setcompression(value):
     """
@@ -4812,6 +4831,15 @@ def setcompression(value):
     NX_COMPRESSION = value
 
 nxsetcompression = setcompression
+
+def getencoding():
+    """
+    Returns the default encoding for input strings (usually 'utf-8').
+    """
+    global NX_ENCODING
+    return NX_ENCODING
+
+nxgetencoding = getencoding
 
 def setencoding(value):
     """

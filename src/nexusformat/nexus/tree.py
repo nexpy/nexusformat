@@ -4404,8 +4404,8 @@ class NXdata(NXgroup):
             else:
                 ind = convert_index(ind, axes[i])
                 slices.append(ind)
-                if (signal.shape[i] < axes[i].shape[0] and 
-                       isinstance(ind, slice)):
+                if (signal.shape[i] < axes[i].shape[0] and
+                       isinstance(ind, slice) and ind.stop is not None):
                     ind = slice(ind.start, ind.stop+1, ind.step)
                 axes[i] = axes[i][ind]
         return tuple(slices), axes

@@ -2517,10 +2517,15 @@ class NXfield(NXobject):
             elif parent.nxgroup and 'title' in parent.nxgroup:
                 return text(parent.nxgroup.title)        
         else:
-            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
-                return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            root = self.nxroot
+            if root.nxname != '' and root.nxname != 'root':
+                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxfilename + ':' + self.nxpath
+                fname = self.nxfilename
+                if fname is not None:
+                    return fname + ':' + self.nxpath
+                else:
+                    return self.nxpath
 
     @property
     def mask(self):
@@ -3531,10 +3536,15 @@ class NXgroup(NXobject):
         elif self.nxgroup and 'title' in self.nxgroup:
             return text(self.nxgroup.title)
         else:
-            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
-                return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            root = self.nxroot
+            if root.nxname != '' and root.nxname != 'root':
+                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxfilename + ':' + self.nxpath
+                fname = self.nxfilename
+                if fname is not None:
+                    return fname + ':' + self.nxpath
+                else:
+                    return self.nxpath
 
     @property
     def entries(self):

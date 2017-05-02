@@ -254,8 +254,9 @@ string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'NX_MEMORY', 'nxsetmemory', 'NX_COMPRESSION', 'nxsetcompression',
-           'NX_ENCODING', 'nxsetencoding',
+           'NX_MEMORY', 'nxgetmemory', 'nxsetmemory', 
+           'NX_COMPRESSION', 'nxgetcompression', 'nxsetcompression',
+           'NX_ENCODING', 'nxgetencoding', 'nxsetencoding',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
 
 #List of defined base classes (later added to __all__)
@@ -337,17 +338,19 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode=None, **kwds):
+    def __init__(self, name, mode='r', **kwds):
         """
         Creates an h5py File object for reading and writing.
         """
+        self.h5 = h5
         name = os.path.abspath(name)
+        self.name = name
         if mode == 'w4' or mode == 'wx':
             raise NeXusError('Only HDF5 files supported')
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
-            self._file = h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **kwds)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -355,7 +358,7 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            self._file = h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **kwds)
         self._filename = self._file.filename                             
         self._path = '/'
 
@@ -392,16 +395,16 @@ class NXFile(object):
         self.file.copy(*args, **kwds)
 
     def open(self, **kwds):
-        if not self._file.id:
+        if not self.isopen():
             if self._mode == 'rw':
-                self._file = h5.File(self._filename, 'r+', **kwds)
+                self._file = self.h5.File(self._filename, 'r+', **kwds)
             else:
-                self._file = h5.File(self._filename, self._mode, **kwds)
+                self._file = self.h5.File(self._filename, self._mode, **kwds)
             self.nxpath = '/'
         return self
 
     def close(self):
-        if self._file.id:
+        if self.isopen():
             self._file.close()
 
     def isopen(self):
@@ -473,7 +476,7 @@ class NXFile(object):
         items = self[self.nxpath].items()
         for name, value in items:
             self.nxpath = self.nxpath + '/' + name
-            if isinstance(value, h5.Group):
+            if isinstance(value, self.h5.Group):
                 children[name] = self._readgroup(name)
             else:
                 children[name] = self._readdata(name)
@@ -496,8 +499,8 @@ class NXFile(object):
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
-                                entries=children, 
-                                target=_target, file=_filename, abspath=_abspath)
+                                entries=children, target=_target, 
+                                file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
                             entries=children)
@@ -657,7 +660,7 @@ class NXFile(object):
                            os.path.dirname(os.path.realpath(self.filename)))
         else:
             filename = item._filename
-        self[self.nxpath] = h5.ExternalLink(filename, item._target)
+        self[self.nxpath] = self.h5.ExternalLink(filename, item._target)
         self.nxpath = self.nxparent
 
     def _writelinks(self, links):
@@ -679,7 +682,7 @@ class NXFile(object):
 
     def readitem(self):
         item = self.get(self.nxpath)
-        if isinstance(item, h5.Group):
+        if isinstance(item, self.h5.Group):
             return self._readgroup(self.nxname)
         else:
             return self._readdata(self.nxname)
@@ -724,8 +727,8 @@ class NXFile(object):
         from datetime import datetime
         self.file.attrs['file_name'] = self.filename
         self.file.attrs['file_time'] = datetime.now().isoformat()
-        self.file.attrs['HDF5_Version'] = h5.version.hdf5_version
-        self.file.attrs['h5py_version'] = h5.version.version
+        self.file.attrs['HDF5_Version'] = self.h5.version.hdf5_version
+        self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
 
@@ -753,7 +756,7 @@ class NXFile(object):
     def _isexternal(self):
         try:
             return (self.get(self.nxpath, getclass=True, getlink=True)
-                    == h5.ExternalLink)
+                    == self.h5.ExternalLink)
         except Exception:
             return False
 
@@ -764,7 +767,7 @@ class NXFile(object):
 
     @property
     def file(self):
-        if not self._file.id:
+        if not self.isopen():
             self.open()
         return self._file
 
@@ -776,11 +779,11 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self.file.id and self.file.mode == 'r':
+            if self.isopen() and self.file.mode == 'r':
                 self.close()
         else:
             self._mode = 'r'   
-            if self.file.id and self.file.mode == 'r+':
+            if self.isopen() and self.file.mode == 'r+':
                 self.close()
 
     @property
@@ -2514,10 +2517,15 @@ class NXfield(NXobject):
             elif parent.nxgroup and 'title' in parent.nxgroup:
                 return text(parent.nxgroup.title)        
         else:
-            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
-                return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            root = self.nxroot
+            if root.nxname != '' and root.nxname != 'root':
+                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxfilename + ':' + self.nxpath
+                fname = self.nxfilename
+                if fname is not None:
+                    return fname + ':' + self.nxpath
+                else:
+                    return self.nxpath
 
     @property
     def mask(self):
@@ -3528,10 +3536,15 @@ class NXgroup(NXobject):
         elif self.nxgroup and 'title' in self.nxgroup:
             return text(self.nxgroup.title)
         else:
-            if self.nxroot.nxname != '' and self.nxroot.nxname != 'root':
-                return (self.nxroot.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            root = self.nxroot
+            if root.nxname != '' and root.nxname != 'root':
+                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
             else:
-                return self.nxfilename + ':' + self.nxpath
+                fname = self.nxfilename
+                if fname is not None:
+                    return fname + ':' + self.nxpath
+                else:
+                    return self.nxpath
 
     @property
     def entries(self):
@@ -4791,6 +4804,15 @@ def centers(signal, axes):
             return axis.nxdata
     return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
 
+def getmemory():
+    """
+    Returns the memory limit for data arrays (in MB).
+    """
+    global NX_MEMORY
+    return NX_MEMORY
+
+nxgetmemory = getmemory
+
 def setmemory(value):
     """
     Sets the memory limit for data arrays (in MB).
@@ -4799,6 +4821,15 @@ def setmemory(value):
     NX_MEMORY = value
 
 nxsetmemory = setmemory
+
+def getcompression():
+    """
+    Returns default compression filter.
+    """
+    global NX_COMPRESSION
+    return NX_COMPRESSION
+
+nxgetcompression = getcompression
 
 def setcompression(value):
     """
@@ -4810,6 +4841,15 @@ def setcompression(value):
     NX_COMPRESSION = value
 
 nxsetcompression = setcompression
+
+def getencoding():
+    """
+    Returns the default encoding for input strings (usually 'utf-8').
+    """
+    global NX_ENCODING
+    return NX_ENCODING
+
+nxgetencoding = getencoding
 
 def setencoding(value):
     """

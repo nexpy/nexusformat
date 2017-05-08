@@ -3632,10 +3632,10 @@ class NXlink(NXobject):
         filename, mode = root.nxfilename, root.nxfilemode
         item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
-            with NXFile(filename) as f:
+            with NXFile(filename, mode) as f:
                 f.update(self)
         if self._filename and os.path.exists(self.nxfilename):
-            with NXFile(self.nxfilename) as f:
+            with NXFile(self.nxfilename, self.nxfilemode) as f:
                 if self._target in f:
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):

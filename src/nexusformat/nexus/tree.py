@@ -3571,7 +3571,8 @@ class NXlink(NXobject):
         self._name = name
         self._group = group
         self._abspath = abspath
-        self._mode = 'r'
+        if file is not None:
+            self._mode = 'r'
         self._attrs = AttrDict(self)
         self._entries = {}
         if isinstance(target, NXobject):

@@ -3093,8 +3093,6 @@ class NXgroup(NXobject):
         """
         Adds or modifies an item in the NeXus group.
         """
-        if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
         if is_text(key):
             group = self
             if '/' in key:
@@ -3105,6 +3103,8 @@ class NXgroup(NXobject):
                         group = group[name]
                     else:
                         raise NeXusError('Invalid path')
+            if group.nxfilemode == 'r':
+                raise NeXusError('NeXus group marked as readonly')
             if key in group and isinstance(group.entries[key], NXlink):
                 raise NeXusError("Cannot assign values to an NXlink object")
             if isinstance(value, NXroot):

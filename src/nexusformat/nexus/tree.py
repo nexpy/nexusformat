@@ -435,10 +435,13 @@ class NXFile(object):
         if item is not None:
             attrs = {}
             for key in item.attrs:
-                if isinstance(item.attrs[key], bytes):
-                    attrs[key] = text(item.attrs[key])
+                value = item.attrs[key]
+                if isinstance(value, np.ndarray) and value.shape == (1,):
+                    value = np.asscalar(value)
+                if isinstance(value, bytes):
+                    attrs[key] = text(value)
                 else:
-                    attrs[key] = item.attrs[key]
+                    attrs[key] = value
             return attrs
         else:
             return {}

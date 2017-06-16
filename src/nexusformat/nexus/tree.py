@@ -2694,11 +2694,14 @@ class NXfield(NXobject):
             return False
 
     @property
-    def plot_shape(self):     
-        _shape = list(self.shape)
-        while 1 in _shape:
-            _shape.remove(1)
-        return tuple(_shape)
+    def plot_shape(self):
+        try:  
+            _shape = list(self.shape)
+            while 1 in _shape:
+                _shape.remove(1)
+            return tuple(_shape)
+        except Exception:
+            return ()
 
     @property
     def plot_rank(self):

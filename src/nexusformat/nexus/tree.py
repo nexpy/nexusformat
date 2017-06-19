@@ -3116,8 +3116,8 @@ class NXgroup(NXobject):
             if isinstance(value, NXroot):
                 raise NeXusError("Cannot assign an NXroot group to another group")
             elif isinstance(value, NXlink):
-                value._group = group
-                value._name = key
+                value = NXlink(target=value._target, file=value._filename,
+                               name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 if value.nxgroup:
@@ -3685,6 +3685,13 @@ class NXlink(NXobject):
         else:
             return None
 
+    @property
+    def attrs(self):
+        return self.nxlink.attrs
+
+    def plot(self, **opts):
+        self.nxlink.plot(**opts)
+
 
 class NXlinkfield(NXlink, NXfield):
 
@@ -4126,7 +4133,10 @@ class NXdata(NXgroup):
                 if isinstance(axis, NXfield) or isinstance(axis, NXlink):
                     if axis._name == "unknown": 
                         axis._name = "axis%s" % i
-                    self[axis.nxname] = axis
+                    if isinstance(axis, NXlink):
+                        self[axis.nxname] = axis.nxlink
+                    else:
+                        self[axis.nxname] = axis
                     axis_names[i] = axis.nxname
                 else:
                     axis_name = "axis%s" % i
@@ -4137,7 +4147,10 @@ class NXdata(NXgroup):
             if isinstance(signal, NXfield) or isinstance(signal, NXlink):
                 if signal.nxname == "unknown" or signal.nxname in self:
                     signal.nxname = "signal"
-                self[signal.nxname] = signal
+                if isinstance(signal, NXlink):
+                    self[signal.nxname] = signal.nxlink
+                else:
+                    self[signal.nxname] = signal
                 signal_name = signal.nxname
             else:
                 self["signal"] = signal
@@ -4572,6 +4585,11 @@ class NXdata(NXgroup):
         """
         def empty_axis(i):
             return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
+        def plot_axis(axis):
+            if isinstance(axis, NXlink):
+                return axis.nxlink
+            else:
+                return axis
         try:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
@@ -4582,19 +4600,19 @@ class NXdata(NXgroup):
                 if axis_name.strip() == '':
                     axes[i] = empty_axis(i)
                 else:
-                    axes[i] = self[axis_name]
+                    axes[i] = plot_axis(self[axis_name])
             return axes
         except (KeyError, AttributeError, UnboundLocalError):
             axes = {}
             for entry in self:
                 if 'axis' in self[entry].attrs:
-                    axis = self[entry].axis
-                    if axis not in axes:
+                    axis = self[entry].attrs['axis']
+                    if axis not in axes and self[entry] is not self.nxsignal:
                         axes[axis] = self[entry]
                     else:
                         return None
             if axes:
-                return sorted(axes)
+                return [plot_axis(axes[axis]) for axis in sorted(axes)]
             elif self.nxsignal is not None:
                 return [NXfield(np.arange(self.nxsignal.shape[i]), 
                         name='Axis%s'%i) for i in range(self.nxsignal.ndim)]

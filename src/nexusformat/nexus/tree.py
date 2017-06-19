@@ -3687,11 +3687,16 @@ class NXlink(NXobject):
 
     @property
     def attrs(self):
-        return self.nxlink.attrs
+        if self is not self.nxlink:
+            return self.nxlink.attrs
+        else:
+            return self.attrs
 
     def plot(self, **opts):
-        self.nxlink.plot(**opts)
-
+        if self is not self.nxlink:
+            self.nxlink.plot(**opts)
+        else:
+            self.plot(**opts)
 
 class NXlinkfield(NXlink, NXfield):
 

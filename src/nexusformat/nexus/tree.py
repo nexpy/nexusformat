@@ -714,9 +714,13 @@ class NXFile(object):
     def readvalue(self, path, idx=()):
         field = self.get(path)
         if field is not None:
-            return field[idx]
-        else:
-            return None
+            try:
+                return field[idx]
+            except IOError:
+                #print("Error: Could not read" + path)
+                pass
+                
+        return None
 
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value

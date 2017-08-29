@@ -873,7 +873,8 @@ def _getvalue(value, dtype=None, shape=None):
                     value = text(value).encode('utf-8')
                 return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
             except Exception:
-                raise NeXusError("The value is incompatible with the requested dtype")
+                raise NeXusError(
+                    "The value is incompatible with the requested dtype")
         else:
             _value = text(value)
             if _value == u'':
@@ -893,17 +894,20 @@ def _getvalue(value, dtype=None, shape=None):
             _value = _value.astype(string_dtype)
     if dtype is not None:
         if isinstance(value, np.bool_) and dtype != np.bool_:
-            raise NeXusError("Cannot assign a Boolean value to a non-Boolean NXobject")
+            raise NeXusError(
+                "Cannot assign a Boolean value to a non-Boolean NXobject")
         elif isinstance(_value, np.ndarray):
             try:
                 _value = _value.astype(dtype)
             except:
-                raise NeXusError("The value is incompatible with the requested dtype")
+                raise NeXusError(
+                    "The value is incompatible with the requested dtype")
     if shape is not None and isinstance(_value, np.ndarray):
         try:
             _value = _value.reshape(shape)
         except ValueError:
-            raise NeXusError("The shape of the assigned value is incompatible with the NXobject")
+            raise NeXusError(
+            "The shape of the assigned value is incompatible with the NXobject")
     if _value.shape == ():
         return np.asscalar(_value), _value.dtype, _value.shape
     else:
@@ -2109,16 +2113,19 @@ class NXfield(NXobject):
         This raises a NeXusError if the array is not one-dimensional.
         """
         if self.ndim != 1:
-            raise NeXusError('NXfield must be one-dimensional to use the index function')
+            raise NeXusError(
+                'NXfield must be one-dimensional to use the index function')
         if self.nxdata[-1] < self.nxdata[0]:
             flipped = True
         else:
             flipped = False
         if max:
             if flipped:
-                idx = np.max(len(self.nxdata)-len(self.nxdata[self.nxdata<value])-1,0)
+                idx = np.max(len(self.nxdata) - 
+                             len(self.nxdata[self.nxdata<value])-1,0)
             else:
-                idx = np.max(len(self.nxdata)-len(self.nxdata[self.nxdata>value])-1,0)
+                idx = np.max(len(self.nxdata) - 
+                             len(self.nxdata[self.nxdata>value])-1,0)
             try:
                 diff = value - self.nxdata[idx]
                 step = self.nxdata[idx+1] - self.nxdata[idx]
@@ -2445,6 +2452,33 @@ class NXfield(NXobject):
         except Exception:
             return " " * indent + self.nxname
 
+    def replace(self, value):
+        """
+        Replace the value of a field.
+
+        If the size or dtype of the field differs from an existing field within
+        a saved group, the original field will be deleted and replaced by the 
+        newone. Otherwise, the field values are updated.
+        """
+        group = self.nxgroup
+        if group is None:
+            raise NeXusError('The field must be a member of a group')
+        if isinstance(value, NXfield):
+            value = value.nxdata
+        if is_text(value):
+            if self.dtype == string_dtype:
+                self.nxdata = value
+            else:
+                del group[self.nxname]
+                group[self.nxname] = NXfield(value, attrs=self.attrs)
+        else:
+            value = np.asarray(value)
+            if value.shape == self.shape and value.dtype == self.dtype:
+                self.nxdata = value
+            else:
+                del group[self.nxname]
+                group[self.nxname] = NXfield(value, attrs=self.attrs)
+
     @property
     def nxaxes(self):
         """
@@ -2473,7 +2507,8 @@ class NXfield(NXobject):
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
-            if np.prod(self.shape) * np.dtype(self.dtype).itemsize <= NX_MEMORY*1000*1000:
+            if (np.prod(self.shape) * np.dtype(self.dtype).itemsize 
+                <= NX_MEMORY*1000*1000):
                 try:
                     if self.nxfilemode:
                         self._value = self._get_filedata()
@@ -2487,7 +2522,8 @@ class NXfield(NXobject):
                 if self._value is not None:
                     self._value.shape = self._shape
             else:
-                raise NeXusError('Data size larger than NX_MEMORY=%s MB' % NX_MEMORY)
+                raise NeXusError(
+                    'Data size larger than NX_MEMORY=%s MB' % NX_MEMORY)
         if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
@@ -3118,7 +3154,8 @@ class NXgroup(NXobject):
             if key in group and isinstance(group.entries[key], NXlink):
                 raise NeXusError("Cannot assign values to an NXlink object")
             if isinstance(value, NXroot):
-                raise NeXusError("Cannot assign an NXroot group to another group")
+                raise NeXusError(
+                    "Cannot assign an NXroot group to another group")
             elif isinstance(value, NXlink):
                 value = NXlink(target=value._target, file=value._filename,
                                name=key, group=group)
@@ -3144,7 +3181,8 @@ class NXgroup(NXobject):
                     if 'mask' in field._memfile:
                         mask_name = field._create_mask()
                         group[mask_name]._create_memfile()
-                        field._memfile.copy('mask', group[mask_name]._memfile, 'data')
+                        field._memfile.copy('mask', group[mask_name]._memfile, 
+                                            'data')
                         del field._memfile['mask']
             group.entries[key].update()
         else:
@@ -3362,7 +3400,8 @@ class NXgroup(NXobject):
                 self[name] = NXlink(target=target.nxpath, 
                                     file=target.nxfilename)
         else:
-            raise NeXusError("The group must have a root object of class NXroot")                
+            raise NeXusError(
+                "The group must have a root object of class NXroot")                
 
     def sum(self, axis=None, averaged=False):
         """

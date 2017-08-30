@@ -3220,7 +3220,10 @@ class NXgroup(NXobject):
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            return key in self.entries
+            try:
+                return isinstance(self[key], NXobject)
+            except Exception:
+                return False
 
     def __eq__(self, other):
         """
@@ -3861,15 +3864,6 @@ class NXroot(NXgroup):
         self._class = "NXroot"
         self._backup = None
         NXgroup.__init__(self, *items, **opts)
-
-    def __contains__(self, key):
-        """
-        Implements 'k in d' test
-        """
-        try:
-            return isinstance(self[key], NXobject)
-        except Exception:
-            return False
 
     def rename(self, name):
         self.nxname = name        

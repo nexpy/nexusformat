@@ -3666,7 +3666,8 @@ class NXlink(NXobject):
 
     def __repr__(self):
         if self._filename:
-            return "NXlink(target='%s', file='%s')" % (self._target, self._filename)
+            return "NXlink(target='%s', file='%s')" % (self._target, 
+                                                       self._filename)
         else:
             return "NXlink('%s')" % (self._target)
 
@@ -3693,7 +3694,8 @@ class NXlink(NXobject):
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):
                         self.nxclass = NXlinkfield
-                        self._value, self._shape, self._dtype, _ = f.readvalues()
+                        self._value, self._shape, self._dtype, _ = \
+                            f.readvalues()
                     elif isinstance(item, NXgroup):
                         self.nxclass = _getclass(item.nxclass, link=True)
                         self._entries = item._entries
@@ -3734,9 +3736,9 @@ class NXlink(NXobject):
     @property
     def attrs(self):
         if self is not self.nxlink:
-            return self.nxlink.attrs
+            return self.nxlink._attrs
         else:
-            return self.attrs
+            return self._attrs
 
     def plot(self, **opts):
         if self is not self.nxlink:

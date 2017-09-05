@@ -717,7 +717,6 @@ class NXFile(object):
             try:
                 return field[idx]
             except IOError:
-                #print("Error: Could not read" + path)
                 pass
                 
         return None

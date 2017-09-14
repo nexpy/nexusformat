@@ -864,7 +864,7 @@ def _getvalue(value, dtype=None, shape=None):
         return None, dtype, shape
     elif is_text(value):
         if shape is not None and shape != ():
-            raise NeXusError("Cannot assign a shape to a text string")
+            raise NeXusError("The value is incompatible with the shape")
         if dtype is not None:
             try:
                 _dtype = _getdtype(dtype)
@@ -872,8 +872,7 @@ def _getvalue(value, dtype=None, shape=None):
                     value = text(value).encode('utf-8')
                 return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
             except Exception:
-                raise NeXusError(
-                    "The value is incompatible with the requested dtype")
+                raise NeXusError("The value is incompatible with the dtype")
         else:
             _value = text(value)
             if _value == u'':
@@ -894,19 +893,17 @@ def _getvalue(value, dtype=None, shape=None):
     if dtype is not None:
         if isinstance(value, np.bool_) and dtype != np.bool_:
             raise NeXusError(
-                "Cannot assign a Boolean value to a non-Boolean NXobject")
+                "Cannot assign a Boolean value to a non-Boolean field")
         elif isinstance(_value, np.ndarray):
             try:
                 _value = _value.astype(dtype)
             except:
-                raise NeXusError(
-                    "The value is incompatible with the requested dtype")
+                raise NeXusError("The value is incompatible with the dtype")
     if shape is not None and isinstance(_value, np.ndarray):
         try:
             _value = _value.reshape(shape)
         except ValueError:
-            raise NeXusError(
-            "The shape of the assigned value is incompatible with the NXobject")
+            raise NeXusError("The value is incompatible with the shape")
     if _value.shape == ():
         return np.asscalar(_value), _value.dtype, _value.shape
     else:

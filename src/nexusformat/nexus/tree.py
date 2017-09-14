@@ -346,7 +346,7 @@ class NXFile(object):
         name = os.path.abspath(name)
         self.name = name
         if mode == 'w4' or mode == 'wx':
-            raise NeXusError('Only HDF5 files supported')
+            raise NeXusError("Only HDF5 files supported")
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
@@ -941,14 +941,16 @@ def _getshape(shape):
 def _getmaxshape(maxshape, shape):
     maxshape, shape = _getshape(maxshape), _getshape(shape)
     if shape is None:
-        raise NeXusError('Define shape before setting maximum shape')
+        raise NeXusError("Define shape before setting maximum shape")
     else:
         if len(maxshape) != len(shape):
-            raise NeXusError('Number of dimensions in maximum shape does not match the field')
+            raise NeXusError(
+            "Number of dimensions in maximum shape does not match the field")
         else:
             for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
                 if i < j:
-                    raise NeXusError('Maximum shape must be larger than the field shape')
+                    raise NeXusError(
+                        "Maximum shape must be larger than the field shape")
         return maxshape
 
     
@@ -1292,7 +1294,7 @@ class NXobject(object):
             signal = self.nxgroup.nxsignal
             axes = self.nxgroup.nxaxes
         elif self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
+            raise NeXusError("NeXus file opened as readonly")
         path = self.nxpath
         self.nxname = name
         if self.nxgroup is not None:
@@ -1419,7 +1421,7 @@ class NXobject(object):
                     self._class = 'NX' + self._class[6:]
             self.set_changed()
         except (TypeError, NameError):
-            raise NeXusError('Invalid NeXus class')               
+            raise NeXusError("Invalid NeXus class")               
 
     @property
     def nxname(self):
@@ -1841,7 +1843,7 @@ class NXfield(NXobject):
             object.__setattr__(self, name, value)
             return
         if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
+            raise NeXusError("NeXus file opened as readonly")
         self._attrs[name] = value
         self.set_changed()
 
@@ -1885,7 +1887,8 @@ class NXfield(NXobject):
                         result = result.data
                     result = np.ma.array(result, mask=mask)
             else:
-                raise NeXusError('Data not available either in file or in memory')
+                raise NeXusError(
+                    "Data not available either in file or in memory")
         else:
             result = self.nxdata.__getitem__(idx)
         return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
@@ -1896,12 +1899,13 @@ class NXfield(NXobject):
         """
         idx = convert_index(idx, self)
         if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
+            raise NeXusError("NeXus file opened as readonly")
         if value is np.ma.masked:
             self._mask_data(idx)
         else:
             if isinstance(value, np.bool_) and self.dtype != np.bool_:
-                raise NeXusError('Cannot set a Boolean value to a non-Boolean data type')
+                raise NeXusError(
+                    "Cannot set a Boolean value to a non-Boolean data type")
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':
@@ -1977,7 +1981,8 @@ class NXfield(NXobject):
                                          fillvalue=self._fillvalue)
             self._chunks = self._memfile['data'].chunks
         else:
-            raise NeXusError('Cannot allocate to field before setting shape and dtype')       
+            raise NeXusError(
+                "Cannot allocate to field before setting shape and dtype")       
 
     def _create_memmask(self):
         """
@@ -1991,7 +1996,7 @@ class NXfield(NXobject):
                                          compression=NX_COMPRESSION, 
                                          chunks=True)
         else:
-            raise NeXusError('Cannot allocate mask before setting shape')       
+            raise NeXusError("Cannot allocate mask before setting shape")       
 
     def _create_mask(self):
         """
@@ -2110,7 +2115,7 @@ class NXfield(NXobject):
         """
         if self.ndim != 1:
             raise NeXusError(
-                'NXfield must be one-dimensional to use the index function')
+                "NXfield must be one-dimensional to use the index function")
         if self.nxdata[-1] < self.nxdata[0]:
             flipped = True
         else:
@@ -2458,7 +2463,7 @@ class NXfield(NXobject):
         """
         group = self.nxgroup
         if group is None:
-            raise NeXusError('The field must be a member of a group')
+            raise NeXusError("The field must be a member of a group")
         if isinstance(value, NXfield):
             value = value.nxdata
         if is_text(value):
@@ -2519,7 +2524,7 @@ class NXfield(NXobject):
                     self._value.shape = self._shape
             else:
                 raise NeXusError(
-                    'Data size larger than NX_MEMORY=%s MB' % NX_MEMORY)
+                    "Data size larger than NX_MEMORY=%s MB" % NX_MEMORY)
         if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
@@ -2535,7 +2540,7 @@ class NXfield(NXobject):
     @nxdata.setter
     def nxdata(self, value):
         if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file is locked')
+            raise NeXusError("NeXus file is locked")
         else:
             self._value, self._dtype, self._shape = _getvalue(
                 value, self._dtype, self._shape)
@@ -2612,9 +2617,11 @@ class NXfield(NXobject):
     @dtype.setter
     def dtype(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the dtype of a field already stored in a file')
+            raise NeXusError(
+                "Cannot change the dtype of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the dtype of a field already in core memory')
+            raise NeXusError(
+                "Cannot change the dtype of a field already in core memory")
         self._dtype = _getdtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
@@ -2629,13 +2636,15 @@ class NXfield(NXobject):
     @shape.setter
     def shape(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the shape of a field already stored in a file')
+            raise NeXusError(
+                "Cannot change the shape of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the shape of a field already in core memory')
+            raise NeXusError(
+                "Cannot change the shape of a field already in core memory")
         _shape = _getshape(value)
         if self._value is not None:
             if self._value.size != np.prod(_shape):
-                raise ValueError('Total size of new array must be unchanged')
+                raise ValueError("Total size of new array must be unchanged")
             self._value.shape = _shape
         self._shape = _shape
 
@@ -2651,9 +2660,11 @@ class NXfield(NXobject):
     @compression.setter
     def compression(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the compression of a field already stored in a file')
+            raise NeXusError(
+            "Cannot change the compression of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the compression of a field already in core memory')
+            raise NeXusError(
+            "Cannot change the compression of a field already in core memory")
         self._compression = value
         
     @property
@@ -2668,9 +2679,11 @@ class NXfield(NXobject):
     @fillvalue.setter
     def fillvalue(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the fill values of a field already stored in a file')
+            raise NeXusError(
+            "Cannot change the fill values of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the fill values of a field already in core memory')
+            raise NeXusError(
+            "Cannot change the fill values of a field already in core memory")
         self._fillvalue = value
         
     @property
@@ -2685,11 +2698,14 @@ class NXfield(NXobject):
     @chunks.setter
     def chunks(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the chunk sizes of a field already stored in a file')
+            raise NeXusError(
+            "Cannot change the chunk sizes of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the chunk sizes of a field already in core memory')
+            raise NeXusError(
+            "Cannot change the chunk sizes of a field already in core memory")
         elif isinstance(value, (tuple, list, np.ndarray)) and len(value) != self.ndim:
-            raise NeXusError('Number of chunks does not match the no. of array dimensions')
+            raise NeXusError(
+                "Number of chunks does not match the no. of array dimensions")
         self._chunks = tuple(value)
 
     @property
@@ -2704,9 +2720,11 @@ class NXfield(NXobject):
     @maxshape.setter
     def maxshape(self, value):
         if self.nxfilemode:
-            raise NeXusError('Cannot change the maximum shape of a field already stored in a file')
+            raise NeXusError(
+        "Cannot change the maximum shape of a field already stored in a file")
         elif self._memfile:
-            raise NeXusError('Cannot change the maximum shape  of a field already in core memory')
+            raise NeXusError(
+        "Cannot change the maximum shape  of a field already in core memory")
         self._maxshape = _getmaxshape(value, self.shape) 
 
     @property
@@ -2788,7 +2806,7 @@ class NXfield(NXobject):
                 data = NXdata(self, title=self.nxtitle)
             plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
         else:
-            raise NeXusError('NXfield not plottable')
+            raise NeXusError("NXfield not plottable")
     
     def oplot(self, fmt='', **opts):
         """
@@ -2815,7 +2833,7 @@ class NXfield(NXobject):
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
                       zmin=zmin, zmax=zmax, **opts)
         else:
-            raise NeXusError('Invalid shape for RGB(A) image')
+            raise NeXusError("Invalid shape for RGB(A) image")
 
 
 SDS = NXfield # For backward compatibility
@@ -3054,7 +3072,8 @@ class NXgroup(NXobject):
             try:
                 setattr(self, item.nxname, item)
             except AttributeError:
-                raise NeXusError("Non-keyword arguments must be valid NXobjects")
+                raise NeXusError(
+                    "Non-keyword arguments must be valid NXobjects")
         self.set_changed()
 
     def __dir__(self):
@@ -3099,14 +3118,15 @@ class NXgroup(NXobject):
             object.__setattr__(self, name, value)
         elif isinstance(value, NXattr):
             if self.nxfilemode == 'r':
-                raise NeXusError('NeXus file opened as readonly')
+                raise NeXusError("NeXus file opened as readonly")
             self._attrs[name] = value
         else:
             self[name] = value
 
     def __delattr__(self, name):
         if name in self.entries:
-            raise NeXusError('Members can only be deleted using the group dictionary')
+            raise NeXusError(
+                "Members can only be deleted using the group dictionary")
         else:
             object.__delattr__(self, name)
 
@@ -3124,7 +3144,7 @@ class NXgroup(NXobject):
                     if name in node:
                         node = node.entries[name]
                     else:
-                        raise NeXusError('Invalid path')
+                        raise NeXusError("Invalid path")
                 return node
             else:
                 return self.entries[key]
@@ -3144,7 +3164,7 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        raise NeXusError('Invalid path')
+                        raise NeXusError("Invalid path")
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus group marked as readonly")
             elif isinstance(value, NXroot):
@@ -3189,11 +3209,11 @@ class NXgroup(NXobject):
                         del field._memfile['mask']
             group.entries[key].update()
         else:
-            raise NeXusError('Invalid key')
+            raise NeXusError("Invalid key")
 
     def __delitem__(self, key):
         if self.nxfilemode == 'r':
-            raise NeXusError('NeXus file opened as readonly')
+            raise NeXusError("NeXus file opened as readonly")
         if is_text(key): #i.e., deleting a NeXus object
             group = self
             if '/' in key:
@@ -3203,7 +3223,7 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        raise NeXusError('Invalid path')
+                        raise NeXusError("Invalid path")
             if key not in group:
                 raise NeXusError(key+" not in "+group.nxpath)
             if group.nxfilemode == 'rw':
@@ -3389,8 +3409,8 @@ class NXgroup(NXobject):
                         name = target.nxname
                     if name in self:
                         raise NeXusError(
-                        "Object with the same name already exists in '%s'" 
-                        % self.nxpath)
+                            "Object with the same name already exists in '%s'" 
+                            % self.nxpath)
                     self[name] = NXlink(target=target, name=name)
                 else:
                     raise NeXusError("Link target must be an NXobject")
@@ -3401,8 +3421,8 @@ class NXgroup(NXobject):
                     name = target.nxname
                 if name in self:
                     raise NeXusError(
-                    "Object with the same name already exists in '%s'" 
-                    % self.nxpath)
+                        "Object with the same name already exists in '%s'" 
+                        % self.nxpath)
                 self[name] = NXlink(target=target.nxpath, 
                                     file=target.nxfilename)
         else:
@@ -3485,11 +3505,13 @@ class NXgroup(NXobject):
         if self.nxsignal is None:
             raise NeXusError("No signal to calculate")
         elif len(self.nxsignal.shape) > 1:
-            raise NeXusError("Operation only possible on one-dimensional signals")
+            raise NeXusError(
+                "Operation only possible on one-dimensional signals")
         elif order > 1:
             raise NeXusError("Higher moments not yet implemented")
         if not hasattr(self,"nxclass"):
-            raise NeXusError("Operation not allowed for groups of unknown class")
+            raise NeXusError(
+                "Operation not allowed for groups of unknown class")
         return ((centers(self.nxsignal, self.nxaxes) * self.nxsignal).sum()
                    / self.nxsignal.sum())
 
@@ -3892,7 +3914,7 @@ class NXroot(NXgroup):
         directory with a randomized name.
         """ 
         if self.nxfilemode is None:
-            raise NeXusError('Only data saved to a NeXus file can be backed up')
+            raise NeXusError("Only data saved to a NeXus file can be backed up")
         if filename is None:
             if dir is None:
                 dir = os.getcwd()
@@ -3918,7 +3940,7 @@ class NXroot(NXgroup):
         If no file name is given, the backup replaces the current NeXus file
         provided 'overwrite' has been set to True."""
         if self._backup is None:
-            raise NeXusError('No backup exists')
+            raise NeXusError("No backup exists")
         if filename is None:
             filename = self.nxfilename
         if os.path.exists(filename) and not overwrite:
@@ -4278,7 +4300,7 @@ class NXdata(NXgroup):
                     slices.append(ind)
                 self.nxsignal[tuple(slices)] = value
         else:
-            raise NeXusError('Invalid index')
+            raise NeXusError("Invalid index")
 
     def __delitem__(self, key):
         super(NXdata, self).__delitem__(key)
@@ -4433,7 +4455,8 @@ class NXdata(NXgroup):
         if len(limits) < len(self.nxsignal.shape):
             raise NeXusError("Too few limits specified")
         elif len(axes) > 2:
-            raise NeXusError("Projections to more than two dimensions not supported")
+            raise NeXusError(
+                "Projections to more than two dimensions not supported")
         projection_axes =  sorted([x for x in range(len(limits)) 
                                    if x not in axes], reverse=True)
         idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
@@ -4562,7 +4585,7 @@ class NXdata(NXgroup):
             
         # Check there is a plottable signal
         if self.nxsignal is None:
-            raise NeXusError('No plotting signal defined')
+            raise NeXusError("No plotting signal defined")
 
         # Plot with the available plotter
         plotview.plot(self, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
@@ -4593,7 +4616,7 @@ class NXdata(NXgroup):
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
                       zmin=zmin, zmax=zmax, **opts)
         else:
-            raise NeXusError('Invalid shape for RGB(A) image')
+            raise NeXusError("Invalid shape for RGB(A) image")
 
     @property
     def nxsignal(self):
@@ -4777,7 +4800,8 @@ class NXnote(NXgroup):
             elif isinstance(item, NXobject):
                 setattr(self, item.nxname, item)
             else:
-                raise NeXusError("Non-keyword arguments must be valid NXobjects")
+                raise NeXusError(
+                    "Non-keyword arguments must be valid NXobjects")
         if "date" not in self:
             from datetime import datetime as dt
             self.date = dt.isoformat(dt.today())
@@ -4826,10 +4850,10 @@ def convert_index(idx, axis):
     """
     if is_real_slice(idx) and axis.ndim > 1: 
         raise NeXusError(
-            'NXfield must be one-dimensional for floating point slices')
+            "NXfield must be one-dimensional for floating point slices")
     elif ((isinstance(idx, tuple) or isinstance(idx, list)) and 
              len(idx) > axis.ndim):
-        raise NeXusError('Slice dimension incompatible with NXfield')
+        raise NeXusError("Slice dimension incompatible with NXfield")
     if len(axis) == 1:
         idx = 0
     elif isinstance(idx, slice) and not is_real_slice(idx):

@@ -1800,7 +1800,7 @@ class NXfield(NXobject):
         if self._value is not None:
             return "NXfield(%s)" % repr(self._value)
         else:
-            return "NXfield(dtype=%s, shape=%s)" % (self.dtype, self.shape)
+            return "NXfield(shape=%s, dtype=%s)" % (self.shape, self.dtype)
 
     def __str__(self):
         if self._value is not None:
@@ -3146,12 +3146,21 @@ class NXgroup(NXobject):
                     else:
                         raise NeXusError('Invalid path')
             if group.nxfilemode == 'r':
-                raise NeXusError('NeXus group marked as readonly')
-            if key in group and isinstance(group.entries[key], NXlink):
-                raise NeXusError("Cannot assign values to an NXlink object")
-            if isinstance(value, NXroot):
+                raise NeXusError("NeXus group marked as readonly")
+            elif isinstance(value, NXroot):
                 raise NeXusError(
                     "Cannot assign an NXroot group to another group")
+            elif key in group:
+                if isinstance(value, NXobject):
+                    raise NeXusError(
+                        "Cannot assign an NXobject to an existing group entry")
+                elif isinstance(group.entries[key], NXlink):
+                    raise NeXusError("Cannot assign values to an NXlink")
+                try:                
+                    group.entries[key].nxdata = value
+                except NeXusError:
+                    raise NeXusError(
+                        "The value is incompatible with the current entry")
             elif isinstance(value, NXlink):
                 value = NXlink(target=value._target, file=value._filename,
                                name=key, group=group)
@@ -3163,8 +3172,6 @@ class NXgroup(NXobject):
                 value._group = group
                 value._name = key
                 group.entries[key] = value
-            elif key in group:
-                group.entries[key].nxdata = value
             else:
                 group.entries[key] = NXfield(value=value, name=key, group=group)
             if isinstance(group.entries[key], NXfield):

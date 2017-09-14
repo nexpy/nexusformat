@@ -962,7 +962,7 @@ def _readaxes(axes):
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
     if is_text(axes):
-        return list(re.split(r'[,:; ]', axes.strip('[]()')))
+        return list(re.split(r'[,:; ]', axes.strip('[]()').replace('][', ':')))
     else:
         return list(axes)
 

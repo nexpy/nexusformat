@@ -2441,8 +2441,6 @@ class NXfield(NXobject):
         s = text(self)
         if ((self.dtype == string_dtype or self.dtype.kind == 'S')
             and len(self) == 1):
-            if s.startswith('u'):
-                s = s[1:]
             if len(s) > 60:
                 s = s[0:56] + '...'
             s = "'" + s + "'"

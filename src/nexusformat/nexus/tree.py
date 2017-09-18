@@ -3079,7 +3079,8 @@ class NXgroup(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted(dir(super(self.__class__, self))+list(self))
+        return sorted(dir(super(self.__class__, self))+list(self), 
+                      key=natural_sort)
 
     def __repr__(self):
         return "%s('%s')" % (self.__class__.__name__,self.nxname)
@@ -3591,7 +3592,7 @@ class NXgroup(NXobject):
             result.append(self._str_attrs(indent=indent+2))
         entries = self.entries
         if entries:
-            names = sorted(entries)
+            names = sorted(entries, key=natural_sort)
             if recursive:
                 if recursive is True or recursive >= indent:
                     for k in names:

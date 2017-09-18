@@ -1287,7 +1287,7 @@ class NXobject(object):
         It invokes the 'dir' method with 'attrs' set to False and 'recursive'
         set to True.
         """
-        return self._str_tree(attrs=False, recursive=3)
+        return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
         if self.nxgroup is not None and self.nxgroup.nxfilemode != 'r':
@@ -3593,7 +3593,7 @@ class NXgroup(NXobject):
         if entries:
             names = sorted(entries)
             if recursive:
-                if recursive > 1 and recursive > indent:
+                if recursive is True or recursive >= indent:
                     for k in names:
                         result.append(entries[k]._str_tree(indent=indent+2,
                                                            attrs=attrs, 

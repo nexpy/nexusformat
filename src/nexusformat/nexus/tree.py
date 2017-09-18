@@ -3185,8 +3185,12 @@ class NXgroup(NXobject):
                     raise NeXusError(
                         "The value is incompatible with the current entry")
             elif isinstance(value, NXlink):
-                value = NXlink(target=value._target, file=value._filename,
-                               name=key, group=group)
+                if group.nxfilename != value.nxfilename:
+                    value = NXlink(target=value._target, file=value.nxfilename,
+                                   name=key, group=group)
+                else:
+                    value = NXlink(target=value._target, file=value._filename,
+                                   name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 if value.nxgroup:

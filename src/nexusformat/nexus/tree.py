@@ -2442,7 +2442,11 @@ class NXfield(NXobject):
         if ((self.dtype == string_dtype or self.dtype.kind == 'S')
             and len(self) == 1):
             if len(s) > 60:
-                s = s[0:56] + '...'
+                s = s[:56] + '...'
+            try:
+                s = s[:s.index('\n')]+'...'
+            except ValueError:
+                pass
             s = "'" + s + "'"
         elif len(self) > 3 or '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)

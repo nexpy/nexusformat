@@ -3813,8 +3813,8 @@ class NXlinkfield(NXlink, NXfield):
         if self._filename is None:
             return self.nxlink._get_filedata(idx)
         else:
-            with NXFile(self._filename, 'r') as f:
-                result = f.readvalue(self._target, idx=idx)
+            with NXFile(self.nxfilename, 'r') as f:
+                result = f.readvalue(self.nxtarget, idx=idx)
             return result
 
     @property
@@ -3823,7 +3823,7 @@ class NXlinkfield(NXlink, NXfield):
             if self.nxfilename != self.nxroot.nxfilename:
                 return self
             else:
-               return self.nxroot[self._target]
+               return self.nxroot[self.nxtarget]
         except Exception:
             return self
 

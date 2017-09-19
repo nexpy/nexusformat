@@ -1287,7 +1287,7 @@ class NXobject(object):
         It invokes the 'dir' method with 'attrs' set to False and 'recursive'
         set to True.
         """
-        return self._str_tree(attrs=False, recursive=True)
+        return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
         if self.nxgroup is not None and self.nxgroup.nxfilemode != 'r':
@@ -2441,10 +2441,12 @@ class NXfield(NXobject):
         s = text(self)
         if ((self.dtype == string_dtype or self.dtype.kind == 'S')
             and len(self) == 1):
-            if s.startswith('u'):
-                s = s[1:]
             if len(s) > 60:
-                s = s[0:56] + '...'
+                s = s[:56] + '...'
+            try:
+                s = s[:s.index('\n')]+'...'
+            except ValueError:
+                pass
             s = "'" + s + "'"
         elif len(self) > 3 or '\n' in s or s == "":
             s = "%s(%s)" % (self.dtype, dims)
@@ -3077,7 +3079,8 @@ class NXgroup(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted(dir(super(self.__class__, self))+list(self))
+        return sorted(dir(super(self.__class__, self))+list(self), 
+                      key=natural_sort)
 
     def __repr__(self):
         return "%s('%s')" % (self.__class__.__name__,self.nxname)
@@ -3182,8 +3185,12 @@ class NXgroup(NXobject):
                     raise NeXusError(
                         "The value is incompatible with the current entry")
             elif isinstance(value, NXlink):
-                value = NXlink(target=value._target, file=value._filename,
-                               name=key, group=group)
+                if group.nxfilename != value.nxfilename:
+                    value = NXlink(target=value._target, file=value.nxfilename,
+                                   name=key, group=group)
+                else:
+                    value = NXlink(target=value._target, file=value._filename,
+                                   name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 if value.nxgroup:
@@ -3589,12 +3596,13 @@ class NXgroup(NXobject):
             result.append(self._str_attrs(indent=indent+2))
         entries = self.entries
         if entries:
-            names = sorted(entries)
+            names = sorted(entries, key=natural_sort)
             if recursive:
-                for k in names:
-                    result.append(entries[k]._str_tree(indent=indent+2,
-                                                       attrs=attrs, 
-                                                       recursive=True))
+                if recursive is True or recursive >= indent:
+                    for k in names:
+                        result.append(entries[k]._str_tree(indent=indent+2,
+                                                           attrs=attrs, 
+                                                           recursive=recursive))
             else:
                 for k in names:
                     result.append(entries[k]._str_name(indent=indent+2))
@@ -3801,13 +3809,21 @@ class NXlinkfield(NXlink, NXfield):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
                                  recursive=recursive)
 
+    def _get_filedata(self, idx=()):
+        if self._filename is None:
+            return self.nxlink._get_filedata(idx)
+        else:
+            with NXFile(self.nxfilename, 'r') as f:
+                result = f.readvalue(self.nxtarget, idx=idx)
+            return result
+
     @property
     def nxlink(self):
         try:
             if self.nxfilename != self.nxroot.nxfilename:
                 return self
             else:
-               return self.nxroot[self._target]
+               return self.nxroot[self.nxtarget]
         except Exception:
             return self
 

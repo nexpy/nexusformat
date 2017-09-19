@@ -4710,16 +4710,20 @@ class NXdata(NXgroup):
         """
         Setter for the axes attribute.
         
-        The argument should be a list of valid NXfields within the group.
+        The argument should be a list of valid NXfields, which are added, if 
+        necessary to the group. Values of None in the list denote missing axes. 
         """
         if not isinstance(axes, list) and not isinstance(axes, tuple):
             axes = [axes]
+        axes_attr = []
         for axis in axes:
-            if axis not in self:
-                self[axis.nxname] = axis
-        axes_attr = [axis.nxname for axis in axes]
-        if 'signal' in self.attrs:
-            self.attrs['axes'] = axes_attr
+            if axis is None:
+                axes_attr.append('.')
+            else:
+                axes_attr.append(axis.nxname)
+                if axis not in self:
+                    self[axis.nxname] = axis
+        self.attrs['axes'] = axes_attr
 
     @property
     def nxerrors(self):

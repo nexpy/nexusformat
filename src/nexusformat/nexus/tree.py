@@ -3809,6 +3809,14 @@ class NXlinkfield(NXlink, NXfield):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
                                  recursive=recursive)
 
+    def _get_filedata(self, idx=()):
+        if self._filename is None:
+            return self.nxlink._get_filedata(idx)
+        else:
+            with NXFile(self._filename, 'r') as f:
+                result = f.readvalue(self._target, idx=idx)
+            return result
+
     @property
     def nxlink(self):
         try:

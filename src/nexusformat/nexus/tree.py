@@ -4323,7 +4323,7 @@ class NXdata(NXgroup):
         if 'signal' in self.attrs and self.attrs['signal'] == key:
             del self.attrs['signal']
         elif 'axes' in self.attrs:
-            self.attrs['axes'] = [ax if ax != key else ''
+            self.attrs['axes'] = [ax if ax != key else '.'
                                   for ax in _readaxes(self.attrs['axes'])]
 
     def __add__(self, other):
@@ -4683,7 +4683,8 @@ class NXdata(NXgroup):
                 axis_names = _readaxes(self.nxsignal.attrs['axes'])
             axes = [None] * len(axis_names)
             for i, axis_name in enumerate(axis_names):
-                if axis_name.strip() == '':
+                axis_name = axis_name.strip()
+                if axis_name == '' or axis_name == '.':
                     axes[i] = empty_axis(i)
                 else:
                     axes[i] = plot_axis(self[axis_name])
@@ -4709,16 +4710,20 @@ class NXdata(NXgroup):
         """
         Setter for the axes attribute.
         
-        The argument should be a list of valid NXfields within the group.
+        The argument should be a list of valid NXfields, which are added, if 
+        necessary to the group. Values of None in the list denote missing axes. 
         """
         if not isinstance(axes, list) and not isinstance(axes, tuple):
             axes = [axes]
+        axes_attr = []
         for axis in axes:
-            if axis not in self:
-                self[axis.nxname] = axis
-        axes_attr = [axis.nxname for axis in axes]
-        if 'signal' in self.attrs:
-            self.attrs['axes'] = axes_attr
+            if axis is None:
+                axes_attr.append('.')
+            else:
+                axes_attr.append(axis.nxname)
+                if axis not in self:
+                    self[axis.nxname] = axis
+        self.attrs['axes'] = axes_attr
 
     @property
     def nxerrors(self):

@@ -1794,7 +1794,6 @@ class NXfield(NXobject):
         # Convert NeXus attributes to python attributes
         self._attrs = AttrDict(self, attrs=attrs)
         del attrs
-        self._masked = False
         self._memfile = None
         self.set_changed()
 
@@ -2388,6 +2387,19 @@ class NXfield(NXobject):
     @property
     def T(self):
         return self.transpose()
+
+    def is_compatible(self, field):
+        return (self.dtype == field.dtype) and (self.shape == field.shape)
+
+    def copy_field(self, field):
+        if field._value is not None:
+            self._value = field._value
+        elif field._memfile:
+            self._memfile = field._memfile
+        elif field.nxfilemode:
+            self._uncopied_data = (field.nxfile, field.nxpath)
+        for k, v in field.attrs.items():
+            self.attrs[k] = v
 
     def centers(self):
         """
@@ -3174,13 +3186,22 @@ class NXgroup(NXobject):
                 raise NeXusError(
                     "Cannot assign an NXroot group to another group")
             elif key in group:
-                if isinstance(value, NXobject):
+                if isinstance(value, NXgroup):
                     raise NeXusError(
-                        "Cannot assign an NXobject to an existing group entry")
+                        "Cannot assign an NXgroup to an existing group entry")
+                elif isinstance(value, NXlink):
+                    raise NeXusError(
+                        "Cannot assign an NXlink to an existing group entry")
                 elif isinstance(group.entries[key], NXlink):
                     raise NeXusError("Cannot assign values to an NXlink")
                 try:                
-                    group.entries[key].nxdata = value
+                    if isinstance(value, NXfield):
+                        if (group.nxfilemode and not 
+                            value.is_compatible(group.entries[key])):
+                            raise NeXusError("Incompatible fields")
+                        group.entries[key].copy_field(value)
+                    else:
+                        group.entries[key].nxdata = value
                 except NeXusError:
                     raise NeXusError(
                         "The value is incompatible with the current entry")
@@ -3193,9 +3214,7 @@ class NXgroup(NXobject):
                                    name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
-                if value.nxgroup:
-                    memo = {}
-                    value = deepcopy(value, memo)
+                value = deepcopy(value)
                 value._group = group
                 value._name = key
                 group.entries[key] = value

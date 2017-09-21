@@ -2039,7 +2039,7 @@ class NXfield(NXobject):
                 f.copy(_path, self._memfile, 'data')
         self._uncopied_data = None
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo={}):
         if isinstance(self, NXlink):
             obj = self.nxlink
         else:
@@ -2049,6 +2049,10 @@ class NXfield(NXobject):
         dpcpy._name = copy(obj.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
+        dpcpy._chunks = copy(obj.chunks)
+        dpcpy._compression = copy(obj.compression)
+        dpcpy._fillvalue = copy(obj.fillvalue)
+        dpcpy._maxshape = copy(obj.maxshape)
         dpcpy._changed = True
         dpcpy._memfile = None
         dpcpy._uncopied_data = None

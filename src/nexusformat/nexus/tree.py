@@ -1913,6 +1913,25 @@ class NXfield(NXobject):
                 self._put_memdata(idx, value)
         self.set_changed()
 
+    def _str_name(self, indent=0):
+        dims = 'x'.join([text(n) for n in self.shape])
+        s = text(self)
+        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
+            and len(self) == 1):
+            if len(s) > 60:
+                s = s[:56] + '...'
+            try:
+                s = s[:s.index('\n')]+'...'
+            except ValueError:
+                pass
+            s = "'" + s + "'"
+        elif len(self) > 3 or '\n' in s or s == "":
+            s = "%s(%s)" % (self.dtype, dims)
+        try:
+            return " " * indent + self.nxname + " = " + s
+        except Exception:
+            return " " * indent + self.nxname
+
     def _get_filedata(self, idx=()):
         with self.nxfile as f:
             result = f.readvalue(self.nxpath, idx=idx)
@@ -2445,31 +2464,12 @@ class NXfield(NXobject):
         except ImportError:
             raise NeXusError("No conversion utility available")
         if self._value is not None:
-            return self._converter(self._value,units)
+            return self._converter(self._value, units)
         else:
             return None
 
     def walk(self):
         yield self
-
-    def _str_name(self, indent=0):
-        dims = 'x'.join([text(n) for n in self.shape])
-        s = text(self)
-        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
-            and len(self) == 1):
-            if len(s) > 60:
-                s = s[:56] + '...'
-            try:
-                s = s[:s.index('\n')]+'...'
-            except ValueError:
-                pass
-            s = "'" + s + "'"
-        elif len(self) > 3 or '\n' in s or s == "":
-            s = "%s(%s)" % (self.dtype, dims)
-        try:
-            return " " * indent + self.nxname + " = " + s
-        except Exception:
-            return " " * indent + self.nxname
 
     def replace(self, value):
         """

@@ -225,26 +225,23 @@ def write_data(root, filenames, background_file=None):
         max_index = get_index(filenames[-1])
         k = 0
         for i in range(min_index, min_index+z_size, chunk_size):
-            try:
-                files = []
-                for j in range(i,i+chunk_size):
-                    if j == get_index(filenames[k]):
-                        print('Processing', filenames[k])
-                        files.append(filenames[k])
-                        try:
-                            exposure_time, exposure, summed_exposures = read_metadata(filenames[k])
-                            root.entry.instrument.detector.frame_start[k] = exposure_time - scan_time
-                        except Exception as error:
-                            print(filenames[k], error)
-                        k += 1
-                    elif k < len(filenames):
-                        files.append(None)
-                    else:
-                        break
-                root.entry.data.data[i-min_index:i+chunk_size-min_index,:,:] = (
+            files = []
+            for j in range(i,min(i+chunk_size,max_index+1)):
+                if j == get_index(filenames[k]):
+                    print('Processing', filenames[k])
+                    files.append(filenames[k])
+                    try:
+                        exposure_time, exposure, summed_exposures = read_metadata(filenames[k])
+                        root.entry.instrument.detector.frame_start[k] = exposure_time - scan_time
+                    except Exception as error:
+                        print(filenames[k], error)
+                    k += 1
+                elif k < len(filenames):
+                    files.append(None)
+                else:
+                    break
+            root.entry.data.data[i-min_index:i+len(files)-min_index,:,:] = (
                     read_images(files, image_shape) - background)
-            except IndexError:
-                pass
 
 
 def write_metadata(root, directory, prefix):

@@ -2483,8 +2483,9 @@ class NXfield(NXobject):
         if group is None:
             raise NeXusError("The field must be a member of a group")
         if isinstance(value, NXfield):
-            value = value.nxdata
-        if is_text(value):
+            del group[self.nxname]
+            group[self.nxname] = value
+        elif is_text(value):
             if self.dtype == string_dtype:
                 self.nxdata = value
             else:

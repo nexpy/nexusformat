@@ -3198,17 +3198,9 @@ class NXgroup(NXobject):
                         "Cannot assign an NXlink to an existing group entry")
                 elif isinstance(group.entries[key], NXlink):
                     raise NeXusError("Cannot assign values to an NXlink")
-                try:                
-                    if isinstance(value, NXfield):
-                        if (group.nxfilemode and not 
-                            value.is_compatible(group.entries[key])):
-                            raise NeXusError("Incompatible fields")
-                        group.entries[key].copy_field(value)
-                    else:
-                        group.entries[key].nxdata = value
-                except NeXusError:
-                    raise NeXusError(
-                        "The value is incompatible with the current entry")
+                group.entries[key].nxdata = value
+                if isinstance(value, NXfield):
+                    group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXlink):
                 if group.nxfilename != value.nxfilename:
                     value = NXlink(target=value._target, file=value.nxfilename,

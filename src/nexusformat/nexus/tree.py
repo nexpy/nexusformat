@@ -2073,12 +2073,11 @@ class NXfield(NXobject):
         dpcpy._fillvalue = copy(obj.fillvalue)
         dpcpy._maxshape = copy(obj.maxshape)
         dpcpy._changed = True
-        dpcpy._memfile = None
-        dpcpy._uncopied_data = None
+        dpcpy._memfile = obj._memfile
+        dpcpy._uncopied_data = obj._uncopied_data
         if obj._value is not None:
             dpcpy._value = copy(obj._value)
-        elif obj._memfile:
-            dpcpy._memfile = obj._memfile
+            dpcpy._memfile = dpcpy._uncopied_data = None
         elif obj.nxfilemode:
             dpcpy._uncopied_data = (obj.nxfile, obj.nxpath)
         for k, v in obj.attrs.items():

@@ -1794,7 +1794,6 @@ class NXfield(NXobject):
         # Convert NeXus attributes to python attributes
         self._attrs = AttrDict(self, attrs=attrs)
         del attrs
-        self._masked = False
         self._memfile = None
         self.set_changed()
 
@@ -1913,6 +1912,25 @@ class NXfield(NXobject):
             elif self._value is None:
                 self._put_memdata(idx, value)
         self.set_changed()
+
+    def _str_name(self, indent=0):
+        dims = 'x'.join([text(n) for n in self.shape])
+        s = text(self)
+        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
+            and len(self) == 1):
+            if len(s) > 60:
+                s = s[:56] + '...'
+            try:
+                s = s[:s.index('\n')]+'...'
+            except ValueError:
+                pass
+            s = "'" + s + "'"
+        elif len(self) > 3 or '\n' in s or s == "":
+            s = "%s(%s)" % (self.dtype, dims)
+        try:
+            return " " * indent + self.nxname + " = " + s
+        except Exception:
+            return " " * indent + self.nxname
 
     def _get_filedata(self, idx=()):
         with self.nxfile as f:
@@ -2040,7 +2058,7 @@ class NXfield(NXobject):
                 f.copy(_path, self._memfile, 'data')
         self._uncopied_data = None
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo={}):
         if isinstance(self, NXlink):
             obj = self.nxlink
         else:
@@ -2050,13 +2068,16 @@ class NXfield(NXobject):
         dpcpy._name = copy(obj.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
+        dpcpy._chunks = copy(obj.chunks)
+        dpcpy._compression = copy(obj.compression)
+        dpcpy._fillvalue = copy(obj.fillvalue)
+        dpcpy._maxshape = copy(obj.maxshape)
         dpcpy._changed = True
-        dpcpy._memfile = None
-        dpcpy._uncopied_data = None
+        dpcpy._memfile = obj._memfile
+        dpcpy._uncopied_data = obj._uncopied_data
         if obj._value is not None:
             dpcpy._value = copy(obj._value)
-        elif obj._memfile:
-            dpcpy._memfile = obj._memfile
+            dpcpy._memfile = dpcpy._uncopied_data = None
         elif obj.nxfilemode:
             dpcpy._uncopied_data = (obj.nxfile, obj.nxpath)
         for k, v in obj.attrs.items():
@@ -2429,31 +2450,12 @@ class NXfield(NXobject):
         except ImportError:
             raise NeXusError("No conversion utility available")
         if self._value is not None:
-            return self._converter(self._value,units)
+            return self._converter(self._value, units)
         else:
             return None
 
     def walk(self):
         yield self
-
-    def _str_name(self, indent=0):
-        dims = 'x'.join([text(n) for n in self.shape])
-        s = text(self)
-        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
-            and len(self) == 1):
-            if len(s) > 60:
-                s = s[:56] + '...'
-            try:
-                s = s[:s.index('\n')]+'...'
-            except ValueError:
-                pass
-            s = "'" + s + "'"
-        elif len(self) > 3 or '\n' in s or s == "":
-            s = "%s(%s)" % (self.dtype, dims)
-        try:
-            return " " * indent + self.nxname + " = " + s
-        except Exception:
-            return " " * indent + self.nxname
 
     def replace(self, value):
         """
@@ -2467,8 +2469,9 @@ class NXfield(NXobject):
         if group is None:
             raise NeXusError("The field must be a member of a group")
         if isinstance(value, NXfield):
-            value = value.nxdata
-        if is_text(value):
+            del group[self.nxname]
+            group[self.nxname] = value
+        elif is_text(value):
             if self.dtype == string_dtype:
                 self.nxdata = value
             else:
@@ -3174,16 +3177,17 @@ class NXgroup(NXobject):
                 raise NeXusError(
                     "Cannot assign an NXroot group to another group")
             elif key in group:
-                if isinstance(value, NXobject):
+                if isinstance(value, NXgroup):
                     raise NeXusError(
-                        "Cannot assign an NXobject to an existing group entry")
+                        "Cannot assign an NXgroup to an existing group entry")
+                elif isinstance(value, NXlink):
+                    raise NeXusError(
+                        "Cannot assign an NXlink to an existing group entry")
                 elif isinstance(group.entries[key], NXlink):
                     raise NeXusError("Cannot assign values to an NXlink")
-                try:                
-                    group.entries[key].nxdata = value
-                except NeXusError:
-                    raise NeXusError(
-                        "The value is incompatible with the current entry")
+                group.entries[key].nxdata = value
+                if isinstance(value, NXfield):
+                    group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXlink):
                 if group.nxfilename != value.nxfilename:
                     value = NXlink(target=value._target, file=value.nxfilename,
@@ -3193,9 +3197,7 @@ class NXgroup(NXobject):
                                    name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
-                if value.nxgroup:
-                    memo = {}
-                    value = deepcopy(value, memo)
+                value = deepcopy(value)
                 value._group = group
                 value._name = key
                 group.entries[key] = value

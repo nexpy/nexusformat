@@ -2410,19 +2410,6 @@ class NXfield(NXobject):
     def T(self):
         return self.transpose()
 
-    def is_compatible(self, field):
-        return (self.dtype == field.dtype) and (self.shape == field.shape)
-
-    def copy_field(self, field):
-        if field._value is not None:
-            self._value = field._value
-        elif field._memfile:
-            self._memfile = field._memfile
-        elif field.nxfilemode:
-            self._uncopied_data = (field.nxfile, field.nxpath)
-        for k, v in field.attrs.items():
-            self.attrs[k] = v
-
     def centers(self):
         """
         Returns an NXfield with the centers of a single axis

@@ -3051,7 +3051,7 @@ class NXgroup(NXobject):
             del opts["name"]
         if "entries" in opts:
             for k,v in opts["entries"].items():
-                self._entries[k] = v
+                self._entries[k] = deepcopy(v)
             del opts["entries"]
         if "attrs" in opts:
             self._attrs = AttrDict(self, attrs=opts["attrs"])
@@ -3065,7 +3065,11 @@ class NXgroup(NXobject):
             self._group = opts["group"]
             del opts["group"]
         for k,v in opts.items():
-            setattr(self, k, v)
+            try:
+                self[k] = v
+            except AttributeError:
+                raise NeXusError(
+                    "Keyword arguments must be valid NXobjects")
         if self.nxclass.startswith("NX"):
             if self.nxname == "unknown" or self.nxname == "": 
                 self._name = self.nxclass[2:]
@@ -3075,7 +3079,7 @@ class NXgroup(NXobject):
                 pass
         for item in items:
             try:
-                setattr(self, item.nxname, item)
+                self[item.nxname] = item
             except AttributeError:
                 raise NeXusError(
                     "Non-keyword arguments must be valid NXobjects")

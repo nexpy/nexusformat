@@ -3253,7 +3253,7 @@ class NXgroup(NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
             try:
-                return isinstance(self[key], NXobject)
+                return isinstance(self.entries[key], NXobject)
             except Exception:
                 return False
 
@@ -3470,8 +3470,8 @@ class NXgroup(NXobject):
                 summedaxis.attrs["maximum"] = summedaxis.nxdata[-1]
                 summedaxis.attrs["summed_bins"] = summedaxis.size
                 averages.append(NXfield(
-                                0.5*(summedaxis.nxdata[0]+summedaxis.nxdata[-1]), 
-                                name=summedaxis.nxname,attrs=summedaxis.attrs))
+                    0.5*(summedaxis.nxdata[0]+summedaxis.nxdata[-1]), 
+                    name=summedaxis.nxname,attrs=summedaxis.attrs))
             result = NXdata(signal, axes)
             summed_bins = 1
             for average in averages:
@@ -3485,9 +3485,9 @@ class NXgroup(NXobject):
             if self.nxerrors:
                 errors = np.sqrt((self.nxerrors.nxdata**2).sum(axis))
                 if averaged:
-                    result.errors = NXfield(errors, name="errors") / summed_bins
+                    result.nxerrors = NXfield(errors) / summed_bins
                 else:
-                    result.errors = NXfield(errors, name="errors")
+                    result.nxerrors = NXfield(errors)
             if self.nxtitle:
                 result.title = self.nxtitle
             return result
@@ -4278,14 +4278,14 @@ class NXdata(NXgroup):
                                                     if rax is ax]]            
             signal = self.nxsignal[idx]
             if self.nxerrors: 
-                errors = self.errors[idx]
+                errors = self.nxerrors[idx]
             else:
                 errors = None
             if 'axes' in signal.attrs:
                 del signal.attrs['axes']
             result = NXdata(signal, axes, errors, *removed_axes)
             if errors is not None:
-                result.errors = errors
+                result.nxerrors = errors
             if signal.mask:
                 result[signal.mask.nxname] = signal.mask           
             if self.nxtitle:
@@ -4346,9 +4346,10 @@ class NXdata(NXgroup):
                 result[self.nxsignal.nxname] = self.nxsignal + other.nxsignal
                 if self.nxerrors:
                     if other.nxerrors:
-                        result.errors = np.sqrt(self.errors**2 + other.errors**2)
+                        result.nxerrors = np.sqrt(self.nxerrors**2 + 
+                                                  other.nxerrors**2)
                     else:
-                        result.errors = self.errors
+                        result.nxerrors = self.nxerrors
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot add two arbitrary groups")
@@ -4374,9 +4375,10 @@ class NXdata(NXgroup):
                 result[self.nxsignal.nxname] = self.nxsignal - other.nxsignal
                 if self.nxerrors:
                     if other.nxerrors:
-                        result.errors = np.sqrt(self.errors**2 + other.errors**2)
+                        result.nxerrors = np.sqrt(self.nxerrors**2 + 
+                                                  other.nxerrors**2)
                     else:
-                        result.errors = self.errors
+                        result.nxerrors = self.nxerrors
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot subtract two arbitrary groups")
@@ -4405,18 +4407,18 @@ class NXdata(NXgroup):
                 result[self.nxsignal.nxname] = self.nxsignal * other.nxsignal
                 if self.nxerrors:
                     if other.nxerrors:
-                        result.errors = np.sqrt(
-                            (self.errors * other.nxsignal)**2 +
-                            (other.errors * self.nxsignal)**2)
+                        result.nxerrors = np.sqrt(
+                                          (self.nxerrors * other.nxsignal)**2 +
+                                          (other.nxerrors * self.nxsignal)**2)
                     else:
-                        result.errors = self.errors
+                        result.nxerrors = self.nxerrors
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot multiply two arbitrary groups")
         else:
             result[self.nxsignal.nxname] = self.nxsignal * other
             if self.nxerrors:
-                result.errors = self.errors * other
+                result.nxerrors = self.nxerrors * other
             return result
 
     def __rmul__(self, other):
@@ -4445,18 +4447,18 @@ class NXdata(NXgroup):
                 result[self.nxsignal.nxname] = self.nxsignal / other.nxsignal
                 if self.nxerrors:
                     if other.nxerrors:
-                        result.errors = (np.sqrt(self.errors**2 +
-                            (result[self.nxsignal.nxname] * other.errors)**2)
+                        result.nxerrors = (np.sqrt(self.nxerrors**2 +
+                            (result[self.nxsignal.nxname] * other.nxerrors)**2)
                                          / other.nxsignal)
                     else:
-                        result.errors = self.errors
+                        result.nxerrors = self.nxerrors
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot divide two arbitrary groups")
         else:
             result[self.nxsignal.nxname] = self.nxsignal / other
             if self.nxerrors: 
-                result.errors = self.errors / other
+                result.nxerrors = self.nxerrors / other
             return result
 
     __div__ = __truediv__
@@ -4732,6 +4734,12 @@ class NXdata(NXgroup):
         """
         Returns the NXfield containing the signal errors.
         """
+        if self.nxsignal is not None: 
+            if ('uncertainties' in self.nxsignal.attrs and
+                self.nxsignal.attrs['uncertainties'] in self):
+                return self[self.nxsignal.attrs['uncertainties']]
+            elif self.nxsignal.nxname+'_errors' in self:
+                return self[self.nxsignal.nxname+'_errors']
         try:
             return self['errors']
         except KeyError:
@@ -4744,8 +4752,13 @@ class NXdata(NXgroup):
         
         The argument should be a valid NXfield.
         """
-        self.entries['errors'] = errors
-        return self.entries['errors']
+        if self.nxsignal is not None:
+            name = self.nxsignal.nxname+'_errors'
+            self.nxsignal.attrs['uncertainties'] = name
+        else:
+            name = 'errors'
+        self[name] = errors
+        return self.entries[name]
 
 
 class NXmonitor(NXdata):

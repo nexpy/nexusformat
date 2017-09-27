@@ -502,11 +502,11 @@ class NXFile(object):
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
-                                entries=children, target=_target, 
+                                new_entries=children, target=_target, 
                                 file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
-                            entries=children)
+                            new_entries=children)
         for obj in children.values():
             obj._group = group
         group._changed = True
@@ -3053,6 +3053,10 @@ class NXgroup(NXobject):
             for k,v in opts["entries"].items():
                 self._entries[k] = deepcopy(v)
             del opts["entries"]
+        if "new_entries" in opts:
+            for k,v in opts["new_entries"].items():
+                self._entries[k] = v
+            del opts["new_entries"]            
         if "attrs" in opts:
             self._attrs = AttrDict(self, attrs=opts["attrs"])
             del opts["attrs"]

@@ -1439,6 +1439,13 @@ class NXobject(object):
     def nxgroup(self):
         return self._group
 
+    @nxgroup.setter
+    def nxgroup(self, value):
+        if isinstance(value, NXgroup):
+            self._group = value
+        else:
+            raise NeXusError("Value must be a valid NeXus group")    
+
     @property
     def nxpath(self):
         if self.nxclass == 'NXroot':
@@ -3398,11 +3405,9 @@ class NXgroup(NXobject):
                 name = value.nxname
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
-            if (isinstance(value, NXlink) and 
-                   value.nxfilename == self.nxfilename):
-                self[name] = value.nxlink
-            else:
-                self[name] = value
+            self.entries[name] = deepcopy(value)
+            self.entries[name].nxgroup = self
+            self.update()
         else:
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
@@ -3783,11 +3788,6 @@ class NXlink(NXobject):
         else:
             return self._attrs
 
-    def plot(self, **opts):
-        if self is not self.nxlink:
-            self.nxlink.plot(**opts)
-        else:
-            self.plot(**opts)
 
 class NXlinkfield(NXlink, NXfield):
 
@@ -3820,12 +3820,15 @@ class NXlinkfield(NXlink, NXfield):
                                  recursive=recursive)
 
     def _get_filedata(self, idx=()):
-        if self._filename is None:
-            return self.nxlink._get_filedata(idx)
-        else:
-            with NXFile(self.nxfilename, 'r') as f:
-                result = f.readvalue(self.nxtarget, idx=idx)
-            return result
+        with NXFile(self.nxfilename, 'r') as f:
+            result = f.readvalue(self.nxtarget, idx=idx)
+        return result
+
+    @property
+    def shape(self):
+        with NXFile(self.nxfilename, 'r') as f:
+            shape = f.get(self.nxtarget).shape
+        return shape
 
     @property
     def nxlink(self):
@@ -3836,6 +3839,12 @@ class NXlinkfield(NXlink, NXfield):
                return self.nxroot[self.nxtarget]
         except Exception:
             return self
+
+    def plot(self, **opts):
+        if self is not self.nxlink:
+            self.nxlink.plot(**opts)
+        else:
+            super(NXlinkfield, self).plot(**opts)
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -3901,6 +3910,12 @@ class NXlinkgroup(NXlink, NXgroup):
                 return self.nxroot[self._target]
         except Exception:
             return self
+
+    def plot(self, **opts):
+        if self is not self.nxlink:
+            self.nxlink.plot(**opts)
+        else:
+            super(NXlinkgroup, self).plot(**opts)
 
 
 class NXroot(NXgroup):

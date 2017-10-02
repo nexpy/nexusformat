@@ -4605,6 +4605,9 @@ class NXdata(NXgroup):
 
     @property
     def plot_axes(self):
+        def copy(axes):
+            return [NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+                    for axis in axes]
         signal = self.nxsignal
         if signal is not None:
             if len(signal.shape) > len(signal.plot_shape):
@@ -4613,9 +4616,9 @@ class NXdata(NXgroup):
                 for i in range(signal.ndim):
                     if signal.shape[i] > 1: 
                         newaxes.append(axes[i])
-                return newaxes
+                return copy(newaxes)
             else:
-                return self.nxaxes
+                return copy(self.nxaxes)
         else:
             return None
 

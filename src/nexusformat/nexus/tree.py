@@ -1483,11 +1483,8 @@ class NXobject(object):
     def nxfile(self):
         if self._file:
             return self._file
-        _root = self.nxroot
-        if _root._file:
-            return _root._file
-        elif _root._filename:
-            return NXFile(_root._filename, _root._mode)
+        elif self.nxfilename:
+            return NXFile(self.nxfilename, self.nxfilemode)
         else:
             return None
 
@@ -1499,6 +1496,25 @@ class NXobject(object):
             return self._group.nxfilename
         else:
             return None
+
+    @property
+    def nxfilepath(self):
+        if self.nxclass == 'NXroot':
+            return "/"
+        elif isinstance(self, NXlink):
+            return self.nxtarget
+        elif self.nxgroup is None:
+            return ""
+        elif isinstance(self.nxgroup, NXroot):
+            return "/" + self.nxname
+        elif isinstance(self.nxgroup, NXlink):
+            group_path = self.nxgroup.nxtarget
+        else:
+            group_path = self.nxgroup.nxfilepath
+        if group_path:
+            return group_path+"/"+self.nxname
+        else:
+            return self.nxname
 
     @property
     def nxfilemode(self):
@@ -1941,12 +1957,13 @@ class NXfield(NXobject):
 
     def _get_filedata(self, idx=()):
         with self.nxfile as f:
-            result = f.readvalue(self.nxpath, idx=idx)
+            result = f.readvalue(self.nxfilepath, idx=idx)
             if 'mask' in self.attrs:
                 try:
                     mask = self.nxgroup[self.attrs['mask']]
                     result = np.ma.array(result, 
-                                         mask=f.readvalue(mask.nxpath, idx=idx))
+                                         mask=f.readvalue(mask.nxfilepath,
+                                                          idx=idx))
                 except KeyError:
                     pass
         return result
@@ -2533,7 +2550,7 @@ class NXfield(NXobject):
                 except Exception:
                     raise NeXusError("Cannot read data for '%s'" % self.nxname)
                 if self._value is not None:
-                    self._value.shape = self._shape
+                    self._value.shape = self.shape
             else:
                 raise NeXusError(
                     "Data size larger than NX_MEMORY=%s MB" % NX_MEMORY)
@@ -3819,16 +3836,21 @@ class NXlinkfield(NXlink, NXfield):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
                                  recursive=recursive)
 
-    def _get_filedata(self, idx=()):
-        with NXFile(self.nxfilename, 'r') as f:
-            result = f.readvalue(self.nxtarget, idx=idx)
-        return result
-
     @property
     def shape(self):
-        with NXFile(self.nxfilename, 'r') as f:
-            shape = f.get(self.nxtarget).shape
-        return shape
+        try:
+            with self.nxfile as f:
+                return _getshape(f.get(self.nxtarget).shape)
+        except Exception:
+            return ()
+
+    @property
+    def dtype(self):
+        try:
+            with self.nxfile as f:
+                return _getdtype(f.get(self.nxtarget).dtype)
+        except Exception:
+            return None
 
     @property
     def nxlink(self):

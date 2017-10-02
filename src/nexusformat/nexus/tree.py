@@ -3804,6 +3804,13 @@ class NXlink(NXobject):
         if self is not self.nxlink:
             return self.nxlink._attrs
         else:
+            if not self._attrs:
+                try:
+                    with self.nxfile as f:
+                        f.nxpath = self.nxtarget
+                        self._attrs._setattrs(f._readattrs())
+                except Exception:
+                    pass
             return self._attrs
 
 

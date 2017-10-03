@@ -2682,7 +2682,7 @@ class NXfield(NXobject):
     def compression(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._compression = f[self.nxpath].compression
+                self._compression = f[self.nxfilepath].compression
         elif self._memfile:
             self._compression = self._memfile['data'].compression
         return self._compression
@@ -2701,7 +2701,7 @@ class NXfield(NXobject):
     def fillvalue(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._fillvalue = f[self.nxpath].fillvalue
+                self._fillvalue = f[self.nxfilepath].fillvalue
         elif self._memfile:
             self._fillvalue = self._memfile['data'].fillvalue
         return self._fillvalue
@@ -2720,7 +2720,7 @@ class NXfield(NXobject):
     def chunks(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._chunks = f[self.nxpath].chunks
+                self._chunks = f[self.nxfilepath].chunks
         elif self._memfile:
             self._chunks = self._memfile['data'].chunks
         return self._chunks
@@ -2742,7 +2742,7 @@ class NXfield(NXobject):
     def maxshape(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._maxshape = f[self.nxpath].maxshape
+                self._maxshape = f[self.nxfilepath].maxshape
         elif self._memfile:
             self._maxshape = self._memfile['data'].maxshape
         return self._maxshape
@@ -3813,6 +3813,9 @@ class NXlink(NXobject):
                     pass
             return self._attrs
 
+    def is_external(self):
+        return self is self.nxlink
+
 
 class NXlinkfield(NXlink, NXfield):
 
@@ -3845,22 +3848,6 @@ class NXlinkfield(NXlink, NXfield):
                                  recursive=recursive)
 
     @property
-    def shape(self):
-        try:
-            with self.nxfile as f:
-                return _getshape(f.get(self.nxtarget).shape)
-        except Exception:
-            return ()
-
-    @property
-    def dtype(self):
-        try:
-            with self.nxfile as f:
-                return _getdtype(f.get(self.nxtarget).dtype)
-        except Exception:
-            return None
-
-    @property
     def nxlink(self):
         try:
             if self.nxfilename != self.nxroot.nxfilename:
@@ -3870,11 +3857,61 @@ class NXlinkfield(NXlink, NXfield):
         except Exception:
             return self
 
-    def plot(self, **opts):
-        if self is not self.nxlink:
-            self.nxlink.plot(**opts)
+    @property
+    def shape(self):
+        if self.is_external():
+            try:
+                with self.nxfile as f:
+                    return _getshape(f.get(self.nxtarget).shape)
+            except Exception:
+                return ()
         else:
+            return self.nxlink.shape
+
+    @property
+    def dtype(self):
+        if self.is_external():
+            try:
+                with self.nxfile as f:
+                    return _getdtype(f.get(self.nxtarget).dtype)
+            except Exception:
+                return None
+        else:
+            return self.nxlink.dtype
+
+    @property
+    def compression(self):
+        if self.is_external():
+            return super(NXlinkfield, self).compression
+        else:
+            return self.nxlink.compression
+
+    @property
+    def fillvalue(self):
+        if self.is_external():
+            return super(NXlinkfield, self).fillvalue
+        else:
+            return self.nxlink.fillvalue
+
+    @property
+    def chunks(self):
+        if self.is_external():
+            return super(NXlinkfield, self).chunks
+        else:
+            return self.nxlink.chunks
+
+    @property
+    def maxshape(self):
+        if self.is_external():
+            return super(NXlinkfield, self).maxshape
+        else:
+            return self.nxlink.maxshape
+
+    def plot(self, **opts):
+        if self.is_external():
             super(NXlinkfield, self).plot(**opts)
+        else:
+            self.nxlink.plot(**opts)            
 
 
 class NXlinkgroup(NXlink, NXgroup):

@@ -3573,37 +3573,41 @@ class NXgroup(NXobject):
         """
         Plot data contained within the group.
         """
-        try:
-            self.plottable_data.plot(**opts)
-        except Exception as error:
-            raise NeXusError(error)
+        plotdata = self.plottable_data
+        if plotdata:
+            plotdata.plot(**opts)
+        else:
+            raise NeXusError("There is no plottable data")
 
     def oplot(self, **opts):
         """
         Plots the data contained within the group over the current figure.
         """
-        try:
-            self.plottable_data.oplot(**opts)
-        except Exception as error:
-            raise NeXusError(error)
+        plotdata = self.plottable_data
+        if plotdata:
+            plotdata.oplot(**opts)
+        else:
+            raise NeXusError("There is no plottable data")
 
     def logplot(self, **opts):
         """
         Plots the data intensity contained within the group on a log scale.
         """
-        try:
-            self.plottable_data.logplot(**opts)
-        except Exception as error:
-            raise NeXusError(error)
+        plotdata = self.plottable_data
+        if plotdata:
+            plotdata.logplot(**opts)
+        else:
+            raise NeXusError("There is no plottable data")
 
     def implot(self, **opts):
         """
         Plots the data intensity as an RGB(A) image.
         """
-        try:
-            self.plottable_data.implot(**opts)
-        except Exception as error:
-            raise NeXusError(error)
+        plotdata = self.plottable_data
+        if plotdata:
+            plotdata.implot(**opts)
+        else:
+            raise NeXusError("There is no plottable data")
 
     def signals(self):
         """

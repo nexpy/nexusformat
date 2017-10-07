@@ -456,22 +456,15 @@ class NXFile(object):
             return None
 
     def _readlink(self):
+        _target, _filename, _abspath = None, None, False
         if self._isexternal():
             _link = self.get(self.nxpath, getlink=True)
             _target, _filename = _link.path, _link.filename
+            _abspath = os.path.isabs(_filename)
         elif 'target' in self.attrs:
             _target = text(self.attrs['target'])
-            _filename = self.get(self.nxpath).file.filename
-            if _filename == self.filename:
-                _filename = None
-                if  _target == self.nxpath:
-                    _target = None
-        else:
-            _target, _filename = None, None
-        if _filename:
-            _abspath = os.path.isabs(_filename)
-        else:
-            _abspath = False
+            if  _target == self.nxpath:
+                _target = None
         return _target, _filename, _abspath
 
     def _readchildren(self):
@@ -3788,13 +3781,18 @@ class NXlink(NXobject):
                 with self.nxfile as f:
                     f.nxpath = self.nxtarget
                     self._attrs._setattrs(f._readattrs())
+                if 'NX_class' in self._attrs:
+                    del self._attrs['NX_class']
             except Exception:
                 pass
             return self._attrs
 
     def is_external(self):
         if self._external is None:
-            self._external = super(NXlink, self).is_external()
+            if self._filename is not None:
+                self._external = True
+            else:
+                self._external = super(NXlink, self).is_external()
         return self._external
 
 

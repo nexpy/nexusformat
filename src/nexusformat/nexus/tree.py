@@ -1299,7 +1299,7 @@ class NXobject(object):
                 if [x for x in axes if x is self]:
                     self.nxgroup.nxaxes = axes
         if self.nxgroup is not None and self.nxgroup.nxfilemode == 'rw':
-            with self.nxfile as f:
+            with self.nxgroup.nxfile as f:
                 f.rename(path, self.nxpath)
         self.update()
 

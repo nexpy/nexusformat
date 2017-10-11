@@ -1301,7 +1301,7 @@ class NXobject(object):
         if self.nxgroup is not None and self.nxgroup.nxfilemode == 'rw':
             with self.nxgroup.nxfile as f:
                 f.rename(path, self.nxpath)
-        self.update()
+        self.set_changed()
 
     def save(self, filename=None, mode='w-'):
         """

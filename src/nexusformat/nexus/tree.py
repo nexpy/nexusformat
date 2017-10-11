@@ -3985,7 +3985,8 @@ class NXroot(NXgroup):
         NXgroup.__init__(self, *items, **opts)
 
     def rename(self, name):
-        self.nxname = name        
+        self.nxname = name
+        self.set_changed()
 
     def lock(self):
         """Make the tree readonly"""

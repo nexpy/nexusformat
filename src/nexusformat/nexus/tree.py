@@ -1285,22 +1285,29 @@ class NXobject(object):
         return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
-        if self.nxgroup is not None and self.nxgroup.nxfilemode != 'r':
-            signal = self.nxgroup.nxsignal
-            axes = self.nxgroup.nxaxes
+        group = self.nxgroup
+        if group is not None:
+            if group.nxfilemode == 'r':
+                raise NeXusError("NeXus parent group is readonly")
+            else:
+                signal = group.nxsignal
+                axes = group.nxaxes
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
-        path = self.nxpath
-        self.nxname = name
-        if self.nxgroup is not None:
+        name = text(name)
+        old_path = self.nxpath
+        if group is not None:
+            new_path = group.nxpath + '/' + name
+            with group.nxfile as f:
+                f.rename(old_path, new_path)
+            group.entries[name] = group.entries[self._name]
+            del group.entries[name]
             if self is signal:
-                self.nxgroup.nxsignal = self
+                group.nxsignal = self
             elif axes is not None:
                 if [x for x in axes if x is self]:
-                    self.nxgroup.nxaxes = axes
-        if self.nxgroup is not None and self.nxgroup.nxfilemode == 'rw':
-            with self.nxgroup.nxfile as f:
-                f.rename(path, self.nxpath)
+                    group.nxaxes = axes
+        self._name = name
         self.set_changed()
 
     def save(self, filename=None, mode='w-'):
@@ -1425,11 +1432,7 @@ class NXobject(object):
 
     @nxname.setter
     def nxname(self, value):
-        if self.nxgroup:
-            self.nxgroup.entries[value] = self.nxgroup.entries[self._name]
-            del self.nxgroup.entries[self._name]
-        self._name = text(value)
-        self.set_changed()                       
+        self.rename(value)
 
     @property
     def nxgroup(self):

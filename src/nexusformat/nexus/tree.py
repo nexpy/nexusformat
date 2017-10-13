@@ -1450,7 +1450,7 @@ class NXobject(object):
         if self.nxclass == 'NXroot':
             return "/"
         elif self.nxgroup is None:
-            return ""
+            return self.nxname
         elif isinstance(self.nxgroup, NXroot):
             return "/" + self.nxname
         else:

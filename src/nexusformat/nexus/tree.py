@@ -1447,18 +1447,15 @@ class NXobject(object):
 
     @property
     def nxpath(self):
-        if self.nxclass == 'NXroot':
-            return "/"
-        elif self.nxgroup is None:
+        group = self.nxgroup
+        if group is None:
             return self.nxname
-        elif isinstance(self.nxgroup, NXroot):
+        elif self.nxclass == 'NXroot':
+            return "/"
+        elif isinstance(group, NXroot):
             return "/" + self.nxname
         else:
-            group_path = self.nxgroup.nxpath
-            if group_path:
-                return group_path+"/"+self.nxname
-            else:
-                return self.nxname
+            return group.nxpath+"/"+self.nxname
 
     @property
     def nxroot(self):

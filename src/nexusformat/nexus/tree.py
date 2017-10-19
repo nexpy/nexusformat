@@ -1298,8 +1298,9 @@ class NXobject(object):
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name
-            with group.nxfile as f:
-                f.rename(old_path, new_path)
+            if group.nxfilemode == 'rw':
+                with group.nxfile as f:
+                    f.rename(old_path, new_path)
             group.entries[name] = group.entries[self._name]
             del group.entries[name]
             if self is signal:

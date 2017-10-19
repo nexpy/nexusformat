@@ -1301,8 +1301,7 @@ class NXobject(object):
             if group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     f.rename(old_path, new_path)
-            group.entries[name] = group.entries[self._name]
-            del group.entries[name]
+            group.entries[name] = group.entries.pop(self._name)
             if self is signal:
                 group.nxsignal = self
             elif axes is not None:

@@ -1298,10 +1298,10 @@ class NXobject(object):
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name
-            with group.nxfile as f:
-                f.rename(old_path, new_path)
-            group.entries[name] = group.entries[self._name]
-            del group.entries[name]
+            if group.nxfilemode == 'rw':
+                with group.nxfile as f:
+                    f.rename(old_path, new_path)
+            group.entries[name] = group.entries.pop(self._name)
             if self is signal:
                 group.nxsignal = self
             elif axes is not None:
@@ -1447,18 +1447,15 @@ class NXobject(object):
 
     @property
     def nxpath(self):
-        if self.nxclass == 'NXroot':
+        group = self.nxgroup
+        if group is None:
+            return self.nxname
+        elif self.nxclass == 'NXroot':
             return "/"
-        elif self.nxgroup is None:
-            return ""
-        elif isinstance(self.nxgroup, NXroot):
+        elif isinstance(group, NXroot):
             return "/" + self.nxname
         else:
-            group_path = self.nxgroup.nxpath
-            if group_path:
-                return group_path+"/"+self.nxname
-            else:
-                return self.nxname
+            return group.nxpath+"/"+self.nxname
 
     @property
     def nxroot(self):

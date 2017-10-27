@@ -1299,6 +1299,7 @@ class NXobject(object):
         if group is not None:
             new_path = group.nxpath + '/' + name
             if group.nxfilemode == 'rw':
+            if not isinstance(self, NXroot) and group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     f.rename(old_path, new_path)
             group.entries[name] = group.entries.pop(self._name)

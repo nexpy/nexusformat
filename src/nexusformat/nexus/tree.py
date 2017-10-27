@@ -3984,10 +3984,6 @@ class NXroot(NXgroup):
         self._backup = None
         NXgroup.__init__(self, *items, **opts)
 
-    def rename(self, name):
-        self.nxname = name
-        self.set_changed()
-
     def lock(self):
         """Make the tree readonly"""
         if self._filename:

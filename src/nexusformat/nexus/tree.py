@@ -4631,9 +4631,6 @@ class NXdata(NXgroup):
 
     @property
     def plot_axes(self):
-        def copy(axes):
-            return [NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
-                    for axis in axes]
         signal = self.nxsignal
         if signal is not None:
             if len(signal.shape) > len(signal.plot_shape):
@@ -4642,9 +4639,9 @@ class NXdata(NXgroup):
                 for i in range(signal.ndim):
                     if signal.shape[i] > 1: 
                         newaxes.append(axes[i])
-                return copy(newaxes)
+                return newaxes
             else:
-                return copy(self.nxaxes)
+                return self.nxaxes
         else:
             return None
 
@@ -4751,10 +4748,7 @@ class NXdata(NXgroup):
         def empty_axis(i):
             return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            if isinstance(axis, NXlink):
-                return axis.nxlink
-            else:
-                return axis
+            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
         try:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])

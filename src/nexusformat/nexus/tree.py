@@ -954,9 +954,10 @@ def _readaxes(axes):
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
     if is_text(axes):
-        return list(re.split(r'[,:; ]', axes.strip('[]()').replace('][', ':')))
+        return list(re.split(r'[,:; ]', 
+                    text(axes).strip('[]()').replace('][', ':')))
     else:
-        return list(axes)
+        return [text(axis) for axis in axes]
 
 
 class AttrDict(dict):
@@ -1298,7 +1299,6 @@ class NXobject(object):
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name
-            if group.nxfilemode == 'rw':
             if not isinstance(self, NXroot) and group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     f.rename(old_path, new_path)

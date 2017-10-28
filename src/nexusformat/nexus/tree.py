@@ -338,7 +338,7 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', **kwds):
+    def __init__(self, name, mode='r', **opts):
         """
         Creates an h5py File object for reading and writing.
         """
@@ -350,7 +350,7 @@ class NXFile(object):
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
-            self._file = self.h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **opts)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -358,7 +358,7 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            self._file = self.h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **opts)
         self._filename = self._file.filename                             
         self._path = '/'
 
@@ -385,21 +385,21 @@ class NXFile(object):
     def __enter__(self):
         return self.open()
 
-    def __exit__(self, *args):
+    def __exit__(self, *items):
         self.close()
 
-    def get(self, *args, **kwds):
-        return self.file.get(*args, **kwds)
+    def get(self, *items, **opts):
+        return self.file.get(*items, **opts)
 
-    def copy(self, *args, **kwds):
-        self.file.copy(*args, **kwds)
+    def copy(self, *items, **opts):
+        self.file.copy(*items, **opts)
 
-    def open(self, **kwds):
+    def open(self, **opts):
         if not self.isopen():
             if self._mode == 'rw':
-                self._file = self.h5.File(self._filename, 'r+', **kwds)
+                self._file = self.h5.File(self._filename, 'r+', **opts)
             else:
-                self._file = self.h5.File(self._filename, self._mode, **kwds)
+                self._file = self.h5.File(self._filename, self._mode, **opts)
             self.nxpath = '/'
         return self
 
@@ -2862,7 +2862,7 @@ class NXfield(NXobject):
 SDS = NXfield # For backward compatibility
 
 
-class NXgroup(NXobject):
+class NXgroup(NXobject, dict):
 
     """
     A NeXus group object.
@@ -3392,9 +3392,30 @@ class NXgroup(NXobject):
 
     def has_key(self, name):
         """
-        Returns true if the NeXus object with the specified name is in the group.
+        Returns true if a NeXus object with the specified name is in the group.
         """
-        return self.entries.has_key(name)
+        return self.entries.has_key(name)    
+
+    def copy(self):
+        """
+        Returns a copy of the group's entries
+        """
+        return deepcopy(self)
+
+    def clear(self):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def pop(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def popitem(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def fromkeys(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def setdefault(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
 
     def component(self, nxclass):
         """

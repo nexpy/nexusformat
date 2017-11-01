@@ -2420,8 +2420,9 @@ class NXfield(NXobject):
         """
         Returns an NXfield containing the transpose of the data array.
         """
-        return NXfield(value=self.nxdata.transpose(), name=self.nxname,
-                       attrs=self.safe_attrs)
+        value = self.nxdata.transpose()
+        return NXfield(value=value, name=self.nxname,
+                       shape=value.shape, attrs=self.safe_attrs)
 
     @property
     def T(self):
@@ -4588,9 +4589,12 @@ class NXdata(NXgroup):
             else:
                 result = result.average(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
-            result[result.nxsignal.nxname] = result.nxsignal.transpose()
-            if result.nxerrors:
-                result[result.nxerrors.nxname] = result.nxerrors.transpose()
+            signal, errors = result.nxsignal, result.nxerrors
+            result[signal.nxname].replace(signal.transpose())
+            result.nxsignal = result[signal.nxname]
+            if errors:
+                result[errors.nxname].replace(errors.transpose())
+                result.nxerrors = result[errors.nxname]
             result.nxaxes = result.nxaxes[::-1]            
         return result        
 

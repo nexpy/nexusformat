@@ -2082,7 +2082,7 @@ class NXfield(NXobject):
             obj = self
         dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
-        dpcpy._name = copy(obj.nxname)
+        dpcpy._name = copy(self.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
         dpcpy._chunks = copy(obj.chunks)
@@ -3329,7 +3329,7 @@ class NXgroup(NXobject, dict):
         else:
             obj = self
         dpcpy = obj.__class__()
-        dpcpy._name = obj._name
+        dpcpy._name = self._name
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k,v in obj.items():

@@ -2409,6 +2409,22 @@ class NXfield(NXobject):
         """
         return np.nanmax(self.nxdata[self.nxdata<np.inf], axis) 
 
+    def sum(self, axis=None):
+        """
+        Returns the sum of the NXfield. The sum is over a single axis or a tuple 
+        of axes using the Numpy sum method.
+        """
+        return NXfield(np.sum(self.nxdata, axis), name=self.nxname, 
+                       attrs=self.safe_attrs)
+
+    def average(self, axis=None):
+        """
+        Returns the average of the NXfield. The sum is over a single axis or a 
+        tuple of axes using the Numpy average method. 
+        """
+        return NXfield(np.average(self.nxdata, axis), name=self.nxname, 
+                       attrs=self.safe_attrs)
+
     def reshape(self, shape):
         """
         Returns an NXfield with the specified shape.

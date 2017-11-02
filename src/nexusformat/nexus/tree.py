@@ -2879,7 +2879,7 @@ class NXfield(NXobject):
 SDS = NXfield # For backward compatibility
 
 
-class NXgroup(NXobject, dict):
+class NXgroup(NXobject):
 
     """
     A NeXus group object.

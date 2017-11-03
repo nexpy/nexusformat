@@ -338,7 +338,7 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', **kwds):
+    def __init__(self, name, mode='r', **opts):
         """
         Creates an h5py File object for reading and writing.
         """
@@ -350,7 +350,7 @@ class NXFile(object):
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
-            self._file = self.h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **opts)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -358,7 +358,7 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            self._file = self.h5.File(name, mode, **kwds)
+            self._file = self.h5.File(name, mode, **opts)
         self._filename = self._file.filename                             
         self._path = '/'
 
@@ -385,21 +385,21 @@ class NXFile(object):
     def __enter__(self):
         return self.open()
 
-    def __exit__(self, *args):
+    def __exit__(self, *items):
         self.close()
 
-    def get(self, *args, **kwds):
-        return self.file.get(*args, **kwds)
+    def get(self, *items, **opts):
+        return self.file.get(*items, **opts)
 
-    def copy(self, *args, **kwds):
-        self.file.copy(*args, **kwds)
+    def copy(self, *items, **opts):
+        self.file.copy(*items, **opts)
 
-    def open(self, **kwds):
+    def open(self, **opts):
         if not self.isopen():
             if self._mode == 'rw':
-                self._file = self.h5.File(self._filename, 'r+', **kwds)
+                self._file = self.h5.File(self._filename, 'r+', **opts)
             else:
-                self._file = self.h5.File(self._filename, self._mode, **kwds)
+                self._file = self.h5.File(self._filename, self._mode, **opts)
             self.nxpath = '/'
         return self
 
@@ -954,9 +954,10 @@ def _readaxes(axes):
     The delimiter separating each axis can be white space, a comma, or a colon.
     """
     if is_text(axes):
-        return list(re.split(r'[,:; ]', axes.strip('[]()').replace('][', ':')))
+        return list(re.split(r'[,:; ]', 
+                    text(axes).strip('[]()').replace('][', ':')))
     else:
-        return list(axes)
+        return [text(axis) for axis in axes]
 
 
 class AttrDict(dict):
@@ -1298,7 +1299,7 @@ class NXobject(object):
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name
-            if group.nxfilemode == 'rw':
+            if not isinstance(self, NXroot) and group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     f.rename(old_path, new_path)
             group.entries[name] = group.entries.pop(self._name)
@@ -2081,7 +2082,7 @@ class NXfield(NXobject):
             obj = self
         dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
-        dpcpy._name = copy(obj.nxname)
+        dpcpy._name = copy(self.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
         dpcpy._chunks = copy(obj.chunks)
@@ -2408,6 +2409,22 @@ class NXfield(NXobject):
         """
         return np.nanmax(self.nxdata[self.nxdata<np.inf], axis) 
 
+    def sum(self, axis=None):
+        """
+        Returns the sum of the NXfield. The sum is over a single axis or a tuple 
+        of axes using the Numpy sum method.
+        """
+        return NXfield(np.sum(self.nxdata, axis), name=self.nxname, 
+                       attrs=self.safe_attrs)
+
+    def average(self, axis=None):
+        """
+        Returns the average of the NXfield. The sum is over a single axis or a 
+        tuple of axes using the Numpy average method. 
+        """
+        return NXfield(np.average(self.nxdata, axis), name=self.nxname, 
+                       attrs=self.safe_attrs)
+
     def reshape(self, shape):
         """
         Returns an NXfield with the specified shape.
@@ -2419,8 +2436,9 @@ class NXfield(NXobject):
         """
         Returns an NXfield containing the transpose of the data array.
         """
-        return NXfield(value=self.nxdata.transpose(), name=self.nxname,
-                       attrs=self.safe_attrs)
+        value = self.nxdata.transpose()
+        return NXfield(value=value, name=self.nxname,
+                       shape=value.shape, attrs=self.safe_attrs)
 
     @property
     def T(self):
@@ -3311,7 +3329,7 @@ class NXgroup(NXobject):
         else:
             obj = self
         dpcpy = obj.__class__()
-        dpcpy._name = obj._name
+        dpcpy._name = self._name
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k,v in obj.items():
@@ -3391,9 +3409,30 @@ class NXgroup(NXobject):
 
     def has_key(self, name):
         """
-        Returns true if the NeXus object with the specified name is in the group.
+        Returns true if a NeXus object with the specified name is in the group.
         """
-        return self.entries.has_key(name)
+        return self.entries.has_key(name)    
+
+    def copy(self):
+        """
+        Returns a copy of the group's entries
+        """
+        return deepcopy(self)
+
+    def clear(self):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def pop(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def popitem(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def fromkeys(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
+
+    def setdefault(self, *items, **opts):
+        raise NeXusError("This method is not implemented for NXgroups")
 
     def component(self, nxclass):
         """
@@ -3984,10 +4023,6 @@ class NXroot(NXgroup):
         self._backup = None
         NXgroup.__init__(self, *items, **opts)
 
-    def rename(self, name):
-        self.nxname = name
-        self.set_changed()
-
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
@@ -4570,9 +4605,12 @@ class NXdata(NXgroup):
             else:
                 result = result.average(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
-            result[result.nxsignal.nxname] = result.nxsignal.transpose()
-            if result.nxerrors:
-                result[result.nxerrors.nxname] = result.nxerrors.transpose()
+            signal, errors = result.nxsignal, result.nxerrors
+            result[signal.nxname].replace(signal.transpose())
+            result.nxsignal = result[signal.nxname]
+            if errors:
+                result[errors.nxname].replace(errors.transpose())
+                result.nxerrors = result[errors.nxname]
             result.nxaxes = result.nxaxes[::-1]            
         return result        
 
@@ -4634,9 +4672,6 @@ class NXdata(NXgroup):
 
     @property
     def plot_axes(self):
-        def copy(axes):
-            return [NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
-                    for axis in axes]
         signal = self.nxsignal
         if signal is not None:
             if len(signal.shape) > len(signal.plot_shape):
@@ -4645,9 +4680,9 @@ class NXdata(NXgroup):
                 for i in range(signal.ndim):
                     if signal.shape[i] > 1: 
                         newaxes.append(axes[i])
-                return copy(newaxes)
+                return newaxes
             else:
-                return copy(self.nxaxes)
+                return self.nxaxes
         else:
             return None
 
@@ -4754,10 +4789,7 @@ class NXdata(NXgroup):
         def empty_axis(i):
             return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            if isinstance(axis, NXlink):
-                return axis.nxlink
-            else:
-                return axis
+            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
         try:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])

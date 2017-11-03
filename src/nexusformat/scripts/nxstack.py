@@ -220,7 +220,7 @@ def write_data(root, filenames, background_file=None):
     else:
         z_size = root.entry.data.data.shape[0]
         image_shape = root.entry.data.data.shape[1:3]
-        chunk_size = root.nxfile['/entry/data/data'].chunks[0]
+        chunk_size = root.entry.data.data.chunks[0]
         min_index = get_index(filenames[0])
         max_index = get_index(filenames[-1])
         k = 0

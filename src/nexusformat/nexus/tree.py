@@ -435,13 +435,16 @@ class NXFile(object):
         if item is not None:
             attrs = {}
             for key in item.attrs:
-                value = item.attrs[key]
-                if isinstance(value, np.ndarray) and value.shape == (1,):
-                    value = np.asscalar(value)
-                if isinstance(value, bytes):
-                    attrs[key] = text(value)
-                else:
-                    attrs[key] = value
+                try:
+                    value = item.attrs[key]
+                    if isinstance(value, np.ndarray) and value.shape == (1,):
+                        value = np.asscalar(value)
+                    if isinstance(value, bytes):
+                        attrs[key] = text(value)
+                    else:
+                        attrs[key] = value
+                except Exception:
+                    attrs[key] = None
             return attrs
         else:
             return {}
@@ -709,9 +712,8 @@ class NXFile(object):
         if field is not None:
             try:
                 return field[idx]
-            except IOError:
+            except Exception:
                 pass
-                
         return None
 
     def writevalue(self, path, value, idx=()):

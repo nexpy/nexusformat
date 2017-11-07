@@ -577,7 +577,7 @@ class NXFile(object):
                         return []
                 else:
                     self[self.nxparent].create_group(group.nxname)
-            if group.nxclass and group.nxclass != 'NXgroup':
+            if group.nxclass and group.nxclass != 'unknown':
                 self[self.nxpath].attrs['NX_class'] = group.nxclass
         links = []
         self._writeattrs(group.attrs)

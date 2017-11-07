@@ -1352,7 +1352,7 @@ class NXobject(object):
         >>> root.save()
         """
         if filename:
-            if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', 
+            if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', '.h5',
                                                      '.hdf', '.hdf5', '.cxi']:
                 filename = filename + '.nxs'
             if self.nxclass == "NXroot":

@@ -2745,7 +2745,8 @@ class NXfield(NXobject):
         elif self._memfile:
             raise NeXusError(
             "Cannot change the chunk sizes of a field already in core memory")
-        elif isinstance(value, (tuple, list, np.ndarray)) and len(value) != self.ndim:
+        elif (isinstance(value, (tuple, list, np.ndarray)) and 
+              len(value) != self.ndim):
             raise NeXusError(
                 "Number of chunks does not match the no. of array dimensions")
         self._chunks = tuple(value)

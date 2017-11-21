@@ -435,13 +435,16 @@ class NXFile(object):
         if item is not None:
             attrs = {}
             for key in item.attrs:
-                value = item.attrs[key]
-                if isinstance(value, np.ndarray) and value.shape == (1,):
-                    value = np.asscalar(value)
-                if isinstance(value, bytes):
-                    attrs[key] = text(value)
-                else:
-                    attrs[key] = value
+                try:
+                    value = item.attrs[key]
+                    if isinstance(value, np.ndarray) and value.shape == (1,):
+                        value = np.asscalar(value)
+                    if isinstance(value, bytes):
+                        attrs[key] = text(value)
+                    else:
+                        attrs[key] = value
+                except Exception:
+                    attrs[key] = None
             return attrs
         else:
             return {}
@@ -574,7 +577,7 @@ class NXFile(object):
                         return []
                 else:
                     self[self.nxparent].create_group(group.nxname)
-            if group.nxclass and group.nxclass != 'NXgroup':
+            if group.nxclass and group.nxclass != 'unknown':
                 self[self.nxpath].attrs['NX_class'] = group.nxclass
         links = []
         self._writeattrs(group.attrs)
@@ -709,9 +712,8 @@ class NXFile(object):
         if field is not None:
             try:
                 return field[idx]
-            except IOError:
+            except Exception:
                 pass
-                
         return None
 
     def writevalue(self, path, value, idx=()):
@@ -1350,7 +1352,7 @@ class NXobject(object):
         >>> root.save()
         """
         if filename:
-            if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', 
+            if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', '.h5',
                                                      '.hdf', '.hdf5', '.cxi']:
                 filename = filename + '.nxs'
             if self.nxclass == "NXroot":
@@ -2743,7 +2745,8 @@ class NXfield(NXobject):
         elif self._memfile:
             raise NeXusError(
             "Cannot change the chunk sizes of a field already in core memory")
-        elif isinstance(value, (tuple, list, np.ndarray)) and len(value) != self.ndim:
+        elif (isinstance(value, (tuple, list, np.ndarray)) and 
+              len(value) != self.ndim):
             raise NeXusError(
                 "Number of chunks does not match the no. of array dimensions")
         self._chunks = tuple(value)

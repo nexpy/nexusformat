@@ -3521,13 +3521,14 @@ class NXgroup(NXobject):
             axes = self.nxaxes
             averages = []
             for ax in axis:
-                summedaxis = deepcopy(axes.pop(ax))
+                summedaxis = deepcopy(axes[ax])
                 summedaxis.attrs["minimum"] = summedaxis.nxdata[0]
                 summedaxis.attrs["maximum"] = summedaxis.nxdata[-1]
                 summedaxis.attrs["summed_bins"] = summedaxis.size
                 averages.append(NXfield(
                     0.5*(summedaxis.nxdata[0]+summedaxis.nxdata[-1]), 
                     name=summedaxis.nxname,attrs=summedaxis.attrs))
+            axes = [axes[i] for i in range(len(axes)) if i not in axis]
             result = NXdata(signal, axes)
             summed_bins = 1
             for average in averages:

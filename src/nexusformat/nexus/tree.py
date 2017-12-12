@@ -1781,6 +1781,8 @@ class NXfield(NXobject):
                     value = slab.get([i,j,0],size)
 
     """
+    properties = ['mask', 'dtype', 'shape', 'compression', 'fillvalue', 
+                  'chunks', 'maxshape']
 
     def __init__(self, value=None, name='field', dtype=None, shape=None, 
                  group=None, attrs=None, **attr):
@@ -1856,7 +1858,8 @@ class NXfield(NXobject):
         name starts with 'nx' or '_', or unless it is one of the standard Python
         attributes for the NXfield class.
         """
-        if name.startswith('_') or name.startswith('nx'):
+        if (name.startswith('_') or name.startswith('nx') or 
+            name in self.properties):
             object.__setattr__(self, name, value)
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
@@ -4399,7 +4402,7 @@ class NXdata(NXgroup):
             result = NXdata(signal, axes, errors, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
-            if signal.mask:
+            if signal.mask is not None:
                 result[signal.mask.nxname] = signal.mask           
             if self.nxtitle:
                 result.title = self.nxtitle

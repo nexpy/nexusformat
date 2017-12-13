@@ -4370,6 +4370,18 @@ class NXdata(NXgroup):
             self["errors"] = errors
         self.attrs._setattrs(attrs)
 
+    def __setattr__(self, name, value):
+        """
+        Sets an attribute as an object or regular Python attribute.
+
+        This calls the NXgroup __setattr__ function unless the name is 'mask'
+        which is used to set signal masks.
+        """
+        if name == 'mask':
+            object.__setattr__(self, name, value)
+        else:
+            super(NXdata, self).__setattr__(name, value)
+
     def __getitem__(self, key):
         """
         Returns an entry in the group if the key is a string.
@@ -4882,6 +4894,25 @@ class NXdata(NXgroup):
             name = 'errors'
         self[name] = errors
         return self.entries[name]
+
+    @property
+    def mask(self):
+        """Returns the signal mask if one exists."""
+        if self.nxsignal is not None:
+            return self.nxsignal.mask
+        else:
+            return None
+
+    @mask.setter
+    def mask(self, value):
+        """Sets a value for the signal mask if it exists.
+        
+        This can only be used with a value of np.ma.nomask to remove the mask.
+        """
+        if value is np.ma.nomask and self.nxsignal.mask is not None:
+            self.nxsignal.mask = np.ma.nomask
+            if isinstance(self.nxsignal.mask, NXfield):
+                del self[self.nxsignal.mask.nxname]
 
 
 class NXmonitor(NXdata):

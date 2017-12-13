@@ -1216,7 +1216,7 @@ class NXobject(object):
     def __repr__(self):
         return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
 
-    def __contains__(self):
+    def __contains__(self, key):
         return None
 
     def _setattrs(self, attrs):

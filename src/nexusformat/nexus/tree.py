@@ -1898,7 +1898,7 @@ class NXfield(NXobject):
             elif self._memfile:
                 result = self._get_memdata(idx)
                 mask = self.mask
-                if not mask is None:
+                if mask is not None:
                     if isinstance(mask, NXfield):
                         mask = mask[idx].nxdata
                     else:
@@ -1926,6 +1926,8 @@ class NXfield(NXobject):
             if isinstance(value, np.bool_) and self.dtype != np.bool_:
                 raise NeXusError(
                     "Cannot set a Boolean value to a non-Boolean data type")
+            elif value == np.ma.nomask:
+                value = False
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':
@@ -1979,7 +1981,9 @@ class NXfield(NXobject):
     def _get_memdata(self, idx=()):
         result = self._memfile['data'][idx]
         if 'mask' in self._memfile:
-            result = np.ma.array(result, mask=self._memfile['mask'][idx])
+            mask = self._memfile['mask'][idx]
+            if mask.any():
+                result = np.ma.array(result, mask=mask)
         return result
     
     def _put_memdata(self, idx, value):
@@ -2042,7 +2046,7 @@ class NXfield(NXobject):
         """
         Create a data mask field if none exists
         """
-        if self.nxgroup:
+        if self.nxgroup is not None:
             if 'mask' in self.attrs:
                 mask_name = self.attrs['mask']
                 if mask_name in self.nxgroup:
@@ -2574,10 +2578,10 @@ class NXfield(NXobject):
             try:
                 if isinstance(self.mask, NXfield):
                     mask = self.mask.nxdata
-                if isinstance(self._value, np.ma.MaskedArray):
-                    self._value = np.ma.array(self._value.data, mask=mask)
-                else:
-                    self._value = np.ma.array(self._value, mask=mask)
+                    if isinstance(self._value, np.ma.MaskedArray):
+                        self._value.mask = mask
+                    else:
+                        self._value = np.ma.array(self._value, mask=mask)
             except Exception:
                 pass
         return self._value
@@ -2619,18 +2623,14 @@ class NXfield(NXobject):
     @property
     def mask(self):
         """
-        Returns the NXfield's mask as an array
+        Returns the NXfield's mask as an array.
 
         Only works if the NXfield is in a group and has the 'mask' attribute set
         or if the NXfield array is defined as a masked array.
         """
         if 'mask' in self.attrs:
-            if self.nxgroup:
-                try:
-                    return self.nxgroup[self.attrs['mask']]
-                except KeyError:
-                    pass
-            del self.attrs['mask']
+            if self.nxgroup and self.attrs['mask'] in self.nxgroup:
+                return self.nxgroup[self.attrs['mask']]
         if self._value is None and self._memfile:
             if 'mask' in self._memfile:
                 return self._memfile['mask']      
@@ -2641,6 +2641,8 @@ class NXfield(NXobject):
 
     @mask.setter
     def mask(self, value):
+        if self.nxfilemode == 'r':
+            raise NeXusError("NeXus file is locked")
         if 'mask' in self.attrs:
             if self.nxgroup:
                 mask_name = self.attrs['mask']
@@ -2650,10 +2652,14 @@ class NXfield(NXobject):
                 del self.attrs['mask']
         elif self._value is None:
             if self._memfile:
-                self._create_memmask()
+                if 'mask' not in self._memfile:
+                    self._create_memmask()
                 self._memfile['mask'][()] = value
         if self._value is not None:
-            self._value = np.ma.array(self._value, mask=value)
+            if isinstance(self._value, np.ma.MaskedArray):
+                self._value.mask = value
+            else:
+                self._value = np.ma.array(self._value, mask=value)
 
     @property
     def dtype(self):
@@ -4403,8 +4409,8 @@ class NXdata(NXgroup):
             result = NXdata(signal, axes, errors, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
-            if signal.mask is not None:
-                result[signal.mask.nxname] = signal.mask           
+            if self.nxsignal.mask is not None:
+                result[self.nxsignal.mask.nxname] = signal.mask           
             if self.nxtitle:
                 result.title = self.nxtitle
             return result

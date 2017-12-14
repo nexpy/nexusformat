@@ -1250,7 +1250,7 @@ class NXobject(object):
         Prints the current object and children (if any).
         """
         result = [self._str_name(indent=indent)]
-        if attrs and self.attrs:
+        if self.attrs and (attrs or indent==0):
             result.append(self._str_attrs(indent=indent+2))
         return "\n".join(result)
 
@@ -3661,7 +3661,7 @@ class NXgroup(NXobject):
         Prints the current object and children (if any).
         """
         result = [self._str_name(indent=indent)]
-        if attrs and self.attrs:
+        if self.attrs and (attrs or indent==0):
             result.append(self._str_attrs(indent=indent+2))
         entries = self.entries
         if entries:

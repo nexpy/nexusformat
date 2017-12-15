@@ -1535,6 +1535,12 @@ class NXobject(object):
     def is_external(self):
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
+    
+    def exists(self):
+        if self.nxfilename is not None:
+            return os.path.exists(self.nxfilename)
+        else:
+            return True
 
 
 class NXfield(NXobject):
@@ -2841,6 +2847,9 @@ class NXfield(NXobject):
 
         Raises NeXusError if the data could not be plotted.
         """
+        if not self.exists():
+            raise NeXusError("'%s' does not exist" % 
+                             os.path.abspath(self.nxfilename))
 
         try:
             from __main__ import plotview
@@ -4735,6 +4744,14 @@ class NXdata(NXgroup):
         Raises NeXusError if the data could not be plotted.
         """
 
+        # Check there is a plottable signal
+        if self.nxsignal is None:
+            raise NeXusError("No plotting signal defined")
+        elif not self.nxsignal.exists():
+            raise NeXusError("'%s' does not exist" % 
+                             os.path.abspath(self.nxfilename))
+
+        # Plot with the available plotter
         try:
             from __main__ import plotview
             if plotview is None:
@@ -4742,11 +4759,6 @@ class NXdata(NXgroup):
         except ImportError:
             from .plot import plotview
             
-        # Check there is a plottable signal
-        if self.nxsignal is None:
-            raise NeXusError("No plotting signal defined")
-
-        # Plot with the available plotter
         plotview.plot(self, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
     
     def oplot(self, fmt='', **opts):

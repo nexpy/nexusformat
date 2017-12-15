@@ -4048,14 +4048,25 @@ class NXroot(NXgroup):
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
-            self._mode = self._file.mode = 'r'
-            self.set_changed()
+            if self.exists():
+                self._mode = self._file.mode = 'r'
+                self.set_changed()
+            else:
+                raise NeXusError("'%s' does not exist" % 
+                                 os.path.abspath(self.nxfilename))
 
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
-            self._mode = self._file.mode = 'rw'
-            self.set_changed()
+            if self.exists():
+                self._mode = self._file.mode = 'rw'
+                self.set_changed()
+            else:
+                self._mode = None
+                self._file = None
+                self.set_changed()
+                raise NeXusError("'%s' does not exist" % 
+                                 os.path.abspath(self.nxfilename))
 
     def backup(self, filename=None, dir=None):
         """Backup the NeXus file.

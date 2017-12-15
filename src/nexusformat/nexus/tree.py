@@ -4422,7 +4422,8 @@ class NXdata(NXgroup):
             if errors is not None:
                 result.nxerrors = errors
             if self.nxsignal.mask is not None:
-                result[self.nxsignal.mask.nxname] = signal.mask           
+                if isinstance(self.nxsignal.mask, NXfield):
+                    result[self.nxsignal.mask.nxname] = signal.mask 
             if self.nxtitle:
                 result.title = self.nxtitle
             return result
@@ -4913,6 +4914,8 @@ class NXdata(NXgroup):
             self.nxsignal.mask = np.ma.nomask
             if isinstance(self.nxsignal.mask, NXfield):
                 del self[self.nxsignal.mask.nxname]
+            if 'mask' in self.nxsignal.attrs:
+                del self.nxsignal.attrs['mask']
 
 
 class NXmonitor(NXdata):

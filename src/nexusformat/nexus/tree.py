@@ -1216,7 +1216,7 @@ class NXobject(object):
     def __repr__(self):
         return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
 
-    def __contains__(self):
+    def __contains__(self, key):
         return None
 
     def _setattrs(self, attrs):
@@ -1250,7 +1250,7 @@ class NXobject(object):
         Prints the current object and children (if any).
         """
         result = [self._str_name(indent=indent)]
-        if attrs and self.attrs:
+        if self.attrs and (attrs or indent==0):
             result.append(self._str_attrs(indent=indent+2))
         return "\n".join(result)
 
@@ -1535,6 +1535,12 @@ class NXobject(object):
     def is_external(self):
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
+    
+    def exists(self):
+        if self.nxfilename is not None:
+            return os.path.exists(self.nxfilename)
+        else:
+            return True
 
 
 class NXfield(NXobject):
@@ -1781,6 +1787,8 @@ class NXfield(NXobject):
                     value = slab.get([i,j,0],size)
 
     """
+    properties = ['mask', 'dtype', 'shape', 'compression', 'fillvalue', 
+                  'chunks', 'maxshape']
 
     def __init__(self, value=None, name='field', dtype=None, shape=None, 
                  group=None, attrs=None, **attr):
@@ -1856,7 +1864,8 @@ class NXfield(NXobject):
         name starts with 'nx' or '_', or unless it is one of the standard Python
         attributes for the NXfield class.
         """
-        if name.startswith('_') or name.startswith('nx'):
+        if (name.startswith('_') or name.startswith('nx') or 
+            name in self.properties):
             object.__setattr__(self, name, value)
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
@@ -1895,7 +1904,7 @@ class NXfield(NXobject):
             elif self._memfile:
                 result = self._get_memdata(idx)
                 mask = self.mask
-                if not mask is None:
+                if mask is not None:
                     if isinstance(mask, NXfield):
                         mask = mask[idx].nxdata
                     else:
@@ -1923,6 +1932,8 @@ class NXfield(NXobject):
             if isinstance(value, np.bool_) and self.dtype != np.bool_:
                 raise NeXusError(
                     "Cannot set a Boolean value to a non-Boolean data type")
+            elif value == np.ma.nomask:
+                value = False
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':
@@ -1976,7 +1987,9 @@ class NXfield(NXobject):
     def _get_memdata(self, idx=()):
         result = self._memfile['data'][idx]
         if 'mask' in self._memfile:
-            result = np.ma.array(result, mask=self._memfile['mask'][idx])
+            mask = self._memfile['mask'][idx]
+            if mask.any():
+                result = np.ma.array(result, mask=mask)
         return result
     
     def _put_memdata(self, idx, value):
@@ -2039,7 +2052,7 @@ class NXfield(NXobject):
         """
         Create a data mask field if none exists
         """
-        if self.nxgroup:
+        if self.nxgroup is not None:
             if 'mask' in self.attrs:
                 mask_name = self.attrs['mask']
                 if mask_name in self.nxgroup:
@@ -2571,10 +2584,10 @@ class NXfield(NXobject):
             try:
                 if isinstance(self.mask, NXfield):
                     mask = self.mask.nxdata
-                if isinstance(self._value, np.ma.MaskedArray):
-                    self._value = np.ma.array(self._value.data, mask=mask)
-                else:
-                    self._value = np.ma.array(self._value, mask=mask)
+                    if isinstance(self._value, np.ma.MaskedArray):
+                        self._value.mask = mask
+                    else:
+                        self._value = np.ma.array(self._value, mask=mask)
             except Exception:
                 pass
         return self._value
@@ -2616,18 +2629,14 @@ class NXfield(NXobject):
     @property
     def mask(self):
         """
-        Returns the NXfield's mask as an array
+        Returns the NXfield's mask as an array.
 
         Only works if the NXfield is in a group and has the 'mask' attribute set
         or if the NXfield array is defined as a masked array.
         """
         if 'mask' in self.attrs:
-            if self.nxgroup:
-                try:
-                    return self.nxgroup[self.attrs['mask']]
-                except KeyError:
-                    pass
-            del self.attrs['mask']
+            if self.nxgroup and self.attrs['mask'] in self.nxgroup:
+                return self.nxgroup[self.attrs['mask']]
         if self._value is None and self._memfile:
             if 'mask' in self._memfile:
                 return self._memfile['mask']      
@@ -2638,6 +2647,8 @@ class NXfield(NXobject):
 
     @mask.setter
     def mask(self, value):
+        if self.nxfilemode == 'r':
+            raise NeXusError("NeXus file is locked")
         if 'mask' in self.attrs:
             if self.nxgroup:
                 mask_name = self.attrs['mask']
@@ -2647,10 +2658,14 @@ class NXfield(NXobject):
                 del self.attrs['mask']
         elif self._value is None:
             if self._memfile:
-                self._create_memmask()
+                if 'mask' not in self._memfile:
+                    self._create_memmask()
                 self._memfile['mask'][()] = value
         if self._value is not None:
-            self._value = np.ma.array(self._value, mask=value)
+            if isinstance(self._value, np.ma.MaskedArray):
+                self._value.mask = value
+            else:
+                self._value = np.ma.array(self._value, mask=value)
 
     @property
     def dtype(self):
@@ -2832,6 +2847,9 @@ class NXfield(NXobject):
 
         Raises NeXusError if the data could not be plotted.
         """
+        if not self.exists():
+            raise NeXusError("'%s' does not exist" % 
+                             os.path.abspath(self.nxfilename))
 
         try:
             from __main__ import plotview
@@ -3518,13 +3536,14 @@ class NXgroup(NXobject):
             axes = self.nxaxes
             averages = []
             for ax in axis:
-                summedaxis = deepcopy(axes.pop(ax))
+                summedaxis = deepcopy(axes[ax])
                 summedaxis.attrs["minimum"] = summedaxis.nxdata[0]
                 summedaxis.attrs["maximum"] = summedaxis.nxdata[-1]
                 summedaxis.attrs["summed_bins"] = summedaxis.size
                 averages.append(NXfield(
                     0.5*(summedaxis.nxdata[0]+summedaxis.nxdata[-1]), 
                     name=summedaxis.nxname,attrs=summedaxis.attrs))
+            axes = [axes[i] for i in range(len(axes)) if i not in axis]
             result = NXdata(signal, axes)
             summed_bins = 1
             for average in averages:
@@ -3651,7 +3670,7 @@ class NXgroup(NXobject):
         Prints the current object and children (if any).
         """
         result = [self._str_name(indent=indent)]
-        if attrs and self.attrs:
+        if self.attrs and (attrs or indent==0):
             result.append(self._str_attrs(indent=indent+2))
         entries = self.entries
         if entries:
@@ -4029,14 +4048,25 @@ class NXroot(NXgroup):
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
-            self._mode = self._file.mode = 'r'
-            self.set_changed()
+            if self.exists():
+                self._mode = self._file.mode = 'r'
+                self.set_changed()
+            else:
+                raise NeXusError("'%s' does not exist" % 
+                                 os.path.abspath(self.nxfilename))
 
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
-            self._mode = self._file.mode = 'rw'
-            self.set_changed()
+            if self.exists():
+                self._mode = self._file.mode = 'rw'
+                self.set_changed()
+            else:
+                self._mode = None
+                self._file = None
+                self.set_changed()
+                raise NeXusError("'%s' does not exist" % 
+                                 os.path.abspath(self.nxfilename))
 
     def backup(self, filename=None, dir=None):
         """Backup the NeXus file.
@@ -4360,6 +4390,18 @@ class NXdata(NXgroup):
             self["errors"] = errors
         self.attrs._setattrs(attrs)
 
+    def __setattr__(self, name, value):
+        """
+        Sets an attribute as an object or regular Python attribute.
+
+        This calls the NXgroup __setattr__ function unless the name is 'mask'
+        which is used to set signal masks.
+        """
+        if name == 'mask':
+            object.__setattr__(self, name, value)
+        else:
+            super(NXdata, self).__setattr__(name, value)
+
     def __getitem__(self, key):
         """
         Returns an entry in the group if the key is a string.
@@ -4399,8 +4441,9 @@ class NXdata(NXgroup):
             result = NXdata(signal, axes, errors, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
-            if signal.mask:
-                result[signal.mask.nxname] = signal.mask           
+            if self.nxsignal.mask is not None:
+                if isinstance(self.nxsignal.mask, NXfield):
+                    result[self.nxsignal.mask.nxname] = signal.mask 
             if self.nxtitle:
                 result.title = self.nxtitle
             return result
@@ -4712,6 +4755,14 @@ class NXdata(NXgroup):
         Raises NeXusError if the data could not be plotted.
         """
 
+        # Check there is a plottable signal
+        if self.nxsignal is None:
+            raise NeXusError("No plotting signal defined")
+        elif not self.nxsignal.exists():
+            raise NeXusError("'%s' does not exist" % 
+                             os.path.abspath(self.nxfilename))
+
+        # Plot with the available plotter
         try:
             from __main__ import plotview
             if plotview is None:
@@ -4719,11 +4770,6 @@ class NXdata(NXgroup):
         except ImportError:
             from .plot import plotview
             
-        # Check there is a plottable signal
-        if self.nxsignal is None:
-            raise NeXusError("No plotting signal defined")
-
-        # Plot with the available plotter
         plotview.plot(self, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
     
     def oplot(self, fmt='', **opts):
@@ -4872,6 +4918,27 @@ class NXdata(NXgroup):
             name = 'errors'
         self[name] = errors
         return self.entries[name]
+
+    @property
+    def mask(self):
+        """Returns the signal mask if one exists."""
+        if self.nxsignal is not None:
+            return self.nxsignal.mask
+        else:
+            return None
+
+    @mask.setter
+    def mask(self, value):
+        """Sets a value for the signal mask if it exists.
+        
+        This can only be used with a value of np.ma.nomask to remove the mask.
+        """
+        if value is np.ma.nomask and self.nxsignal.mask is not None:
+            self.nxsignal.mask = np.ma.nomask
+            if isinstance(self.nxsignal.mask, NXfield):
+                del self[self.nxsignal.mask.nxname]
+            if 'mask' in self.nxsignal.attrs:
+                del self.nxsignal.attrs['mask']
 
 
 class NXmonitor(NXdata):

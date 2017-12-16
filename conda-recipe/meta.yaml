@@ -1,10 +1,10 @@
 package:
   name: nexusformat
-  version: "0.4.13"
+  version: "0.4.14"
 
 source:
   git_url: https://github.com/nexpy/nexusformat.git
-  git_tag: v0.4.13
+  git_tag: v0.4.14
 
 build:
   entry_points:

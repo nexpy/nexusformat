@@ -4363,10 +4363,7 @@ class NXdata(NXgroup):
                 if isinstance(axis, NXfield) or isinstance(axis, NXlink):
                     if axis._name == "unknown": 
                         axis._name = "axis%s" % i
-                    if isinstance(axis, NXlink):
-                        self[axis.nxname] = axis.nxlink
-                    else:
-                        self[axis.nxname] = axis
+                    self[axis.nxname] = axis
                     axis_names[i] = axis.nxname
                 else:
                     axis_name = "axis%s" % i
@@ -4377,10 +4374,7 @@ class NXdata(NXgroup):
             if isinstance(signal, NXfield) or isinstance(signal, NXlink):
                 if signal.nxname == "unknown" or signal.nxname in self:
                     signal.nxname = "signal"
-                if isinstance(signal, NXlink):
-                    self[signal.nxname] = signal.nxlink
-                else:
-                    self[signal.nxname] = signal
+                self[signal.nxname] = signal
                 signal_name = signal.nxname
             else:
                 self["signal"] = signal

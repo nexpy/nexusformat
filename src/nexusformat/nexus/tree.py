@@ -3325,7 +3325,7 @@ class NXgroup(NXobject):
         """
         Compares the entries dictionaries
         """
-        if other is None: 
+        if not isinstance(other, NXgroup): 
             return False
         elif id(self) == id(other):
             return True

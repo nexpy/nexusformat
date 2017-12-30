@@ -3280,6 +3280,9 @@ class NXgroup(NXobject):
                         field._memfile.copy('mask', group[mask_name]._memfile, 
                                             'data')
                         del field._memfile['mask']
+            elif (isinstance(group.entries[key], NXentry) and 
+                  not isinstance(group, NXroot)):
+                  group.entries[key].nxclass = NXsubentry
             group.entries[key].update()
         else:
             raise NeXusError("Invalid key")
@@ -3475,8 +3478,7 @@ class NXgroup(NXobject):
                 name = value.nxname
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
-            self.entries[name] = deepcopy(value)
-            self.entries[name].nxgroup = self
+            self[name] = value
             self.update()
         else:
             if name in self.entries:

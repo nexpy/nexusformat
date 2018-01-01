@@ -1790,7 +1790,7 @@ class NXfield(NXobject):
     properties = ['mask', 'dtype', 'shape', 'compression', 'fillvalue', 
                   'chunks', 'maxshape']
 
-    def __init__(self, value=None, name='field', dtype=None, shape=None, 
+    def __init__(self, value=None, name='unknown', dtype=None, shape=None, 
                  group=None, attrs=None, **attr):
         self._class = 'NXfield'
         self._name = name
@@ -4352,7 +4352,7 @@ class NXdata(NXgroup):
     """
 
     def __init__(self, signal=None, axes=None, errors=None, *items, **opts):
-        self._class = "NXdata"
+        self._class = 'NXdata'
         NXgroup.__init__(self, *items, **opts)
         attrs = {}
         if axes is not None:
@@ -4363,27 +4363,35 @@ class NXdata(NXgroup):
             for axis in axes:
                 i += 1
                 if isinstance(axis, NXfield) or isinstance(axis, NXlink):
-                    if axis._name == "unknown": 
-                        axis._name = "axis%s" % i
+                    if axis._name == 'unknown': 
+                        axis._name = 'axis%s' % i
                     self[axis.nxname] = axis
                     axis_names[i] = axis.nxname
                 else:
-                    axis_name = "axis%s" % i
+                    axis_name = 'axis%s' % i
                     self[axis_name] = axis
                     axis_names[i] = axis_name
-            attrs["axes"] = list(axis_names.values())
+            attrs['axes'] = list(axis_names.values())
         if signal is not None:
             if isinstance(signal, NXfield) or isinstance(signal, NXlink):
-                if signal.nxname == "unknown" or signal.nxname in self:
-                    signal.nxname = "signal"
-                self[signal.nxname] = signal
-                signal_name = signal.nxname
+                if signal.nxname == 'unknown' or signal.nxname in self:
+                    signal_name = 'signal'
+                else:
+                    signal_name = signal.nxname
             else:
-                self["signal"] = signal
-                signal_name = "signal"
-            attrs["signal"] = signal_name
-        if errors is not None:
-            self["errors"] = errors
+                signal_name = 'signal'
+            self[signal_name] = signal
+            attrs['signal'] = signal_name
+            if errors is not None:
+                if isinstance(errors, NXfield):
+                    if errors.nxname == 'unknown' or errors.nxname in self:
+                        errors_name = signal_name+'_errors'
+                    else:
+                        errors_name = errors.nxname
+                else:
+                    errors_name = signal_name+'_errors'
+                self[errors_name] = errors
+                self[signal_name].attrs['uncertainties'] = errors_name
         self.attrs._setattrs(attrs)
 
     def __setattr__(self, name, value):

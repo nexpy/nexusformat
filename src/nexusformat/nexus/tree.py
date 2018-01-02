@@ -691,7 +691,7 @@ class NXFile(object):
         if field is None:
             return None, None, None, {}
         shape, dtype = field.shape, field.dtype
-        if shape == (1,):
+        if shape == (1,) and field.maxshape == (1,):
             shape = ()
         #Read in the data if it's not too large
         if np.prod(shape) < 1000:# i.e., less than 1k dims
@@ -938,7 +938,9 @@ def _getmaxshape(maxshape, shape):
     if shape is None:
         raise NeXusError("Define shape before setting maximum shape")
     else:
-        if len(maxshape) != len(shape):
+        if maxshape == (1,) and shape == ():
+            maxshape = ()
+        elif len(maxshape) != len(shape):
             raise NeXusError(
             "Number of dimensions in maximum shape does not match the field")
         else:
@@ -2770,9 +2772,12 @@ class NXfield(NXobject):
     def maxshape(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._maxshape = f[self.nxfilepath].maxshape
+                _maxshape = f[self.nxfilepath].maxshape
         elif self._memfile:
-            self._maxshape = self._memfile['data'].maxshape
+            _maxshape = self._memfile['data'].maxshape
+        else:
+            _maxshape = self.shape
+        self._maxshape = _getmaxshape(_maxshape, self.shape)
         return self._maxshape
 
     @maxshape.setter
@@ -3234,6 +3239,7 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
+                        print(key, value)
                         raise NeXusError("Invalid path")
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus group marked as readonly")

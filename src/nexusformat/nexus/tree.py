@@ -1934,7 +1934,7 @@ class NXfield(NXobject):
             if isinstance(value, np.bool_) and self.dtype != np.bool_:
                 raise NeXusError(
                     "Cannot set a Boolean value to a non-Boolean data type")
-            elif value == np.ma.nomask:
+            elif value is np.ma.nomask:
                 value = False
             if self._value is not None:
                 self._value[idx] = value

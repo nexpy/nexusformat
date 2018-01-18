@@ -4466,7 +4466,7 @@ class NXdata(NXgroup):
         elif self.nxsignal is not None:
             if isinstance(idx, numbers.Integral) or isinstance(idx, slice):
                 axis = self.nxaxes[0]
-                if self.nxsignal.shape[i] == axis.shape[0]:
+                if self.nxsignal.shape[0] == axis.shape[0]:
                     axis = axis.boundaries()
                 idx = convert_index(idx, axis)
                 self.nxsignal[idx] = value

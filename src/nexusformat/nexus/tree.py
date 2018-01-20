@@ -3268,10 +3268,10 @@ class NXgroup(NXobject):
             elif isinstance(value, NXlink):
                 if group.nxfilename != value.nxfilename:
                     value = NXlink(target=value._target, file=value.nxfilename,
-                                   name=key, group=group)
+                                   abspath=value.abspath, name=key, group=group)
                 else:
                     value = NXlink(target=value._target, file=value._filename,
-                                   name=key, group=group)
+                                   abspath=value.abspath, name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 value = deepcopy(value)

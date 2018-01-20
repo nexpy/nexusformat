@@ -3498,7 +3498,7 @@ class NXgroup(NXobject):
                 raise NeXusError("'%s' already exists in group" % name)
             self[name] = NXfield(value=value, name=name, group=self)
 
-    def makelink(self, target, name=None):
+    def makelink(self, target, name=None, abspath=False):
         """
         Creates a linked NXobject within the group.
 
@@ -3522,7 +3522,8 @@ class NXgroup(NXobject):
         if self.nxroot == target.nxroot:
             self[name] = NXlink(target=target)
         else:
-            self[name] = NXlink(target=target.nxpath, file=target.nxfilename)
+            self[name] = NXlink(target=target.nxpath, file=target.nxfilename,
+                                abspath=abspath)
  
     def sum(self, axis=None, averaged=False):
         """

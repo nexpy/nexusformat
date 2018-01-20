@@ -572,6 +572,7 @@ class NXFile(object):
             if group.nxname not in self[self.nxparent]:
                 if group._target is not None:
                     if group._filename is not None:
+                        self.nxpath = self.nxparent
                         self._writeexternal(group)
                         self.nxpath = self.nxparent
                         return []

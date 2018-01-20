@@ -1492,7 +1492,14 @@ class NXobject(object):
     @property
     def nxfilename(self):
         if self._filename is not None:
-            return os.path.abspath(self._filename)
+            if os.path.isabs(self._filename):
+                return self._filename
+            elif self._group is not None:
+                return os.path.abspath(
+                    os.path.join(os.path.dirname(self._group.nxfilename),
+                                 self._filename))
+            else:
+                return os.path.abspath(self._filename)
         elif self._group is not None:
             return self._group.nxfilename
         else:
@@ -3828,20 +3835,6 @@ class NXlink(NXobject):
             return self
 
     @property
-    def nxfilename(self):
-        if self._filename is not None:
-            if (self is self.nxroot or self.nxroot.nxfilename is None or
-                   os.path.isabs(self._filename)):
-                return self._filename
-            else:
-                return os.path.abspath(os.path.join(
-                    os.path.dirname(self.nxroot.nxfilename), self._filename))
-        elif self._group is not None:
-            return self._group.nxfilename
-        else:
-            return None
-
-    @property
     def attrs(self):
         if not self.is_external():
             return self.nxlink._attrs
@@ -3855,6 +3848,10 @@ class NXlink(NXobject):
             except Exception:
                 pass
             return self._attrs
+
+    @property
+    def abspath(self):
+        return self._abspath
 
     def is_external(self):
         if self._external is None:

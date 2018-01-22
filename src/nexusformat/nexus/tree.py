@@ -2602,7 +2602,7 @@ class NXfield(NXobject):
         """
         plot_axes = [axis for axis in axes if axis.size > 1]
         axis_shape = [axis.size for axis in plot_axes]
-        if (all(i == 1 for i in plot_axes.ndim) and 
+        if (all(axis.ndim == 1 for axis in plot_axes) and 
             len([x for x,y in zip(self.plot_shape, axis_shape) 
                  if x==y or x==y-1]) == self.plot_rank):
             return True

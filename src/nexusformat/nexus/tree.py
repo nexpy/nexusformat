@@ -2914,8 +2914,11 @@ class NXfield(NXobject):
 
         if self.is_plottable():
             data = NXdata(self, self.nxaxes, title=self.nxtitle)
+            if self.nxroot.nxclass == "NXroot":
+                label = self.nxroot.nxname + self.nxpath
             else:
-                data = NXdata(self, title=self.nxtitle)
+                label = self.nxpath
+            data.nxsignal.attrs['label'] = label
             plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
         else:
             raise NeXusError("NXfield not plottable")

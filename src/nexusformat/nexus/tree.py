@@ -2553,16 +2553,57 @@ class NXfield(NXobject):
         the signal in its parent group, a list of the parent group's axes will
         be returned. 
         """
-        try:
-            return [getattr(self.nxgroup, name) 
-                    for name in _readaxes(self.attrs['axes'])]
-        except KeyError:
-            try:
-                if self is self.nxgroup.nxsignal:
-                    return self.nxgroup.nxaxes
-            except Exception:
-                pass
-        return None
+        def invalid_axis(axis):
+            return axis.size != self.shape[i] and axis.size != self.shape[i]+1
+        def empty_axis(i):
+            return NXfield(np.arange(self.shape[i]), name='Axis%s'%i)
+        def plot_axis(axis):
+            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+        if self.nxgroup:
+            if 'axes' in self.attrs:
+                axis_names = _readaxes(self.attrs['axes'])
+            elif self.nxgroup and 'axes' in self.nxgroup.attrs:
+                axis_names = _readaxes(self.nxgroup.attrs['axes'])
+            else:
+                axis_names = ['.'] * self.plot_rank
+            axes = [None] * len(axis_names)
+            for i, axis_name in enumerate(axis_names):
+                axis_name = axis_name.strip()
+                if (axis_name not in self.nxgroup or  
+                    invalid_axis(self.nxgroup[axis_name])):
+                    axes[i] = empty_axis(i)
+                else:
+                    axes[i] = plot_axis(self.nxgroup[axis_name])
+            return axes
+        else:
+            return [empty_axis(i) for i in range(self.ndim)]
+
+    def valid_axes(self, axes):
+        """Return True if the axes are consistent with the field.
+        
+        It checks that all the axes are one-dimensional, and that the size of
+        each axis is equal to or one greater than the field dimension.
+        
+        Parameters
+        ----------
+        axes : list
+            List of NXfields
+        
+        Note
+        ----
+        The function removes scalar axes before the check even though these are 
+        returned by the nxaxes property. That is because ndim is 0 for scalars.
+        They are automatically removed when plotting so this does not 
+        invalidate the check.
+        """
+        plot_axes = [axis for axis in axes if axis.size > 1]
+        axis_shape = [axis.size for axis in plot_axes]
+        if (all(i == 1 for i in plot_axes.ndim) and 
+            len([x for x,y in zip(self.plot_shape, axis_shape) 
+                 if x==y or x==y-1]) == self.plot_rank):
+            return True
+        else:
+            return False
 
     @property
     def nxdata(self):
@@ -2872,10 +2913,7 @@ class NXfield(NXobject):
             from .plot import plotview
 
         if self.is_plottable():
-            if 'axes' in self.attrs:
-                axes = [getattr(self.nxgroup, name) 
-                        for name in _readaxes(self.attrs['axes'])]
-                data = NXdata(self, axes, title=self.nxtitle)
+            data = NXdata(self, self.nxaxes, title=self.nxtitle)
             else:
                 data = NXdata(self, title=self.nxtitle)
             plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)

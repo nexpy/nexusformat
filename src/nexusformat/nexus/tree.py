@@ -244,6 +244,8 @@ import sys
 import numpy as np
 import h5py as h5
 
+from .. import __version__ as nxversion
+
 #Memory in MB
 NX_MEMORY = 2000
 NX_COMPRESSION = 'gzip'
@@ -257,7 +259,8 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'NX_MEMORY', 'nxgetmemory', 'nxsetmemory', 
            'NX_COMPRESSION', 'nxgetcompression', 'nxsetcompression',
            'NX_ENCODING', 'nxgetencoding', 'nxsetencoding',
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo']
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
+           'nxversion']
 
 #List of defined base classes (later added to __all__)
 nxclasses = [ 'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 

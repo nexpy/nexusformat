@@ -1075,8 +1075,9 @@ class NXattr(object):
         return text(self.nxdata)
 
     def __repr__(self):
-        if (self.dtype is not None and
-                self.dtype.type == np.string_ or self.dtype == string_dtype):
+        if (self.dtype is not None and self.shape != () and
+            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+             self.dtype == string_dtype)):
             return "NXattr('%s')" % self
         else:
             return "NXattr(%s)" % self
@@ -1101,7 +1102,15 @@ class NXattr(object):
         Returns the attribute value.
         """
         try:
-            return self._value[()]
+            if (self.dtype is not None and
+                (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+                 self.dtype == string_dtype)):
+                if self.shape == ():
+                    return text(self._value)
+                else:
+                    return [text(value) for value in self._value[()]]
+            else:
+                return self._value[()]
         except TypeError:
             return self._value
 

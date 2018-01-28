@@ -465,14 +465,13 @@ class NXFile(object):
         else:
             return {}
 
-    def _readnxclass(self, attrs):
-        nxclass = attrs.get('NX_class', None)
-        if isinstance(nxclass, np.ndarray):
+    def _readclass(self, nxclass):
+        if is_iterable(nxclass):
             nxclass = nxclass[0]
-        if nxclass is not None:
-            return text(nxclass)
+        if nxclass is None:
+            return 'NXgroup'
         else:
-            return None
+            return text(nxclass)
 
     def _readlink(self):
         _target, _filename, _abspath = None, None, False
@@ -503,13 +502,9 @@ class NXFile(object):
         Reads the group with the current path and returns it as an NXgroup.
         """
         attrs = self._readattrs()
-        nxclass = self._readnxclass(attrs)
-        if nxclass is not None:
-            del attrs['NX_class']
-        elif self.nxpath == '/':
+        nxclass = self._readclass(attrs.pop('NX_class', 'NXgroup'))
+        if nxclass == 'NXgroup' and self.nxpath == '/':
             nxclass = 'NXroot'
-        else:
-            nxclass = 'NXgroup'
         children = self._readchildren()
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:

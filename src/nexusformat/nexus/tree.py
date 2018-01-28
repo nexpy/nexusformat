@@ -1614,8 +1614,8 @@ class NXfield(NXobject):
     This is a subclass of NXobject that contains scalar, array, or string data
     and associated NeXus attributes.
 
-    **Input Parameters**
-
+    Parameters
+    ----------
     value : scalar value, Numpy array, or string
         The numerical or string value of the NXfield, which is directly
         accessible as the NXfield attribute 'nxdata'.
@@ -1649,10 +1649,11 @@ class NXfield(NXobject):
         using the convention for unix file paths.
     group : NXgroup or subclass of NXgroup
         The parent NeXus object. If the NXfield is initialized as the attribute
-        of a parent group, this attribute is automatically set to the parent group.
+        of a parent group, this attribute is automatically set to the parent 
+        group.
 
-    **Python Attributes**
-
+    Attributes
+    ----------
     nxclass : 'NXfield'
         The class of the NXobject.
     nxname : string
@@ -1814,30 +1815,8 @@ class NXfield(NXobject):
     >>> np.sqrt(x)
     array([ 1.        ,  1.41421356,  1.73205081,  2.        ])
 
-    **Methods**
-
-    dir(self, attrs=False):
-        Print the NXfield specification.
-
-        This outputs the name, dimensions and data type of the NXfield.
-        If 'attrs' is True, NXfield attributes are displayed.
-
-    tree:
-        Returns the NXfield's tree.
-
-        It invokes the 'dir' method with both 'attrs' and 'recursive'
-        set to True. Note that this is defined as a property attribute and
-        does not require parentheses.
-
-
-    save(self, filename, format='w5')
-        Save the NXfield into a file wrapped in a NXroot group and NXentry group
-        with default names. This is equivalent to
-
-        >>> NXroot(NXentry(NXfield(...))).save(filename)
-
-    **Examples**
-
+    Examples
+    --------
     >>> x = NXfield(np.linspace(0,2*np.pi,101), units='degree')
     >>> phi = x.nxdata_as(units='radian')
     >>> y = NXfield(np.sin(phi))
@@ -3063,7 +3042,8 @@ class NXgroup(NXobject):
     entries : dictionary
         A dictionary of all the NeXus objects contained within an NXgroup.
     attrs : dictionary
-        A dictionary of all the NeXus attributes, i.e., attribute with class NXattr.
+        A dictionary of all the NeXus attributes, i.e., attribute with class 
+        NXattr.
     entries : dictionary
         A dictionary of all the NeXus objects contained within the group.
     attrs : dictionary
@@ -5051,7 +5031,7 @@ class NXmonitor(NXdata):
     See the NXdata and NXgroup documentation for more details.
     """
 
-    def __init__(self, signal=None, axes=(), *items, **opts):
+    def __init__(self, signal=None, axes=None, *items, **opts):
         NXdata.__init__(self, signal=signal, axes=axes, *items, **opts)
         self._class = "NXmonitor"
         if "name" not in opts:

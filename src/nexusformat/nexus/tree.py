@@ -2839,8 +2839,7 @@ class NXfield(NXobject):
         elif self._memfile:
             raise NeXusError(
             "Cannot change the chunk sizes of a field already in core memory")
-        elif (isinstance(value, (tuple, list, np.ndarray)) and 
-              len(value) != self.ndim):
+        elif is_iterable(value) and len(value) != self.ndim:
             raise NeXusError(
                 "Number of chunks does not match the no. of array dimensions")
         self._chunks = tuple(value)
@@ -4430,7 +4429,7 @@ class NXdata(NXgroup):
         NXgroup.__init__(self, *items, **opts)
         attrs = {}
         if axes is not None:
-            if not isinstance(axes, tuple) and not isinstance(axes, list):
+            if not is_iterable(axes):
                 axes = [axes]
             axis_names = {}
             i = 0
@@ -4704,7 +4703,7 @@ class NXdata(NXgroup):
         
         This assumes that the data is at least two-dimensional.
         """
-        if not isinstance(axes, list) and not isinstance(axes, tuple):
+        if not is_iterable(axes):
             axes = [axes]
         if len(limits) < len(self.nxsignal.shape):
             raise NeXusError("Too few limits specified")
@@ -4954,7 +4953,7 @@ class NXdata(NXgroup):
         The argument should be a list of valid NXfields, which are added, if 
         necessary to the group. Values of None in the list denote missing axes. 
         """
-        if not isinstance(axes, list) and not isinstance(axes, tuple):
+        if not is_iterable(axes):
             axes = [axes]
         axes_attr = []
         for axis in axes:
@@ -5145,8 +5144,7 @@ def convert_index(idx, axis):
     if is_real_slice(idx) and axis.ndim > 1: 
         raise NeXusError(
             "NXfield must be one-dimensional for floating point slices")
-    elif ((isinstance(idx, tuple) or isinstance(idx, list)) and 
-             len(idx) > axis.ndim):
+    elif is_iterable(idx) and len(idx) > axis.ndim:
         raise NeXusError("Slice dimension incompatible with NXfield")
     if len(axis) == 1:
         idx = 0

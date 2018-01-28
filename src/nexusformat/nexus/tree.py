@@ -480,9 +480,14 @@ class NXFile(object):
             _target, _filename = _link.path, _link.filename
             _abspath = os.path.isabs(_filename)
         elif 'target' in self.attrs:
-            _target = text(self.attrs['target'])
+            _target = self.attrs['target']
+            if is_iterable(_target):
+                _target = _target[0]
+            _target = text(_target)
             if  _target == self.nxpath:
                 _target = None
+            elif _target is not None:
+                _target = text(_target)
         return _target, _filename, _abspath
 
     def _readchildren(self):

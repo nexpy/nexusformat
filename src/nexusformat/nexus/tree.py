@@ -302,6 +302,18 @@ def is_text(value):
         return False
 
 
+def is_iterable(obj):
+    """Return true if the argument is iterable excluding strings."""
+    if is_text(obj):
+        return False
+    else:
+        try:
+            iter(obj)
+        except TypeError:
+            return False
+        return True
+
+
 def natural_sort(key):
     """Sort numbers according to their value, not their first character"""
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]    

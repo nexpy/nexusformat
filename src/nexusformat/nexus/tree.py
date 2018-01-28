@@ -303,8 +303,8 @@ def is_text(value):
 
 
 def is_iterable(obj):
-    """Return true if the argument is iterable excluding strings."""
-    if is_text(obj):
+    """Return true if the argument is iterable excluding strings and fields."""
+    if is_text(obj) or isinstance(obj, NXfield):
         return False
     else:
         try:
@@ -395,7 +395,7 @@ class NXFile(object):
         del self.file[name]
 
     def __contains__(self, key):
-        """Implements 'k in d' test"""
+        """Implements 'k in d' test for entries in the file."""
         return self.file.__contains__(key)
 
     def __enter__(self):
@@ -474,13 +474,11 @@ class NXFile(object):
             _target, _filename = _link.path, _link.filename
             _abspath = os.path.isabs(_filename)
         elif 'target' in self.attrs:
-            _target = self.attrs['target']
             if is_iterable(_target):
                 _target = _target[0]
+            _target = text(self.attrs['target'])
             if  _target == self.nxpath:
                 _target = None
-            elif _target is not None:
-                _target = text(_target)
         return _target, _filename, _abspath
 
     def _readchildren(self):
@@ -1268,7 +1266,7 @@ class NXobject(object):
         return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
 
     def __contains__(self, key):
-        return None
+        return False
 
     def _setattrs(self, attrs):
         for k,v in attrs.items():
@@ -2152,6 +2150,16 @@ class NXfield(NXobject):
             del dpcpy.attrs['target']
         return dpcpy
 
+    def __iter__(self):
+        """
+        Implements key iteration
+        """
+        return self.nxvalue.__iter__()
+            
+    def __contains__(self, key):
+        """Implements 'k in d' test using the NXfield nxvalue."""
+        return self.nxvalue.__contains__(key)
+
     def __len__(self):
         """
         Returns the length of the NXfield data.
@@ -2620,6 +2628,8 @@ class NXfield(NXobject):
         They are automatically removed when plotting so this does not 
         invalidate the check.
         """
+        if not is_iterable(axes):
+            axes = [axes]
         plot_axes = [axis for axis in axes if axis.size > 1]
         axis_shape = [axis.size for axis in plot_axes]
         if (all(axis.ndim == 1 for axis in plot_axes) and 
@@ -3419,15 +3429,12 @@ class NXgroup(NXobject):
 
     def __contains__(self, key):
         """
-        Implements 'k in d' test
+        Implements 'k in d' test using the group's entries.
         """
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            try:
-                return isinstance(self.entries[key], NXobject)
-            except Exception:
-                return False
+            return self.entries.__contains__(key)
 
     def __eq__(self, other):
         """

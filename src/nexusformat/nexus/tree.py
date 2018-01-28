@@ -452,13 +452,7 @@ class NXFile(object):
             attrs = {}
             for key in item.attrs:
                 try:
-                    value = item.attrs[key]
-                    if isinstance(value, np.ndarray) and value.shape == (1,):
-                        value = np.asscalar(value)
-                    if isinstance(value, bytes):
-                        attrs[key] = text(value)
-                    else:
-                        attrs[key] = value
+                    attrs[key] = item.attrs[key]
                 except Exception:
                     attrs[key] = None
             return attrs
@@ -985,9 +979,21 @@ def _readaxes(axes):
 
 
 class AttrDict(dict):
-
-    """
-    A dictionary class to assign all attributes to the NXattr class.
+    """A dictionary class used to assign and return values to NXattr instances.
+    
+    This is used to control the initialization of the NXattr objects and the
+    return of their values. For example, attributes that contain string or byte
+    arrays are returned as lists of (unicode) strings. Size-1 arrays are 
+    returned as scalars. The 'get' function can be used to return the original 
+    array. If the attribute are stored in a NeXus file with read/write access,
+    their values are automatically updated.
+    
+    Parameters
+    ----------
+    parent : NXobject
+        The field or group to which the attributes belong.
+    attrs : dict
+        A dictionary containing the first set of attributes.   
     """
 
     def __init__(self, parent=None, attrs={}):
@@ -1000,20 +1006,25 @@ class AttrDict(dict):
             super(AttrDict, self).__setitem__(key, NXattr(value))
     
     def __getitem__(self, key):
-        return super(AttrDict, self).__getitem__(key).nxdata
+        """Returns the value of the requested NXattr object."""
+        return super(AttrDict, self).__getitem__(key).value
 
     def __setitem__(self, key, value):
+        """Creates a new entry in the dictionary."""
         if value is None:
             return
+        elif self._parent and self._parent.nxfilemode == 'w':
+            raise NeXusError("NeXus file opened as readonly")
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(text(key), value)
         else:
             super(AttrDict, self).__setitem__(text(key), NXattr(value))
-        if self._parent.nxfilemode == 'rw':
+        if self._parent and self._parent.nxfilemode == 'rw':
             with self._parent.nxfile as f:
                 f.update(self)
 
     def __delitem__(self, key):
+        """Deletes an entry from the dictionary."""
         super(AttrDict, self).__delitem__(key)
         try:
             if self._parent.nxfilemode == 'rw':
@@ -1023,30 +1034,33 @@ class AttrDict(dict):
         except Exception:
             pass
 
+    def get(self, key, default=None):
+        """Retrieves the NXattr object stored in the dictionary."""
+        try:
+            return super(AttrDict, self).__getitem__(key)
+        except KeyError:
+            return default
+
     @property
     def nxpath(self):
         return self._parent.nxpath
 
 class NXattr(object):
+    """Class for NeXus attributes of a NXfield or NXgroup object.
 
-    """
-    Class for NeXus attributes of a NXfield or NXgroup object.
-
-    This class is only used for NeXus attributes that are stored in a
-    NeXus file and helps to distinguish them from Python attributes.
-    There are two Python attributes for each NeXus attribute.
-
-    **Python Attributes**
-
+    Attributes
+    ----------
+    value : string, Numpy scalar, or Numpy ndarray
+        The value of the NeXus attribute modified as described below.
     nxdata : string, Numpy scalar, or Numpy ndarray
-        The value of the NeXus attribute.
+        The unmodified value of the NeXus attribute.
     dtype : string
-        The data type of the NeXus attribute. This is set to 'char' for
-        a string attribute or the string of the corresponding Numpy data type
-        for a numeric attribute.
+        The data type of the NeXus attribute value.
+    shape : tuple
+        The shape of the NeXus attribute value.
 
-    **NeXus Attributes**
-
+    Note
+    ----
     NeXus attributes are stored in the 'attrs' dictionary of the parent object,
     NXfield or NXgroup, but can often be referenced or assigned using the
     attribute name as if it were an object attribute.
@@ -1059,8 +1073,8 @@ class NXattr(object):
         >>> entry.sample.temperature.units = NXattr('K')
         >>> entry.sample.temperature.units = 'K'
 
-    The fourth version above is only allowed for NXfield attributes and is
-    not allowed if the attribute has the same name as one of the following
+    The last version above is only allowed for NXfield attributes and is not 
+    allowed if the attribute has the same name as one of the following
     internally defined attributes, i.e.,
 
     ['entries', 'attrs', 'dtype','shape']
@@ -1068,7 +1082,6 @@ class NXattr(object):
     or if the attribute name begins with 'nx' or '_'. It is only possible to
     reference attributes with one of the proscribed names using the 'attrs'
     dictionary.
-
     """
 
     def __init__(self, value=None, dtype=None, shape=None):
@@ -1082,7 +1095,7 @@ class NXattr(object):
 
     def __str__(self):
         if six.PY3:
-            return text(self.nxdata)
+            return text(self.value)
         else:
             return text(self.nxdata).encode(NX_ENCODING)
 
@@ -1090,7 +1103,8 @@ class NXattr(object):
         return text(self.nxdata)
 
     def __repr__(self):
-        if (self.dtype is not None and self.shape != () and
+        if (self.dtype is not None and 
+            (self.shape == () or self.shape == (1,)) and 
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
             return "NXattr('%s')" % self
@@ -1098,9 +1112,7 @@ class NXattr(object):
             return "NXattr(%s)" % self
 
     def __eq__(self, other):
-        """
-        Returns true if the value of the attribute is the same as the other.
-        """
+        """Returns true if the values of the two attributes are the same."""
         if id(self) == id(other):
             return True
         elif isinstance(other, NXattr):
@@ -1112,22 +1124,35 @@ class NXattr(object):
         return id(self)
 
     @property
-    def nxdata(self):
+    def value(self):
+        """Returns the attribute value.
+        
+        This is usually the value stored in the NeXus file, with the following
+        exceptions.
+            1) Size-1 arrays are returned as scalars.
+            2) String or byte arrays are returns as a list of strings.
+        Unmodified values are returned by the 'nxdata' function.
         """
-        Returns the attribute value.
-        """
-        try:
-            if (self.dtype is not None and
-                (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
-                 self.dtype == string_dtype)):
-                if self.shape == ():
-                    return text(self._value)
-                else:
-                    return [text(value) for value in self._value[()]]
+        if self._value is None:
+            return ''
+        elif (self.dtype is not None and
+            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+             self.dtype == string_dtype)):
+            if self.shape == ():
+                return text(self._value)
+            elif self.shape == (1,):
+                return text(self._value[0])
             else:
-                return self._value[()]
-        except TypeError:
+                return [text(value) for value in self._value[()]]
+        elif self.shape == (1,):
+            return self._value[0]
+        else:
             return self._value
+
+    @property
+    def nxdata(self):
+        """Returns the unmodified attribute value."""
+        return self._value
 
     @property
     def dtype(self):

@@ -477,7 +477,6 @@ class NXFile(object):
             _target = self.attrs['target']
             if is_iterable(_target):
                 _target = _target[0]
-            _target = text(_target)
             if  _target == self.nxpath:
                 _target = None
             elif _target is not None:
@@ -4840,6 +4839,9 @@ class NXdata(NXgroup):
         # Check there is a plottable signal
         if self.nxsignal is None:
             raise NeXusError("No plotting signal defined")
+        elif (self.nxaxes is not None and 
+              not self.nxsignal.valid_axes(self.nxaxes)):
+            raise NeXusError("Defined axes not compatible with the signal")
         elif not self.nxsignal.exists():
             raise NeXusError("'%s' does not exist" % 
                              os.path.abspath(self.nxfilename))

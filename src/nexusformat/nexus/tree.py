@@ -701,14 +701,10 @@ class NXFile(object):
         if field is None:
             return None, None, None, {}
         shape, dtype = field.shape, field.dtype
-        if shape == (1,) and field.maxshape == (1,):
-            shape = ()
         #Read in the data if it's not too large
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-                if isinstance(value, np.ndarray) and value.shape == (1,):
-                    value = np.asscalar(value)
             except ValueError:
                 value = None
         else:
@@ -1006,7 +1002,7 @@ class AttrDict(dict):
     
     def __getitem__(self, key):
         """Returns the value of the requested NXattr object."""
-        return super(AttrDict, self).__getitem__(key).value
+        return super(AttrDict, self).__getitem__(key).nxvalue
 
     def __setitem__(self, key, value):
         """Creates a new entry in the dictionary."""
@@ -1049,7 +1045,7 @@ class NXattr(object):
 
     Attributes
     ----------
-    value : string, Numpy scalar, or Numpy ndarray
+    nxvalue : string, Numpy scalar, or Numpy ndarray
         The value of the NeXus attribute modified as described below.
     nxdata : string, Numpy scalar, or Numpy ndarray
         The unmodified value of the NeXus attribute.
@@ -1093,13 +1089,10 @@ class NXattr(object):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
 
     def __str__(self):
-        if six.PY3:
-            return text(self.value)
-        else:
-            return text(self.nxdata).encode(NX_ENCODING)
+        return text(self.nxvalue)
 
     def __unicode__(self):
-        return text(self.nxdata)
+        return text(self.nxvalue)
 
     def __repr__(self):
         if (self.dtype is not None and 
@@ -1123,14 +1116,17 @@ class NXattr(object):
         return id(self)
 
     @property
-    def value(self):
+    def nxvalue(self):
         """Returns the attribute value.
         
-        This is usually the value stored in the NeXus file, with the following
+        This is the value stored in the NeXus file, with the following
         exceptions.
             1) Size-1 arrays are returned as scalars.
             2) String or byte arrays are returns as a list of strings.
-        Unmodified values are returned by the 'nxdata' function.
+        
+        Note
+        ----
+        If unmodified values are required, use the 'nxdata' property.
         """
         if self._value is None:
             return ''
@@ -1144,7 +1140,7 @@ class NXattr(object):
             else:
                 return [text(value) for value in self._value[()]]
         elif self.shape == (1,):
-            return self._value[0]
+            return np.asscalar(self._value)
         else:
             return self._value
 
@@ -1871,21 +1867,18 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            return "NXfield(%s)" % repr(self._value)
+            return "NXfield(%s)" % repr(self.nxvalue)
         else:
             return "NXfield(shape=%s, dtype=%s)" % (self.shape, self.dtype)
 
     def __str__(self):
         if self._value is not None:
-            if six.PY3:
-                return text(self._value)
-            else:
-                return text(self._value).encode(NX_ENCODING)
+            return text(self.nxvalue)
         return ""
 
     def __unicode__(self):
         if self._value is not None:
-            return text(self._value)
+            return text(self.nxvalue)
         return u""
 
     def __getattr__(self, name):
@@ -2637,10 +2630,36 @@ class NXfield(NXobject):
             return False
 
     @property
+    def nxvalue(self):
+        """Returns the NXfield value.
+        
+        This is the value stored in the NeXus file, with the following
+        exceptions.
+            1) Size-1 arrays are returned as scalars.
+            2) String or byte arrays are returns as a list of strings.
+
+        Note
+        ----
+        If unmodified values are required, use the 'nxdata' property.
+        """
+        _value = self.nxdata
+        if (self.dtype is not None and
+            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+             self.dtype == string_dtype)):
+            if self.shape == ():
+                return text(_value)
+            elif self.shape == (1,):
+                return text(_value[0])
+            else:
+                return [text(value) for value in _value[()]]
+        elif self.shape == (1,):
+            return np.asscalar(_value)
+        else:
+            return _value
+
+    @property
     def nxdata(self):
-        """
-        Returns the data if it is not larger than NX_MEMORY.
-        """
+        """Returns the NXfield data if it is not larger than NX_MEMORY."""
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None

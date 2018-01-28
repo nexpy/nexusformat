@@ -943,17 +943,20 @@ def _getshape(shape):
         return None
     else:
         try:
-            if not isinstance(shape, (list, tuple, np.ndarray)):
+            if not is_iterable(shape):
                 shape = [shape]
-            return tuple([int(i) for i in shape])
+            if None in shape:
+                return None
+            else:
+                return tuple([int(i) for i in shape])
         except ValueError:
             raise NeXusError("Invalid shape: %s" % str(shape))
 
     
 def _getmaxshape(maxshape, shape):
     maxshape, shape = _getshape(maxshape), _getshape(shape)
-    if shape is None:
-        raise NeXusError("Define shape before setting maximum shape")
+    if maxshape is None or shape is None:
+        return None
     else:
         if maxshape == (1,) and shape == ():
             maxshape = ()

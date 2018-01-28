@@ -5078,9 +5078,9 @@ class NXlog(NXgroup):
         'opts' dictionary.
         """
         title = NXfield("%s Log" % self.nxname)
-        if 'start' in self.time.attrs:
-            title = title + ' - starting at ' + self.time.attrs['start']
-        NXdata(self.value, self.time, title=title).plot(**opts)
+        if 'start' in self['time'].attrs:
+            title = title + ' - starting at ' + self['time'].attrs['start']
+        NXdata(self['value'], self['time'], title=title).plot(**opts)
 
 
 class NXprocess(NXgroup):

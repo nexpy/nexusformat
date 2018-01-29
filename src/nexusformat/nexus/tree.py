@@ -303,15 +303,8 @@ def is_text(value):
 
 
 def is_iterable(obj):
-    """Return true if the argument is iterable excluding strings and fields."""
-    if is_text(obj) or isinstance(obj, NXfield):
-        return False
-    else:
-        try:
-            iter(obj)
-        except TypeError:
-            return False
-        return True
+    """Return true if the argument is a tuple or list."""
+    return isinstance(obj, list) or isinstance(obj, tuple)
 
 
 def natural_sort(key):

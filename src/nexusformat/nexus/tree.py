@@ -302,6 +302,18 @@ def is_text(value):
         return False
 
 
+def is_iterable(obj):
+    """Return true if the argument is iterable excluding strings and fields."""
+    if is_text(obj) or isinstance(obj, NXfield):
+        return False
+    else:
+        try:
+            iter(obj)
+        except TypeError:
+            return False
+        return True
+
+
 def natural_sort(key):
     """Sort numbers according to their value, not their first character"""
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]    
@@ -383,7 +395,7 @@ class NXFile(object):
         del self.file[name]
 
     def __contains__(self, key):
-        """Implements 'k in d' test"""
+        """Implements 'k in d' test for entries in the file."""
         return self.file.__contains__(key)
 
     def __enter__(self):
@@ -440,27 +452,20 @@ class NXFile(object):
             attrs = {}
             for key in item.attrs:
                 try:
-                    value = item.attrs[key]
-                    if isinstance(value, np.ndarray) and value.shape == (1,):
-                        value = np.asscalar(value)
-                    if isinstance(value, bytes):
-                        attrs[key] = text(value)
-                    else:
-                        attrs[key] = value
+                    attrs[key] = item.attrs[key]
                 except Exception:
                     attrs[key] = None
             return attrs
         else:
             return {}
 
-    def _readnxclass(self, attrs):
-        nxclass = attrs.get('NX_class', None)
-        if isinstance(nxclass, np.ndarray):
+    def _readclass(self, nxclass):
+        if is_iterable(nxclass):
             nxclass = nxclass[0]
-        if nxclass is not None:
-            return text(nxclass)
+        if nxclass is None:
+            return 'NXgroup'
         else:
-            return None
+            return text(nxclass)
 
     def _readlink(self):
         _target, _filename, _abspath = None, None, False
@@ -469,6 +474,8 @@ class NXFile(object):
             _target, _filename = _link.path, _link.filename
             _abspath = os.path.isabs(_filename)
         elif 'target' in self.attrs:
+            if is_iterable(_target):
+                _target = _target[0]
             _target = text(self.attrs['target'])
             if  _target == self.nxpath:
                 _target = None
@@ -491,13 +498,9 @@ class NXFile(object):
         Reads the group with the current path and returns it as an NXgroup.
         """
         attrs = self._readattrs()
-        nxclass = self._readnxclass(attrs)
-        if nxclass is not None:
-            del attrs['NX_class']
-        elif self.nxpath == '/':
+        nxclass = self._readclass(attrs.pop('NX_class', 'NXgroup'))
+        if nxclass == 'NXgroup' and self.nxpath == '/':
             nxclass = 'NXroot'
-        else:
-            nxclass = 'NXgroup'
         children = self._readchildren()
         _target, _filename, _abspath = self._readlink()
         if self.nxpath != '/' and _target is not None:
@@ -696,14 +699,10 @@ class NXFile(object):
         if field is None:
             return None, None, None, {}
         shape, dtype = field.shape, field.dtype
-        if shape == (1,) and field.maxshape == (1,):
-            shape = ()
         #Read in the data if it's not too large
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-                if isinstance(value, np.ndarray) and value.shape == (1,):
-                    value = np.asscalar(value)
             except ValueError:
                 value = None
         else:
@@ -931,17 +930,20 @@ def _getshape(shape):
         return None
     else:
         try:
-            if not isinstance(shape, (list, tuple, np.ndarray)):
+            if not is_iterable(shape):
                 shape = [shape]
-            return tuple([int(i) for i in shape])
+            if None in shape:
+                return None
+            else:
+                return tuple([int(i) for i in shape])
         except ValueError:
             raise NeXusError("Invalid shape: %s" % str(shape))
 
     
 def _getmaxshape(maxshape, shape):
     maxshape, shape = _getshape(maxshape), _getshape(shape)
-    if shape is None:
-        raise NeXusError("Define shape before setting maximum shape")
+    if maxshape is None or shape is None:
+        return None
     else:
         if maxshape == (1,) and shape == ():
             maxshape = ()
@@ -970,9 +972,21 @@ def _readaxes(axes):
 
 
 class AttrDict(dict):
-
-    """
-    A dictionary class to assign all attributes to the NXattr class.
+    """A dictionary class used to assign and return values to NXattr instances.
+    
+    This is used to control the initialization of the NXattr objects and the
+    return of their values. For example, attributes that contain string or byte
+    arrays are returned as lists of (unicode) strings. Size-1 arrays are 
+    returned as scalars. The 'get' function can be used to return the original 
+    array. If the attribute are stored in a NeXus file with read/write access,
+    their values are automatically updated.
+    
+    Parameters
+    ----------
+    parent : NXobject
+        The field or group to which the attributes belong.
+    attrs : dict
+        A dictionary containing the first set of attributes.   
     """
 
     def __init__(self, parent=None, attrs={}):
@@ -985,20 +999,25 @@ class AttrDict(dict):
             super(AttrDict, self).__setitem__(key, NXattr(value))
     
     def __getitem__(self, key):
-        return super(AttrDict, self).__getitem__(key).nxdata
+        """Returns the value of the requested NXattr object."""
+        return super(AttrDict, self).__getitem__(key).nxvalue
 
     def __setitem__(self, key, value):
+        """Creates a new entry in the dictionary."""
         if value is None:
             return
+        elif self._parent and self._parent.nxfilemode == 'w':
+            raise NeXusError("NeXus file opened as readonly")
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(text(key), value)
         else:
             super(AttrDict, self).__setitem__(text(key), NXattr(value))
-        if self._parent.nxfilemode == 'rw':
+        if self._parent and self._parent.nxfilemode == 'rw':
             with self._parent.nxfile as f:
                 f.update(self)
 
     def __delitem__(self, key):
+        """Deletes an entry from the dictionary."""
         super(AttrDict, self).__delitem__(key)
         try:
             if self._parent.nxfilemode == 'rw':
@@ -1008,30 +1027,33 @@ class AttrDict(dict):
         except Exception:
             pass
 
+    def get(self, key, default=None):
+        """Retrieves the NXattr object stored in the dictionary."""
+        try:
+            return super(AttrDict, self).__getitem__(key)
+        except KeyError:
+            return default
+
     @property
     def nxpath(self):
         return self._parent.nxpath
 
 class NXattr(object):
+    """Class for NeXus attributes of a NXfield or NXgroup object.
 
-    """
-    Class for NeXus attributes of a NXfield or NXgroup object.
-
-    This class is only used for NeXus attributes that are stored in a
-    NeXus file and helps to distinguish them from Python attributes.
-    There are two Python attributes for each NeXus attribute.
-
-    **Python Attributes**
-
+    Attributes
+    ----------
+    nxvalue : string, Numpy scalar, or Numpy ndarray
+        The value of the NeXus attribute modified as described below.
     nxdata : string, Numpy scalar, or Numpy ndarray
-        The value of the NeXus attribute.
+        The unmodified value of the NeXus attribute.
     dtype : string
-        The data type of the NeXus attribute. This is set to 'char' for
-        a string attribute or the string of the corresponding Numpy data type
-        for a numeric attribute.
+        The data type of the NeXus attribute value.
+    shape : tuple
+        The shape of the NeXus attribute value.
 
-    **NeXus Attributes**
-
+    Note
+    ----
     NeXus attributes are stored in the 'attrs' dictionary of the parent object,
     NXfield or NXgroup, but can often be referenced or assigned using the
     attribute name as if it were an object attribute.
@@ -1044,8 +1066,8 @@ class NXattr(object):
         >>> entry.sample.temperature.units = NXattr('K')
         >>> entry.sample.temperature.units = 'K'
 
-    The fourth version above is only allowed for NXfield attributes and is
-    not allowed if the attribute has the same name as one of the following
+    The last version above is only allowed for NXfield attributes and is not 
+    allowed if the attribute has the same name as one of the following
     internally defined attributes, i.e.,
 
     ['entries', 'attrs', 'dtype','shape']
@@ -1053,7 +1075,6 @@ class NXattr(object):
     or if the attribute name begins with 'nx' or '_'. It is only possible to
     reference attributes with one of the proscribed names using the 'attrs'
     dictionary.
-
     """
 
     def __init__(self, value=None, dtype=None, shape=None):
@@ -1066,16 +1087,14 @@ class NXattr(object):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
 
     def __str__(self):
-        if six.PY3:
-            return text(self.nxdata)
-        else:
-            return text(self.nxdata).encode(NX_ENCODING)
+        return text(self.nxvalue)
 
     def __unicode__(self):
-        return text(self.nxdata)
+        return text(self.nxvalue)
 
     def __repr__(self):
-        if (self.dtype is not None and self.shape != () and
+        if (self.dtype is not None and 
+            (self.shape == () or self.shape == (1,)) and 
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
             return "NXattr('%s')" % self
@@ -1083,9 +1102,7 @@ class NXattr(object):
             return "NXattr(%s)" % self
 
     def __eq__(self, other):
-        """
-        Returns true if the value of the attribute is the same as the other.
-        """
+        """Returns true if the values of the two attributes are the same."""
         if id(self) == id(other):
             return True
         elif isinstance(other, NXattr):
@@ -1097,22 +1114,38 @@ class NXattr(object):
         return id(self)
 
     @property
-    def nxdata(self):
+    def nxvalue(self):
+        """Returns the attribute value.
+        
+        This is the value stored in the NeXus file, with the following
+        exceptions.
+            1) Size-1 arrays are returned as scalars.
+            2) String or byte arrays are returns as a list of strings.
+        
+        Note
+        ----
+        If unmodified values are required, use the 'nxdata' property.
         """
-        Returns the attribute value.
-        """
-        try:
-            if (self.dtype is not None and
-                (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
-                 self.dtype == string_dtype)):
-                if self.shape == ():
-                    return text(self._value)
-                else:
-                    return [text(value) for value in self._value[()]]
+        if self._value is None:
+            return ''
+        elif (self.dtype is not None and
+            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+             self.dtype == string_dtype)):
+            if self.shape == ():
+                return text(self._value)
+            elif self.shape == (1,):
+                return text(self._value[0])
             else:
-                return self._value[()]
-        except TypeError:
+                return [text(value) for value in self._value[()]]
+        elif self.shape == (1,):
+            return np.asscalar(self._value)
+        else:
             return self._value
+
+    @property
+    def nxdata(self):
+        """Returns the unmodified attribute value."""
+        return self._value
 
     @property
     def dtype(self):
@@ -1233,7 +1266,7 @@ class NXobject(object):
         return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
 
     def __contains__(self, key):
-        return None
+        return False
 
     def _setattrs(self, attrs):
         for k,v in attrs.items():
@@ -1574,8 +1607,8 @@ class NXfield(NXobject):
     This is a subclass of NXobject that contains scalar, array, or string data
     and associated NeXus attributes.
 
-    **Input Parameters**
-
+    Parameters
+    ----------
     value : scalar value, Numpy array, or string
         The numerical or string value of the NXfield, which is directly
         accessible as the NXfield attribute 'nxdata'.
@@ -1609,10 +1642,11 @@ class NXfield(NXobject):
         using the convention for unix file paths.
     group : NXgroup or subclass of NXgroup
         The parent NeXus object. If the NXfield is initialized as the attribute
-        of a parent group, this attribute is automatically set to the parent group.
+        of a parent group, this attribute is automatically set to the parent 
+        group.
 
-    **Python Attributes**
-
+    Attributes
+    ----------
     nxclass : 'NXfield'
         The class of the NXobject.
     nxname : string
@@ -1774,30 +1808,8 @@ class NXfield(NXobject):
     >>> np.sqrt(x)
     array([ 1.        ,  1.41421356,  1.73205081,  2.        ])
 
-    **Methods**
-
-    dir(self, attrs=False):
-        Print the NXfield specification.
-
-        This outputs the name, dimensions and data type of the NXfield.
-        If 'attrs' is True, NXfield attributes are displayed.
-
-    tree:
-        Returns the NXfield's tree.
-
-        It invokes the 'dir' method with both 'attrs' and 'recursive'
-        set to True. Note that this is defined as a property attribute and
-        does not require parentheses.
-
-
-    save(self, filename, format='w5')
-        Save the NXfield into a file wrapped in a NXroot group and NXentry group
-        with default names. This is equivalent to
-
-        >>> NXroot(NXentry(NXfield(...))).save(filename)
-
-    **Examples**
-
+    Examples
+    --------
     >>> x = NXfield(np.linspace(0,2*np.pi,101), units='degree')
     >>> phi = x.nxdata_as(units='radian')
     >>> y = NXfield(np.sin(phi))
@@ -1853,21 +1865,18 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            return "NXfield(%s)" % repr(self._value)
+            return "NXfield(%s)" % repr(self.nxvalue)
         else:
             return "NXfield(shape=%s, dtype=%s)" % (self.shape, self.dtype)
 
     def __str__(self):
         if self._value is not None:
-            if six.PY3:
-                return text(self._value)
-            else:
-                return text(self._value).encode(NX_ENCODING)
+            return text(self.nxvalue)
         return ""
 
     def __unicode__(self):
         if self._value is not None:
-            return text(self._value)
+            return text(self.nxvalue)
         return u""
 
     def __getattr__(self, name):
@@ -2140,6 +2149,16 @@ class NXfield(NXobject):
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
         return dpcpy
+
+    def __iter__(self):
+        """
+        Implements key iteration
+        """
+        return self.nxvalue.__iter__()
+            
+    def __contains__(self, key):
+        """Implements 'k in d' test using the NXfield nxvalue."""
+        return self.nxvalue.__contains__(key)
 
     def __len__(self):
         """
@@ -2609,6 +2628,8 @@ class NXfield(NXobject):
         They are automatically removed when plotting so this does not 
         invalidate the check.
         """
+        if not is_iterable(axes):
+            axes = [axes]
         plot_axes = [axis for axis in axes if axis.size > 1]
         axis_shape = [axis.size for axis in plot_axes]
         if (all(axis.ndim == 1 for axis in plot_axes) and 
@@ -2619,10 +2640,36 @@ class NXfield(NXobject):
             return False
 
     @property
+    def nxvalue(self):
+        """Returns the NXfield value.
+        
+        This is the value stored in the NeXus file, with the following
+        exceptions.
+            1) Size-1 arrays are returned as scalars.
+            2) String or byte arrays are returns as a list of strings.
+
+        Note
+        ----
+        If unmodified values are required, use the 'nxdata' property.
+        """
+        _value = self.nxdata
+        if (self.dtype is not None and
+            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
+             self.dtype == string_dtype)):
+            if self.shape == ():
+                return text(_value)
+            elif self.shape == (1,):
+                return text(_value[0])
+            else:
+                return [text(value) for value in _value[()]]
+        elif self.shape == (1,):
+            return np.asscalar(_value)
+        else:
+            return _value
+
+    @property
     def nxdata(self):
-        """
-        Returns the data if it is not larger than NX_MEMORY.
-        """
+        """Returns the NXfield data if it is not larger than NX_MEMORY."""
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
@@ -2824,8 +2871,7 @@ class NXfield(NXobject):
         elif self._memfile:
             raise NeXusError(
             "Cannot change the chunk sizes of a field already in core memory")
-        elif (isinstance(value, (tuple, list, np.ndarray)) and 
-              len(value) != self.ndim):
+        elif is_iterable(value) and len(value) != self.ndim:
             raise NeXusError(
                 "Number of chunks does not match the no. of array dimensions")
         self._chunks = tuple(value)
@@ -3024,7 +3070,8 @@ class NXgroup(NXobject):
     entries : dictionary
         A dictionary of all the NeXus objects contained within an NXgroup.
     attrs : dictionary
-        A dictionary of all the NeXus attributes, i.e., attribute with class NXattr.
+        A dictionary of all the NeXus attributes, i.e., attribute with class 
+        NXattr.
     entries : dictionary
         A dictionary of all the NeXus objects contained within the group.
     attrs : dictionary
@@ -3382,15 +3429,12 @@ class NXgroup(NXobject):
 
     def __contains__(self, key):
         """
-        Implements 'k in d' test
+        Implements 'k in d' test using the group's entries.
         """
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            try:
-                return isinstance(self.entries[key], NXobject)
-            except Exception:
-                return False
+            return self.entries.__contains__(key)
 
     def __eq__(self, other):
         """
@@ -4415,7 +4459,7 @@ class NXdata(NXgroup):
         NXgroup.__init__(self, *items, **opts)
         attrs = {}
         if axes is not None:
-            if not isinstance(axes, tuple) and not isinstance(axes, list):
+            if not is_iterable(axes):
                 axes = [axes]
             axis_names = {}
             i = 0
@@ -4689,7 +4733,7 @@ class NXdata(NXgroup):
         
         This assumes that the data is at least two-dimensional.
         """
-        if not isinstance(axes, list) and not isinstance(axes, tuple):
+        if not is_iterable(axes):
             axes = [axes]
         if len(limits) < len(self.nxsignal.shape):
             raise NeXusError("Too few limits specified")
@@ -4821,6 +4865,9 @@ class NXdata(NXgroup):
         # Check there is a plottable signal
         if self.nxsignal is None:
             raise NeXusError("No plotting signal defined")
+        elif (self.nxaxes is not None and 
+              not self.nxsignal.valid_axes(self.nxaxes)):
+            raise NeXusError("Defined axes not compatible with the signal")
         elif not self.nxsignal.exists():
             raise NeXusError("'%s' does not exist" % 
                              os.path.abspath(self.nxfilename))
@@ -4939,7 +4986,7 @@ class NXdata(NXgroup):
         The argument should be a list of valid NXfields, which are added, if 
         necessary to the group. Values of None in the list denote missing axes. 
         """
-        if not isinstance(axes, list) and not isinstance(axes, tuple):
+        if not is_iterable(axes):
             axes = [axes]
         axes_attr = []
         for axis in axes:
@@ -5012,7 +5059,7 @@ class NXmonitor(NXdata):
     See the NXdata and NXgroup documentation for more details.
     """
 
-    def __init__(self, signal=None, axes=(), *items, **opts):
+    def __init__(self, signal=None, axes=None, *items, **opts):
         NXdata.__init__(self, signal=signal, axes=axes, *items, **opts)
         self._class = "NXmonitor"
         if "name" not in opts:
@@ -5038,9 +5085,9 @@ class NXlog(NXgroup):
         'opts' dictionary.
         """
         title = NXfield("%s Log" % self.nxname)
-        if 'start' in self.time.attrs:
-            title = title + ' - starting at ' + self.time.attrs['start']
-        NXdata(self.value, self.time, title=title).plot(**opts)
+        if 'start' in self['time'].attrs:
+            title = title + ' - starting at ' + self['time'].attrs['start']
+        NXdata(self['value'], self['time'], title=title).plot(**opts)
 
 
 class NXprocess(NXgroup):
@@ -5130,8 +5177,7 @@ def convert_index(idx, axis):
     if is_real_slice(idx) and axis.ndim > 1: 
         raise NeXusError(
             "NXfield must be one-dimensional for floating point slices")
-    elif ((isinstance(idx, tuple) or isinstance(idx, list)) and 
-             len(idx) > axis.ndim):
+    elif is_iterable(idx) and len(idx) > axis.ndim:
         raise NeXusError("Slice dimension incompatible with NXfield")
     if len(axis) == 1:
         idx = 0

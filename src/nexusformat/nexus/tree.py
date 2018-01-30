@@ -2646,7 +2646,9 @@ class NXfield(NXobject):
         If unmodified values are required, use the 'nxdata' property.
         """
         _value = self.nxdata
-        if (self.dtype is not None and
+        if _value is None:
+            return None
+        elif (self.dtype is not None and
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
             if self.shape == ():

@@ -2534,7 +2534,7 @@ class NXfield(NXobject):
         except ImportError:
             raise NeXusError("No conversion utility available")
         if self._value is not None:
-            return self._converter(self._value, units)
+            return self._converter(self.nxvalue, units)
         else:
             return None
 
@@ -2583,7 +2583,7 @@ class NXfield(NXobject):
         def empty_axis(i):
             return NXfield(np.arange(self.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+            return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
         if self.nxgroup:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
@@ -3974,7 +3974,7 @@ class NXlinkfield(NXlink, NXfield):
         if not self.is_external():
             return self.nxlink.__getattr__(name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return object.__getattribute__(self.nxvalue, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:

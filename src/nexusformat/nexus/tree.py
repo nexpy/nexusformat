@@ -702,6 +702,8 @@ class NXFile(object):
             value = None
         if attrs is None:
             attrs = self.attrs
+            if 'NX_class' in attrs and text(attrs['NX_class']) == 'SDS':
+                attrs.pop('NX_class')
         return value, shape, dtype, attrs
 
     def readvalue(self, path, idx=()):

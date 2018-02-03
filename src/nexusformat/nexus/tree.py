@@ -1099,9 +1099,9 @@ class NXattr(object):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXattr):
-            return self.nxdata == other.nxdata
+            return self.nxvalue == other.nxvalue
         else:
-            return self.nxdata == other
+            return self.nxvalue == other
 
     def __hash__(self):
         return id(self)
@@ -2164,7 +2164,7 @@ class NXfield(NXobject):
         Returns False if all values are 0 or False, True otherwise.
         """
         try:
-            if np.any(self.nxdata):
+            if np.any(self.nxvalue):
                 return True
             else:
                 return False
@@ -2252,37 +2252,37 @@ class NXfield(NXobject):
         """
         Casts a scalar field as an integer
         """
-        return int(self.nxdata)
+        return int(self.nxvalue)
 
     def __long__(self):
         """
         Casts a scalar field as a long integer
         """
-        return long(self.nxdata)
+        return long(self.nxvalue)
 
     def __float__(self):
         """
         Casts a scalar field as floating point number
         """
-        return float(self.nxdata)
+        return float(self.nxvalue)
 
     def __complex__(self):
         """
         Casts a scalar field as a complex number
         """
-        return complex(self.nxdata)
+        return complex(self.nxvalue)
 
     def __neg__(self):
         """
         Returns the negative value of a scalar field
         """
-        return -self.nxdata
+        return -self.nxvalue
 
     def __abs__(self):
         """
         Returns the absolute value of a scalar field
         """
-        return abs(self.nxdata)
+        return abs(self.nxvalue)
 
     def __eq__(self, other):
         """
@@ -2291,14 +2291,14 @@ class NXfield(NXobject):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXfield):
-            if (isinstance(self.nxdata, np.ndarray) and
-                   isinstance(other.nxdata, np.ndarray)):
+            if (isinstance(self.nxvalue, np.ndarray) and
+                   isinstance(other.nxvalue, np.ndarray)):
                 try:
                     return np.array_equal(self, other)
                 except ValueError:
                     return False
             else:
-                return self.nxdata == other.nxdata
+                return self.nxvalue == other.nxvalue
         else:
             return False
 
@@ -2307,52 +2307,52 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are not the same.
         """
         if isinstance(other, NXfield):
-            if (isinstance(self.nxdata, np.ndarray) and
-                   isinstance(other.nxdata, np.ndarray)):
+            if (isinstance(self.nxvalue, np.ndarray) and
+                   isinstance(other.nxvalue, np.ndarray)):
                 try:
                     return not np.array_equal(self, other)
                 except ValueError:
                     return True
             else:
-                return self.nxdata != other.nxdata
+                return self.nxvalue != other.nxvalue
         else:
             return True
 
     def __lt__(self, other):
         """
-        Returns true if self.nxdata < other[.nxdata]
+        Returns true if self.nxvalue < other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata < other.nxdata
+            return self.nxvalue < other.nxvalue
         else:
-            return self.nxdata < other
+            return self.nxvalue < other
 
     def __le__(self, other):
         """
-        Returns true if self.nxdata <= other[.nxdata]
+        Returns true if self.nxvalue <= other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata <= other.nxdata
+            return self.nxvalue <= other.nxvalue
         else:
-            return self.nxdata <= other
+            return self.nxvalue <= other
 
     def __gt__(self, other):
         """
-        Returns true if self.nxdata > other[.nxdata]
+        Returns true if self.nxvalue > other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata > other.nxdata
+            return self.nxvalue > other.nxvalue
         else:
-            return self.nxdata > other
+            return self.nxvalue > other
 
     def __ge__(self, other):
         """
-        Returns true if self.nxdata >= other[.nxdata]
+        Returns true if self.nxvalue >= other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata >= other.nxdata
+            return self.nxvalue >= other.nxvalue
         else:
-            return self.nxdata >= other
+            return self.nxvalue >= other
 
     def __add__(self, other):
         """
@@ -2534,7 +2534,7 @@ class NXfield(NXobject):
         except ImportError:
             raise NeXusError("No conversion utility available")
         if self._value is not None:
-            return self._converter(self._value, units)
+            return self._converter(self.nxvalue, units)
         else:
             return None
 
@@ -2583,7 +2583,7 @@ class NXfield(NXobject):
         def empty_axis(i):
             return NXfield(np.arange(self.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+            return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
         if self.nxgroup:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
@@ -2646,7 +2646,9 @@ class NXfield(NXobject):
         If unmodified values are required, use the 'nxdata' property.
         """
         _value = self.nxdata
-        if (self.dtype is not None and
+        if _value is None:
+            return None
+        elif (self.dtype is not None and
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
             if self.shape == ():
@@ -3974,7 +3976,7 @@ class NXlinkfield(NXlink, NXfield):
         if not self.is_external():
             return self.nxlink.__getattr__(name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return object.__getattribute__(self.nxvalue, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:

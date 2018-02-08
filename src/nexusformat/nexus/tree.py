@@ -302,6 +302,10 @@ def is_text(value):
         return False
 
 
+def is_string_dtype(dtype):
+    return dtype == string_dtype or dtype.kind == 'S' or dtype.kind == 'U'
+
+
 def is_iterable(obj):
     """Return true if the argument is a tuple or list."""
     return isinstance(obj, list) or isinstance(obj, tuple)

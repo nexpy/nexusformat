@@ -1974,19 +1974,25 @@ class NXfield(NXobject):
         self.set_changed()
 
     def _str_name(self, indent=0):
-        dims = 'x'.join([text(n) for n in self.shape])
-        s = text(self)
-        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
-            and len(self) == 1):
-            if len(s) > 60:
-                s = s[:56] + '...'
-            try:
-                s = s[:s.index('\n')]+'...'
-            except ValueError:
-                pass
-            s = "'" + s + "'"
-        elif len(self) > 3 or '\n' in s or s == "":
-            s = "%s(%s)" % (self.dtype, dims)
+        s = text(self).replace('\r\n', '\n')
+        if self.dtype is not None:
+            if is_string_dtype(self.dtype):
+                if len(s) > 60:
+                    s = s[:56] + '...'
+                try:
+                    s = s[:s.index('\n')]+'...'
+                except ValueError:
+                    pass
+                if len(self) == 1:
+                    s = "'" + s + "'"
+            elif len(self) > 3 or '\n' in s or s == "":
+                if self.shape is None:
+                    dims = ''
+                else:
+                    dims = 'x'.join([text(n) for n in self.shape])
+                s = "%s(%s)" % (self.dtype, dims)
+        elif s == "":
+            s = "None"
         try:
             return " " * indent + self.nxname + " = " + s
         except Exception:

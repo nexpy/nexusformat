@@ -1540,7 +1540,7 @@ class NXobject(object):
         if self._filename is not None:
             if os.path.isabs(self._filename):
                 return self._filename
-            elif self._group is not None:
+            elif self._group is not None and self._group.nxfilename is not None:
                 return os.path.abspath(
                     os.path.join(os.path.dirname(self._group.nxfilename),
                                  self._filename))
@@ -3910,8 +3910,8 @@ class NXlink(NXobject):
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename, mode) as f:
                 f.update(self)
-        if self._filename and os.path.exists(self.nxfilename):
-            with NXFile(self.nxfilename, self.nxfilemode) as f:
+        if self._filename and os.path.exists(self._filename):
+            with NXFile(self._filename, self.nxfilemode) as f:
                 if self._target in f:
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):

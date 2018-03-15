@@ -659,7 +659,9 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        if os.path.isabs(item._filename) and not item._abspath:
+        if item._abspath:
+            filename = item.nxfilename
+        elif os.path.isabs(item._filename):
             filename = os.path.relpath(os.path.realpath(item._filename), 
                            os.path.dirname(os.path.realpath(self.filename)))
         else:
@@ -1540,7 +1542,7 @@ class NXobject(object):
         if self._filename is not None:
             if os.path.isabs(self._filename):
                 return self._filename
-            elif self._group is not None:
+            elif self._group is not None and self._group.nxfilename is not None:
                 return os.path.abspath(
                     os.path.join(os.path.dirname(self._group.nxfilename),
                                  self._filename))
@@ -3375,12 +3377,8 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXlink):
-                if group.nxfilename != value.nxfilename:
-                    value = NXlink(target=value._target, file=value.nxfilename,
-                                   abspath=value.abspath, name=key, group=group)
-                else:
-                    value = NXlink(target=value._target, file=value._filename,
-                                   abspath=value.abspath, name=key, group=group)
+                value = NXlink(target=value._target, file=value._filename,
+                               abspath=value.abspath, name=key, group=group)
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 value = deepcopy(value)
@@ -3910,7 +3908,8 @@ class NXlink(NXobject):
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename, mode) as f:
                 f.update(self)
-        if self._filename and os.path.exists(self.nxfilename):
+        if (self._filename and self.nxfilename and 
+            os.path.exists(self.nxfilename)):
             with NXFile(self.nxfilename, self.nxfilemode) as f:
                 if self._target in f:
                     item = f.readpath(self._target)

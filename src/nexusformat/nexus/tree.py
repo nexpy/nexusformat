@@ -659,7 +659,9 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        if os.path.isabs(item._filename) and not item._abspath:
+        if item._abspath:
+            filename = item.nxfilename
+        elif os.path.isabs(item._filename):
             filename = os.path.relpath(os.path.realpath(item._filename), 
                            os.path.dirname(os.path.realpath(self.filename)))
         else:

@@ -282,16 +282,17 @@ def text(value):
     """Return a unicode string in both Python 2 and 3"""
     if isinstance(value, bytes):
         try:
-            return value.decode(NX_ENCODING)
+            text = value.decode(NX_ENCODING)
         except UnicodeDecodeError:
             if NX_ENCODING == 'utf-8':
-                return value.decode('latin-1')
+                text = value.decode('latin-1')
             else:
-                return value.decode('utf-8')
+                text = value.decode('utf-8')
     elif six.PY3:
-        return str(value)
+        text = str(value)
     else:
-        return unicode(value)
+        text = unicode(value)
+    return text.replace('\x00','').rstrip()
 
 
 def is_text(value):

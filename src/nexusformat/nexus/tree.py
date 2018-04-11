@@ -1286,14 +1286,20 @@ class NXobject(object):
         names = sorted(self.attrs)
         result = []
         for k in names:
-            txt1, txt2, txt3 = ('', '', '') 
             txt1 = u" " * indent
-            txt2 = u"@" + k
+            txt2 = u"@" + k + " = "
+            txt3 = text(self.attrs[k])
+            if len(txt3) > 50:
+                txt3 = txt3[:46] + '...'
             if is_text(self.attrs[k]):
-                txt3 =  u" = '" + text(self.attrs[k]) + "'"
+                txt3 =  u"'" + txt3 + "'"
             else:
-                txt3 = u" = " + text(self.attrs[k])
+                txt3 = txt3
             txt = (txt1 + txt2 + txt3).replace("u'", "'")
+            try:
+                txt = txt[:txt.index('\n')]+'...'
+            except ValueError:
+                pass
             result.append(txt)
         return "\n".join(result)
 

@@ -280,6 +280,8 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
 
 def text(value):
     """Return a unicode string in both Python 2 and 3"""
+    if isinstance(value, np.ndarray) and value.shape == (1,):
+        value = value[0]
     if isinstance(value, bytes):
         try:
             text = value.decode(NX_ENCODING)
@@ -458,12 +460,11 @@ class NXFile(object):
             return {}
 
     def _readclass(self, nxclass):
-        if is_iterable(nxclass):
-            nxclass = nxclass[0]
+        nxclass = text(nxclass)
         if nxclass is None:
             return 'NXgroup'
         else:
-            return text(nxclass)
+            return nxclass
 
     def _readlink(self):
         _target, _filename, _abspath = None, None, False

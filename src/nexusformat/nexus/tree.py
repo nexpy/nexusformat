@@ -280,6 +280,8 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
 
 def text(value):
     """Return a unicode string in both Python 2 and 3"""
+    if isinstance(value, np.ndarray) and value.shape == (1,):
+        value = value[0]
     if isinstance(value, bytes):
         try:
             text = value.decode(NX_ENCODING)
@@ -458,12 +460,11 @@ class NXFile(object):
             return {}
 
     def _readclass(self, nxclass):
-        if is_iterable(nxclass):
-            nxclass = nxclass[0]
+        nxclass = text(nxclass)
         if nxclass is None:
             return 'NXgroup'
         else:
-            return text(nxclass)
+            return nxclass
 
     def _readlink(self):
         _target, _filename, _abspath = None, None, False
@@ -1285,14 +1286,20 @@ class NXobject(object):
         names = sorted(self.attrs)
         result = []
         for k in names:
-            txt1, txt2, txt3 = ('', '', '') 
             txt1 = u" " * indent
-            txt2 = u"@" + k
+            txt2 = u"@" + k + " = "
+            txt3 = text(self.attrs[k])
+            if len(txt3) > 50:
+                txt3 = txt3[:46] + '...'
             if is_text(self.attrs[k]):
-                txt3 =  u" = '" + text(self.attrs[k]) + "'"
+                txt3 =  u"'" + txt3 + "'"
             else:
-                txt3 = u" = " + text(self.attrs[k])
+                txt3 = txt3
             txt = (txt1 + txt2 + txt3).replace("u'", "'")
+            try:
+                txt = txt[:txt.index('\n')]+'...'
+            except ValueError:
+                pass
             result.append(txt)
         return "\n".join(result)
 

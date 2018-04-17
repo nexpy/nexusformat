@@ -235,6 +235,9 @@ title is the title of the group or the parent :class:`NXentry`, if available.
 from __future__ import (absolute_import, division, print_function)
 import six
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from copy import copy, deepcopy
 import numbers
 import os

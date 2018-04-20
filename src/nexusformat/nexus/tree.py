@@ -3452,7 +3452,10 @@ class NXgroup(NXobject):
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            return self.entries.__contains__(key)
+            try:
+                return isinstance(self[key], NXobject)		
+            except Exception:		
+                return False
 
     def __eq__(self, other):
         """

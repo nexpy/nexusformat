@@ -235,6 +235,9 @@ title is the title of the group or the parent :class:`NXentry`, if available.
 from __future__ import (absolute_import, division, print_function)
 import six
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from copy import copy, deepcopy
 import numbers
 import os
@@ -3385,8 +3388,10 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXlink):
+                nxclass = value.__class__
                 value = NXlink(target=value._target, file=value._filename,
                                abspath=value.abspath, name=key, group=group)
+                value.nxclass = nxclass
                 group.entries[key] = value
             elif isinstance(value, NXobject):
                 value = deepcopy(value)
@@ -3447,7 +3452,10 @@ class NXgroup(NXobject):
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            return self.entries.__contains__(key)
+            try:
+                return isinstance(self[key], NXobject)		
+            except Exception:		
+                return False
 
     def __eq__(self, other):
         """

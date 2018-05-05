@@ -2141,10 +2141,7 @@ class NXfield(NXobject):
         self._uncopied_data = None
 
     def __deepcopy__(self, memo={}):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
@@ -3387,12 +3384,6 @@ class NXgroup(NXobject):
                 group.entries[key].nxdata = value
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
-            elif isinstance(value, NXlink):
-                nxclass = value.__class__
-                value = NXlink(target=value._target, file=value._filename,
-                               abspath=value.abspath, name=key, group=group)
-                value.nxclass = nxclass
-                group.entries[key] = value
             elif isinstance(value, NXobject):
                 value = deepcopy(value)
                 value._group = group
@@ -3481,15 +3472,14 @@ class NXgroup(NXobject):
         return len(self.entries)
 
     def __deepcopy__(self, memo):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         dpcpy._name = self._name
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k,v in obj.items():
+            if isinstance(v, NXlink):
+                v = v.nxlink
             dpcpy.entries[k] = deepcopy(v, memo)
             dpcpy.entries[k]._group = dpcpy
         for k, v in obj.attrs.items():
@@ -3633,7 +3623,10 @@ class NXgroup(NXobject):
             raise NeXusError("Link target must be an NXobject")
         elif not isinstance(self.nxroot, NXroot):
             raise NeXusError(
-                "The group must have a root object of class NXroot")                
+                "The group must have a root object of class NXroot")
+        elif target.is_external():
+            raise NeXusError(
+                "Cannot link to an object in an externally linked group")
         if name is None:
             name = target.nxname
         if name in self:
@@ -3907,6 +3900,16 @@ class NXlink(NXobject):
         else:
             return "NXlink('%s')" % (self._target)
 
+    def __deepcopy__(self, memo={}):
+        obj = self
+        dpcpy = obj.__class__()
+        memo[id(self)] = dpcpy
+        dpcpy._name = copy(self.nxname)
+        dpcpy._target = copy(obj._target)
+        dpcpy._filename = copy(obj._filename)
+        dpcpy._abspath = copy(obj._abspath)
+        return dpcpy
+
     def _str_name(self, indent=0):
         if self._filename:
             return (" " * indent + self.nxname + ' -> ' + text(self._filename) +
@@ -3926,7 +3929,7 @@ class NXlink(NXobject):
                 f.update(self)
         if (self._filename and self.nxfilename and 
             os.path.exists(self.nxfilename)):
-            with NXFile(self.nxfilename, self.nxfilemode) as f:
+            with NXFile(self.nxfilename, 'r') as f:
                 if self._target in f:
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):
@@ -3957,6 +3960,16 @@ class NXlink(NXobject):
             return self
 
     @property
+    def nxfilemode(self):
+        if self._mode:
+            return self._mode
+        elif self.is_external():
+            self._mode = 'r'
+            return self._mode
+        else:
+            return self.nxlink._mode
+
+    @property
     def attrs(self):
         if not self.is_external():
             return self.nxlink._attrs
@@ -3967,7 +3980,7 @@ class NXlink(NXobject):
                     self._attrs._setattrs(f._readattrs())
                 if 'NX_class' in self._attrs:
                     del self._attrs['NX_class']
-            except Exception:
+            except Exception as error:
                 pass
             return self._attrs
 
@@ -4020,6 +4033,9 @@ class NXlinkfield(NXlink, NXfield):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setitem__(key, value)
+
+    def __deepcopy__(self, memo={}):
+        return NXfield(self).__deepcopy__(memo)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
@@ -4108,11 +4124,9 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattribute__(name)
+            return self.nxlink.__getattr__(name)
         elif name in self.entries:
             return self.entries[name]
-        else:
-            NXgroup(self).__getattribute__(name)
 
     def __getitem__(self, key):
         if self.is_external():
@@ -4125,6 +4139,9 @@ class NXlinkgroup(NXlink, NXgroup):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setitem__(key, value)
+
+    def __deepcopy__(self, memo={}):
+        return NXgroup(self).__deepcopy__(memo)
 
     def _str_name(self, indent=0):
         if self._filename:

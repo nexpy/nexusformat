@@ -2141,10 +2141,7 @@ class NXfield(NXobject):
         self._uncopied_data = None
 
     def __deepcopy__(self, memo={}):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
@@ -3387,13 +3384,10 @@ class NXgroup(NXobject):
                 group.entries[key].nxdata = value
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
-            elif isinstance(value, NXlink):
-                nxclass = value.__class__
-                value = NXlink(target=value._target, file=value._filename,
-                               abspath=value.abspath, name=key, group=group)
-                value.nxclass = nxclass
-                group.entries[key] = value
             elif isinstance(value, NXobject):
+                if (isinstance(value, NXlink) and 
+                    value.nxfilename != group.nxfilename):
+                    value = value.nxlink
                 value = deepcopy(value)
                 value._group = group
                 value._name = key
@@ -3481,10 +3475,7 @@ class NXgroup(NXobject):
         return len(self.entries)
 
     def __deepcopy__(self, memo):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         dpcpy._name = self._name
         memo[id(self)] = dpcpy
@@ -3906,6 +3897,16 @@ class NXlink(NXobject):
                                                        self._filename)
         else:
             return "NXlink('%s')" % (self._target)
+
+    def __deepcopy__(self, memo={}):
+        obj = self
+        dpcpy = obj.__class__()
+        memo[id(self)] = dpcpy
+        dpcpy._name = copy(self.nxname)
+        dpcpy._target = copy(obj._target)
+        dpcpy._filename = copy(obj._filename)
+        dpcpy._abspath = copy(obj._abspath)
+        return dpcpy
 
     def _str_name(self, indent=0):
         if self._filename:

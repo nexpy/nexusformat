@@ -3929,7 +3929,7 @@ class NXlink(NXobject):
                 f.update(self)
         if (self._filename and self.nxfilename and 
             os.path.exists(self.nxfilename)):
-            with NXFile(self.nxfilename, self.nxfilemode) as f:
+            with NXFile(self.nxfilename, 'r') as f:
                 if self._target in f:
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):
@@ -3960,6 +3960,16 @@ class NXlink(NXobject):
             return self
 
     @property
+    def nxfilemode(self):
+        if self._mode:
+            return self._mode
+        elif self.is_external():
+            self._mode = 'r'
+            return self._mode
+        else:
+            return self.nxlink._mode
+
+    @property
     def attrs(self):
         if not self.is_external():
             return self.nxlink._attrs
@@ -3970,7 +3980,7 @@ class NXlink(NXobject):
                     self._attrs._setattrs(f._readattrs())
                 if 'NX_class' in self._attrs:
                     del self._attrs['NX_class']
-            except Exception:
+            except Exception as error:
                 pass
             return self._attrs
 

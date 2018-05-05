@@ -4034,9 +4034,6 @@ class NXlinkfield(NXlink, NXfield):
         else:
             self.nxlink.__setitem__(key, value)
 
-    def __deepcopy__(self, memo={}):
-        return NXfield(self).__deepcopy__(memo)
-
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
                                  recursive=recursive)
@@ -4139,9 +4136,6 @@ class NXlinkgroup(NXlink, NXgroup):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setitem__(key, value)
-
-    def __deepcopy__(self, memo={}):
-        return NXgroup(self).__deepcopy__(memo)
 
     def _str_name(self, indent=0):
         if self._filename:

@@ -3623,7 +3623,10 @@ class NXgroup(NXobject):
             raise NeXusError("Link target must be an NXobject")
         elif not isinstance(self.nxroot, NXroot):
             raise NeXusError(
-                "The group must have a root object of class NXroot")                
+                "The group must have a root object of class NXroot")
+        elif target.is_external():
+            raise NeXusError(
+                "Cannot link to an object in an externally linked group")
         if name is None:
             name = target.nxname
         if name in self:
@@ -4126,6 +4129,9 @@ class NXlinkgroup(NXlink, NXgroup):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setitem__(key, value)
+
+    def __deepcopy__(self, memo={}):
+        return NXgroup(self).__deepcopy__(memo)
 
     def _str_name(self, indent=0):
         if self._filename:

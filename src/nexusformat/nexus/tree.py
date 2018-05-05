@@ -3385,9 +3385,6 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXobject):
-                if (isinstance(value, NXlink) and 
-                    value.nxfilename != group.nxfilename):
-                    value = value.nxlink
                 value = deepcopy(value)
                 value._group = group
                 value._name = key
@@ -3481,6 +3478,8 @@ class NXgroup(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k,v in obj.items():
+            if isinstance(v, NXlink):
+                v = v.nxlink
             dpcpy.entries[k] = deepcopy(v, memo)
             dpcpy.entries[k]._group = dpcpy
         for k, v in obj.attrs.items():
@@ -4112,11 +4111,9 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattribute__(name)
+            return self.nxlink.__getattr__(name)
         elif name in self.entries:
             return self.entries[name]
-        else:
-            NXgroup(self).__getattribute__(name)
 
     def __getitem__(self, key):
         if self.is_external():

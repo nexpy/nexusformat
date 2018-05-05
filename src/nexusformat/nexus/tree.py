@@ -3961,13 +3961,13 @@ class NXlink(NXobject):
 
     @property
     def nxfilemode(self):
-        if self._mode:
+        if self._mode is not None:
             return self._mode
         elif self.is_external():
             self._mode = 'r'
             return self._mode
         else:
-            return self.nxlink._mode
+            return self.nxlink.nxfilemode
 
     @property
     def attrs(self):

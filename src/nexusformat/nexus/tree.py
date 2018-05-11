@@ -366,6 +366,9 @@ class NXFile(object):
         self.name = name
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
+        elif not os.path.exists(os.path.dirname(name)):
+            raise NeXusError("'%s/' does not exist"
+                             % os.path.dirname(name))
         elif mode == 'w' or mode == 'w-' or mode == 'w5':
             if mode == 'w5':
                 mode = 'w'
@@ -377,7 +380,10 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            self._file = self.h5.File(name, mode, **opts)
+            if os.path.exists(name):
+                self._file = self.h5.File(name, mode, **opts)
+            else:
+                raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
         self._path = '/'
 

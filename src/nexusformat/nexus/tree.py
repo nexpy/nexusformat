@@ -3955,18 +3955,16 @@ class NXlink(NXobject):
 
     @property
     def nxlink(self):
-        try:
+        if self._link is None:
             if self._filename is not None:
-                _link = self
+                self._link = self
             else:
-                _link = self.nxroot[self._target]
-            if isinstance(_link, NXfield):
-                self.nxclass = NXlinkfield
-            elif isinstance(_link, NXgroup):
-                self.nxclass = _getclass(_link.nxclass, link=True)
-            return _link
-        except Exception:
-            return self
+                self._link = self.nxroot[self._target]
+            if self._class == 'NXlink' and isinstance(self._link, NXfield):
+                self._setclass(NXlinkfield)
+            elif self._class == 'NXlink' and isinstance(self._link, NXgroup):
+                self._setclass(_getclass(self._link.nxclass, link=True))
+        return self._link
 
     @property
     def nxfilemode(self):
@@ -4046,13 +4044,6 @@ class NXlinkfield(NXlink, NXfield):
     def _str_tree(self, indent=0, attrs=False, recursive=False):
         return NXfield._str_tree(self, indent=indent, attrs=attrs, 
                                  recursive=recursive)
-
-    @property
-    def nxlink(self):
-        if self.is_external():
-            return self
-        else:
-            return self.nxroot[self._target]
 
     @property
     def shape(self):
@@ -4162,13 +4153,6 @@ class NXlinkgroup(NXlink, NXgroup):
     @property
     def entries(self):
         return self.nxlink._entries
-
-    @property
-    def nxlink(self):
-        if self.is_external():
-            return self
-        else:
-            return self.nxroot[self._target]
 
     def plot(self, **opts):
         if self.is_external():

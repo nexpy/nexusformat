@@ -1244,6 +1244,8 @@ class NXobject(object):
     _class = "unknown"
     _name = "unknown"
     _group = None
+    _root = None
+    _attrs = AttrDict()
     _file = None
     _filename = None
     _abspath = False
@@ -1532,12 +1534,14 @@ class NXobject(object):
 
     @property
     def nxroot(self):
-        if self._group is None or isinstance(self, NXroot):
-            return self
-        elif isinstance(self._group, NXroot):
-            return self._group
-        else:
-            return self._group.nxroot
+        if self._root is None:
+            if self._group is None or isinstance(self, NXroot):
+                self._root = self
+            elif isinstance(self._group, NXroot):
+                self._root = self._group
+            else:            
+                self._root = self._group.nxroot
+        return self._root
 
     @property
     def nxentry(self):
@@ -3968,13 +3972,15 @@ class NXlink(NXobject):
 
     @property
     def nxfilemode(self):
-        if self._mode is not None:
+        try:
+            if self._mode is None:
+                if self.is_external():
+                    self._mode = 'r'
+                else:
+                    self._mode = self.nxlink.nxfilemode
             return self._mode
-        elif self.is_external():
-            self._mode = 'r'
-            return self._mode
-        else:
-            return self.nxlink.nxfilemode
+        except Exception:
+            return 'r'
 
     @property
     def attrs(self):

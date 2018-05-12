@@ -1261,10 +1261,10 @@ class NXobject(object):
     def __getstate__(self):
         result = self.__dict__.copy()
         hidden_keys = [key for key in result if key.startswith('_')]
-        needed_keys = ['_class', '_name', '_group', '_entries', '_attrs', 
-                       '_filename', '_mode', '_target', '_dtype', '_shape', 
-                       '_value', '_maxshape', '_chunks', '_fillvalue', 
-                       '_compression', '_changed']
+        needed_keys = ['_class', '_name', '_group', '_root', '_target', 
+                       '_entries', '_attrs', '_filename', '_mode', 
+                       '_dtype', '_shape', '_value', '_maxshape', '_chunks', 
+                       '_fillvalue', '_compression', '_changed']
         for key in hidden_keys:
             if key not in needed_keys:
                 del result[key]
@@ -1274,10 +1274,10 @@ class NXobject(object):
         self.__dict__ = dict
 
     def __str__(self):
-        return "%s:%s" % (self.nxclass, self.nxname)
+        return "%s" % self.nxname
 
     def __repr__(self):
-        return "NXobject('%s','%s')" % (self.nxclass, self.nxname)
+        return "NXobject('%s')" % (self.nxname)
 
     def __contains__(self, key):
         return False
@@ -3296,7 +3296,7 @@ class NXgroup(NXobject):
                       key=natural_sort)
 
     def __repr__(self):
-        return "%s('%s')" % (self.__class__.__name__,self.nxname)
+        return "%s('%s')" % (self.__class__.__name__, self.nxname)
 
     def __hash__(self):
         return id(self)
@@ -4056,10 +4056,6 @@ class NXlinkfield(NXlink, NXfield):
         else:
             self.nxlink.__setitem__(key, value)
 
-    def _str_tree(self, indent=0, attrs=False, recursive=False):
-        return NXfield._str_tree(self, indent=indent, attrs=attrs, 
-                                 recursive=recursive)
-
     @property
     def shape(self):
         if self.is_external():
@@ -4162,9 +4158,12 @@ class NXlinkgroup(NXlink, NXgroup):
                     ' -> ' + text(self._target))
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        return NXgroup._str_tree(self, indent=indent, attrs=attrs, 
-                                 recursive=recursive)
-
+        try:
+            return NXgroup._str_tree(self, indent=indent, attrs=attrs, 
+                                     recursive=recursive)
+        except Exception:
+            return NXlink(self)._str_tree(self, indent=indent)
+        
     @property
     def entries(self):
         return self.nxlink._entries

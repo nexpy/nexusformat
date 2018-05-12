@@ -3499,6 +3499,8 @@ class NXgroup(NXobject):
             dpcpy.attrs[k] = copy(v)
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
+        dpcpy._group = None
+        dpcpy._root = None
         return dpcpy
 
     def walk(self):
@@ -3915,12 +3917,15 @@ class NXlink(NXobject):
 
     def __deepcopy__(self, memo={}):
         obj = self
-        dpcpy = obj.__class__()
+        dpcpy = obj.__class__(nxclass=obj.nxclass)
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
         dpcpy._filename = copy(obj._filename)
         dpcpy._abspath = copy(obj._abspath)
+        dpcpy._link = None
+        dpcpy._group = None
+        dpcpy._root = None
         return dpcpy
 
     def _str_name(self, indent=0):

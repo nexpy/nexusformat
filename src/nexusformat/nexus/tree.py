@@ -468,27 +468,6 @@ class NXFile(object):
         else:
             return {}
 
-    def _readclass(self, nxclass):
-        nxclass = text(nxclass)
-        if nxclass is None:
-            return 'NXgroup'
-        else:
-            return nxclass
-
-    def _readlink(self):
-        _target, _filename, _abspath = None, None, False
-        if self._isexternal():
-            _link = self.get(self.nxpath, getlink=True)
-            _target, _filename = _link.path, _link.filename
-            _abspath = os.path.isabs(_filename)
-        elif 'target' in self.attrs:
-            if is_iterable(_target):
-                _target = _target[0]
-            _target = text(self.attrs['target'])
-            if  _target == self.nxpath:
-                _target = None
-        return _target, _filename, _abspath
-
     def _readchildren(self):
         children = {}
         items = self[self.nxpath].items()
@@ -496,8 +475,12 @@ class NXFile(object):
             self.nxpath = self.nxpath + '/' + name
             if isinstance(value, self.h5.Group):
                 children[name] = self._readgroup(name)
-            else:
+            elif isinstance(value, self.h5.Dataset):
                 children[name] = self._readdata(name)
+            else:
+                _link = self._readlink(name)
+                if _link:
+                    children[name] = _link
             self.nxpath = self.nxparent
         return children
 
@@ -506,17 +489,17 @@ class NXFile(object):
         Reads the group with the current path and returns it as an NXgroup.
         """
         attrs = self._readattrs()
-        nxclass = self._readclass(attrs.pop('NX_class', 'NXgroup'))
+        nxclass = self._getclass(attrs.pop('NX_class', 'NXgroup'))
         if nxclass == 'NXgroup' and self.nxpath == '/':
             nxclass = 'NXroot'
         children = self._readchildren()
-        _target, _filename, _abspath = self._readlink()
-        if self.nxpath != '/' and _target is not None:
+        _target, _filename, _abspath = self._getlink()
+        if _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, attrs=attrs,
-                                new_entries=children, target=_target, 
+                                new_entries=children, target=_target,
                                 file=_filename, abspath=_abspath)
         else:
-            group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
+            group = NXgroup(nxclass=nxclass, name=name, attrs=attrs,
                             new_entries=children)
         for obj in children.values():
             obj._group = group
@@ -527,9 +510,7 @@ class NXFile(object):
         """
         Reads a data object and returns it as an NXfield or NXlink.
         """
-        # Finally some data, but don't read it if it is big
-        # Instead record the location, type and size
-        _target, _filename, _abspath = self._readlink()
+        _target, _filename, _abspath = self._getlink()
         if _target is not None:
             if _filename is not None:
                 try:
@@ -546,7 +527,43 @@ class NXFile(object):
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
                            attrs=attrs)
+
+    def _readlink(self, name):
+        """
+        Reads an object that is an undefined link.
+        
+        This is usually an external link to a non-existent file. It can also be
+        a link to an unresolved external link.
+        """
+        _target, _filename, _abspath = self._getlink()
+        if _target is not None:
+            return NXlink(name=name, target=_target, file=_filename, 
+                          abspath=_abspath)
+        else:
+            return None
  
+    def _getclass(self, nxclass):
+        nxclass = text(nxclass)
+        if nxclass is None:
+            return 'NXgroup'
+        else:
+            return nxclass
+
+    def _getlink(self):
+        _target, _filename, _abspath = None, None, False
+        if self.nxpath != '/':
+            _link = self.get(self.nxpath, getlink=True)
+            if isinstance(_link, h5.ExternalLink):
+                _target, _filename = _link.path, _link.filename
+                _abspath = os.path.isabs(_filename)
+            elif isinstance(_link, h5.SoftLink):
+                _target = _link.path
+            elif 'target' in self.attrs:
+                _target = text(self.attrs['target'])
+                if _target == self.nxpath:
+                    _target = None
+        return _target, _filename, _abspath
+
     def writefile(self, tree):
         """
         Writes the NeXus file structure to a file.
@@ -769,13 +786,6 @@ class NXFile(object):
 
     def rename(self, old_path, new_path):
         self.file['/'].move(old_path, new_path)
-
-    def _isexternal(self):
-        try:
-            return (self.get(self.nxpath, getclass=True, getlink=True)
-                    == self.h5.ExternalLink)
-        except Exception:
-            return False
 
     @property
     def filename(self):

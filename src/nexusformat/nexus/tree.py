@@ -3891,6 +3891,7 @@ class NXlink(NXobject):
             if name is None:
                 self._name = target.nxname
             self._target = target.nxpath
+            self._link = target
             if isinstance(target, NXfield):
                 self._setclass(NXlinkfield)
             elif isinstance(target, NXgroup):
@@ -3899,6 +3900,7 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
+            self._link = None
 
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):

@@ -2176,6 +2176,8 @@ class NXfield(NXobject):
             dpcpy.attrs[k] = copy(v)
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
+        dpcpy._group = None
+        dpcpy._root = None
         return dpcpy
 
     def __iter__(self):

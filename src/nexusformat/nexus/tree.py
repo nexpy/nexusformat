@@ -1478,13 +1478,8 @@ class NXobject(object):
                 node._changed = False
         else:
             self._changed = False
-    
-    @property
-    def nxclass(self):
-        return text(self._class)
 
-    @nxclass.setter
-    def nxclass(self, cls):
+    def _setclass(self, cls):
         try:
             class_ = _getclass(cls)
             if issubclass(class_, NXobject):
@@ -1492,9 +1487,17 @@ class NXobject(object):
                 self._class = self.__class__.__name__
                 if self._class.startswith('NXlink') and self._class != 'NXlink':
                     self._class = 'NX' + self._class[6:]
-            self.set_changed()
         except (TypeError, NameError):
             raise NeXusError("Invalid NeXus class")               
+    
+    @property
+    def nxclass(self):
+        return text(self._class)
+
+    @nxclass.setter
+    def nxclass(self, cls):
+        self._setclass(cls)
+        self.set_changed()
 
     @property
     def nxname(self):

@@ -3886,9 +3886,9 @@ class NXlink(NXobject):
                 self._name = target.nxname
             self._target = target.nxpath
             if isinstance(target, NXfield):
-                self.nxclass = NXlinkfield
+                self._setclass(NXlinkfield)
             elif isinstance(target, NXgroup):
-                self.nxclass = NXlinkgroup
+                self._setclass(_getclass(target.nxclass, link=True))
         else:
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
@@ -4115,7 +4115,7 @@ class NXlinkgroup(NXlink, NXgroup):
                         abspath=abspath)
         if 'nxclass' in opts:
             NXgroup.__init__(self, **opts)
-            self.nxclass = _getclass(opts['nxclass'], link=True)
+            self._setclass(_getclass(opts['nxclass'], link=True))
         else:
             self._class = 'NXlink'
 

@@ -1254,7 +1254,6 @@ class NXobject(object):
     _class = "unknown"
     _name = "unknown"
     _group = None
-    _root = None
     _attrs = AttrDict()
     _file = None
     _filename = None
@@ -1271,7 +1270,7 @@ class NXobject(object):
     def __getstate__(self):
         result = self.__dict__.copy()
         hidden_keys = [key for key in result if key.startswith('_')]
-        needed_keys = ['_class', '_name', '_group', '_root', '_target', 
+        needed_keys = ['_class', '_name', '_group', '_target', 
                        '_entries', '_attrs', '_filename', '_mode', 
                        '_dtype', '_shape', '_value', '_maxshape', '_chunks', 
                        '_fillvalue', '_compression', '_changed']
@@ -1544,14 +1543,12 @@ class NXobject(object):
 
     @property
     def nxroot(self):
-        if self._root is None:
-            if self._group is None or isinstance(self, NXroot):
-                self._root = self
-            elif isinstance(self._group, NXroot):
-                self._root = self._group
-            else:            
-                self._root = self._group.nxroot
-        return self._root
+        if self._group is None or isinstance(self, NXroot):
+            return self
+        elif isinstance(self._group, NXroot):
+            return self._group
+        else:            
+            return self._group.nxroot
 
     @property
     def nxentry(self):
@@ -2187,7 +2184,6 @@ class NXfield(NXobject):
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
         dpcpy._group = None
-        dpcpy._root = None
         return dpcpy
 
     def __iter__(self):
@@ -3512,7 +3508,6 @@ class NXgroup(NXobject):
         if 'target' in dpcpy.attrs:
             del dpcpy.attrs['target']
         dpcpy._group = None
-        dpcpy._root = None
         return dpcpy
 
     def walk(self):
@@ -3931,7 +3926,7 @@ class NXlink(NXobject):
 
     def __deepcopy__(self, memo={}):
         obj = self
-        dpcpy = obj.__class__(nxclass=obj.nxclass)
+        dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
@@ -3939,7 +3934,6 @@ class NXlink(NXobject):
         dpcpy._abspath = copy(obj._abspath)
         dpcpy._link = None
         dpcpy._group = None
-        dpcpy._root = None
         return dpcpy
 
     def _str_name(self, indent=0):

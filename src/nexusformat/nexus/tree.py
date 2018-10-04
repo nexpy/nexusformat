@@ -235,6 +235,9 @@ title is the title of the group or the parent :class:`NXentry`, if available.
 from __future__ import (absolute_import, division, print_function)
 import six
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 from copy import copy, deepcopy
 import numbers
 import os
@@ -280,18 +283,21 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
 
 def text(value):
     """Return a unicode string in both Python 2 and 3"""
+    if isinstance(value, np.ndarray) and value.shape == (1,):
+        value = value[0]
     if isinstance(value, bytes):
         try:
-            return value.decode(NX_ENCODING)
+            text = value.decode(NX_ENCODING)
         except UnicodeDecodeError:
             if NX_ENCODING == 'utf-8':
-                return value.decode('latin-1')
+                text = value.decode('latin-1')
             else:
-                return value.decode('utf-8')
+                text = value.decode('utf-8')
     elif six.PY3:
-        return str(value)
+        text = str(value)
     else:
-        return unicode(value)
+        text = unicode(value)
+    return text.replace('\x00','').rstrip()
 
 
 def is_text(value):
@@ -300,6 +306,10 @@ def is_text(value):
         return True
     else:
         return False
+
+
+def is_string_dtype(dtype):
+    return dtype == string_dtype or dtype.kind == 'S' or dtype.kind == 'U'
 
 
 def is_iterable(obj):
@@ -453,12 +463,11 @@ class NXFile(object):
             return {}
 
     def _readclass(self, nxclass):
-        if is_iterable(nxclass):
-            nxclass = nxclass[0]
+        nxclass = text(nxclass)
         if nxclass is None:
             return 'NXgroup'
         else:
-            return text(nxclass)
+            return nxclass
 
     def _readlink(self):
         _target, _filename, _abspath = None, None, False
@@ -655,7 +664,9 @@ class NXFile(object):
 
     def _writeexternal(self, item):
         self.nxpath = self.nxpath + '/' + item.nxname
-        if os.path.isabs(item._filename) and not item._abspath:
+        if item._abspath:
+            filename = item.nxfilename
+        elif os.path.isabs(item._filename):
             filename = os.path.relpath(os.path.realpath(item._filename), 
                            os.path.dirname(os.path.realpath(self.filename)))
         else:
@@ -702,6 +713,8 @@ class NXFile(object):
             value = None
         if attrs is None:
             attrs = self.attrs
+            if 'NX_class' in attrs and text(attrs['NX_class']) == 'SDS':
+                attrs.pop('NX_class')
         return value, shape, dtype, attrs
 
     def readvalue(self, path, idx=()):
@@ -1099,9 +1112,9 @@ class NXattr(object):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXattr):
-            return self.nxdata == other.nxdata
+            return self.nxvalue == other.nxvalue
         else:
-            return self.nxdata == other
+            return self.nxvalue == other
 
     def __hash__(self):
         return id(self)
@@ -1276,14 +1289,20 @@ class NXobject(object):
         names = sorted(self.attrs)
         result = []
         for k in names:
-            txt1, txt2, txt3 = ('', '', '') 
             txt1 = u" " * indent
-            txt2 = u"@" + k
+            txt2 = u"@" + k + " = "
+            txt3 = text(self.attrs[k])
+            if len(txt3) > 50:
+                txt3 = txt3[:46] + '...'
             if is_text(self.attrs[k]):
-                txt3 =  u" = '" + text(self.attrs[k]) + "'"
+                txt3 =  u"'" + txt3 + "'"
             else:
-                txt3 = u" = " + text(self.attrs[k])
+                txt3 = txt3
             txt = (txt1 + txt2 + txt3).replace("u'", "'")
+            try:
+                txt = txt[:txt.index('\n')]+'...'
+            except ValueError:
+                pass
             result.append(txt)
         return "\n".join(result)
 
@@ -1534,7 +1553,7 @@ class NXobject(object):
         if self._filename is not None:
             if os.path.isabs(self._filename):
                 return self._filename
-            elif self._group is not None:
+            elif self._group is not None and self._group.nxfilename is not None:
                 return os.path.abspath(
                     os.path.join(os.path.dirname(self._group.nxfilename),
                                  self._filename))
@@ -1968,19 +1987,25 @@ class NXfield(NXobject):
         self.set_changed()
 
     def _str_name(self, indent=0):
-        dims = 'x'.join([text(n) for n in self.shape])
-        s = text(self)
-        if ((self.dtype == string_dtype or self.dtype.kind == 'S')
-            and len(self) == 1):
-            if len(s) > 60:
-                s = s[:56] + '...'
-            try:
-                s = s[:s.index('\n')]+'...'
-            except ValueError:
-                pass
-            s = "'" + s + "'"
-        elif len(self) > 3 or '\n' in s or s == "":
-            s = "%s(%s)" % (self.dtype, dims)
+        s = text(self).replace('\r\n', '\n')
+        if self.dtype is not None:
+            if is_string_dtype(self.dtype):
+                if len(s) > 60:
+                    s = s[:56] + '...'
+                try:
+                    s = s[:s.index('\n')]+'...'
+                except ValueError:
+                    pass
+                if len(self) == 1:
+                    s = "'" + s + "'"
+            elif len(self) > 3 or '\n' in s or s == "":
+                if self.shape is None:
+                    dims = ''
+                else:
+                    dims = 'x'.join([text(n) for n in self.shape])
+                s = "%s(%s)" % (self.dtype, dims)
+        elif s == "":
+            s = "None"
         try:
             return " " * indent + self.nxname + " = " + s
         except Exception:
@@ -2116,10 +2141,7 @@ class NXfield(NXobject):
         self._uncopied_data = None
 
     def __deepcopy__(self, memo={}):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
@@ -2164,7 +2186,7 @@ class NXfield(NXobject):
         Returns False if all values are 0 or False, True otherwise.
         """
         try:
-            if np.any(self.nxdata):
+            if np.any(self.nxvalue):
                 return True
             else:
                 return False
@@ -2252,37 +2274,37 @@ class NXfield(NXobject):
         """
         Casts a scalar field as an integer
         """
-        return int(self.nxdata)
+        return int(self.nxvalue)
 
     def __long__(self):
         """
         Casts a scalar field as a long integer
         """
-        return long(self.nxdata)
+        return long(self.nxvalue)
 
     def __float__(self):
         """
         Casts a scalar field as floating point number
         """
-        return float(self.nxdata)
+        return float(self.nxvalue)
 
     def __complex__(self):
         """
         Casts a scalar field as a complex number
         """
-        return complex(self.nxdata)
+        return complex(self.nxvalue)
 
     def __neg__(self):
         """
         Returns the negative value of a scalar field
         """
-        return -self.nxdata
+        return -self.nxvalue
 
     def __abs__(self):
         """
         Returns the absolute value of a scalar field
         """
-        return abs(self.nxdata)
+        return abs(self.nxvalue)
 
     def __eq__(self, other):
         """
@@ -2291,14 +2313,14 @@ class NXfield(NXobject):
         if id(self) == id(other):
             return True
         elif isinstance(other, NXfield):
-            if (isinstance(self.nxdata, np.ndarray) and
-                   isinstance(other.nxdata, np.ndarray)):
+            if (isinstance(self.nxvalue, np.ndarray) and
+                   isinstance(other.nxvalue, np.ndarray)):
                 try:
                     return np.array_equal(self, other)
                 except ValueError:
                     return False
             else:
-                return self.nxdata == other.nxdata
+                return self.nxvalue == other.nxvalue
         else:
             return False
 
@@ -2307,52 +2329,52 @@ class NXfield(NXobject):
         Returns true if the values of the NXfield are not the same.
         """
         if isinstance(other, NXfield):
-            if (isinstance(self.nxdata, np.ndarray) and
-                   isinstance(other.nxdata, np.ndarray)):
+            if (isinstance(self.nxvalue, np.ndarray) and
+                   isinstance(other.nxvalue, np.ndarray)):
                 try:
                     return not np.array_equal(self, other)
                 except ValueError:
                     return True
             else:
-                return self.nxdata != other.nxdata
+                return self.nxvalue != other.nxvalue
         else:
             return True
 
     def __lt__(self, other):
         """
-        Returns true if self.nxdata < other[.nxdata]
+        Returns true if self.nxvalue < other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata < other.nxdata
+            return self.nxvalue < other.nxvalue
         else:
-            return self.nxdata < other
+            return self.nxvalue < other
 
     def __le__(self, other):
         """
-        Returns true if self.nxdata <= other[.nxdata]
+        Returns true if self.nxvalue <= other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata <= other.nxdata
+            return self.nxvalue <= other.nxvalue
         else:
-            return self.nxdata <= other
+            return self.nxvalue <= other
 
     def __gt__(self, other):
         """
-        Returns true if self.nxdata > other[.nxdata]
+        Returns true if self.nxvalue > other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata > other.nxdata
+            return self.nxvalue > other.nxvalue
         else:
-            return self.nxdata > other
+            return self.nxvalue > other
 
     def __ge__(self, other):
         """
-        Returns true if self.nxdata >= other[.nxdata]
+        Returns true if self.nxvalue >= other[.nxvalue]
         """
         if isinstance(other, NXfield):
-            return self.nxdata >= other.nxdata
+            return self.nxvalue >= other.nxvalue
         else:
-            return self.nxdata >= other
+            return self.nxvalue >= other
 
     def __add__(self, other):
         """
@@ -2534,7 +2556,7 @@ class NXfield(NXobject):
         except ImportError:
             raise NeXusError("No conversion utility available")
         if self._value is not None:
-            return self._converter(self._value, units)
+            return self._converter(self.nxvalue, units)
         else:
             return None
 
@@ -2583,7 +2605,7 @@ class NXfield(NXobject):
         def empty_axis(i):
             return NXfield(np.arange(self.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+            return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
         if self.nxgroup:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
@@ -2646,7 +2668,9 @@ class NXfield(NXobject):
         If unmodified values are required, use the 'nxdata' property.
         """
         _value = self.nxdata
-        if (self.dtype is not None and
+        if _value is None:
+            return None
+        elif (self.dtype is not None and
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
             if self.shape == ():
@@ -3360,14 +3384,6 @@ class NXgroup(NXobject):
                 group.entries[key].nxdata = value
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
-            elif isinstance(value, NXlink):
-                if group.nxfilename != value.nxfilename:
-                    value = NXlink(target=value._target, file=value.nxfilename,
-                                   abspath=value.abspath, name=key, group=group)
-                else:
-                    value = NXlink(target=value._target, file=value._filename,
-                                   abspath=value.abspath, name=key, group=group)
-                group.entries[key] = value
             elif isinstance(value, NXobject):
                 value = deepcopy(value)
                 value._group = group
@@ -3427,7 +3443,10 @@ class NXgroup(NXobject):
         if isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
-            return self.entries.__contains__(key)
+            try:
+                return isinstance(self[key], NXobject)		
+            except Exception:		
+                return False
 
     def __eq__(self, other):
         """
@@ -3453,15 +3472,14 @@ class NXgroup(NXobject):
         return len(self.entries)
 
     def __deepcopy__(self, memo):
-        if isinstance(self, NXlink):
-            obj = self.nxlink
-        else:
-            obj = self
+        obj = self
         dpcpy = obj.__class__()
         dpcpy._name = self._name
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k,v in obj.items():
+            if isinstance(v, NXlink):
+                v = v.nxlink
             dpcpy.entries[k] = deepcopy(v, memo)
             dpcpy.entries[k]._group = dpcpy
         for k, v in obj.attrs.items():
@@ -3605,7 +3623,10 @@ class NXgroup(NXobject):
             raise NeXusError("Link target must be an NXobject")
         elif not isinstance(self.nxroot, NXroot):
             raise NeXusError(
-                "The group must have a root object of class NXroot")                
+                "The group must have a root object of class NXroot")
+        elif target.is_external():
+            raise NeXusError(
+                "Cannot link to an object in an externally linked group")
         if name is None:
             name = target.nxname
         if name in self:
@@ -3879,6 +3900,16 @@ class NXlink(NXobject):
         else:
             return "NXlink('%s')" % (self._target)
 
+    def __deepcopy__(self, memo={}):
+        obj = self
+        dpcpy = obj.__class__()
+        memo[id(self)] = dpcpy
+        dpcpy._name = copy(self.nxname)
+        dpcpy._target = copy(obj._target)
+        dpcpy._filename = copy(obj._filename)
+        dpcpy._abspath = copy(obj._abspath)
+        return dpcpy
+
     def _str_name(self, indent=0):
         if self._filename:
             return (" " * indent + self.nxname + ' -> ' + text(self._filename) +
@@ -3896,8 +3927,9 @@ class NXlink(NXobject):
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with NXFile(filename, mode) as f:
                 f.update(self)
-        if self._filename and os.path.exists(self.nxfilename):
-            with NXFile(self.nxfilename, self.nxfilemode) as f:
+        if (self._filename and self.nxfilename and 
+            os.path.exists(self.nxfilename)):
+            with NXFile(self.nxfilename, 'r') as f:
                 if self._target in f:
                     item = f.readpath(self._target)
                     if isinstance(item, NXfield):
@@ -3928,6 +3960,16 @@ class NXlink(NXobject):
             return self
 
     @property
+    def nxfilemode(self):
+        if self._mode is not None:
+            return self._mode
+        elif self.is_external():
+            self._mode = 'r'
+            return self._mode
+        else:
+            return self.nxlink.nxfilemode
+
+    @property
     def attrs(self):
         if not self.is_external():
             return self.nxlink._attrs
@@ -3938,7 +3980,7 @@ class NXlink(NXobject):
                     self._attrs._setattrs(f._readattrs())
                 if 'NX_class' in self._attrs:
                     del self._attrs['NX_class']
-            except Exception:
+            except Exception as error:
                 pass
             return self._attrs
 
@@ -3974,7 +4016,7 @@ class NXlinkfield(NXlink, NXfield):
         if not self.is_external():
             return self.nxlink.__getattr__(name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return object.__getattribute__(self.nxvalue, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -4079,11 +4121,9 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattribute__(name)
+            return self.nxlink.__getattr__(name)
         elif name in self.entries:
             return self.entries[name]
-        else:
-            NXgroup(self).__getattribute__(name)
 
     def __getitem__(self, key):
         if self.is_external():

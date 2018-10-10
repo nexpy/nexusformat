@@ -3975,7 +3975,7 @@ class NXlink(NXobject):
         if self._link is None:
             if self._filename is not None:
                 self._link = self
-            else:
+            elif self._target in self.nxroot:
                 self._link = self.nxroot[self._target]
             if self._class == 'NXlink' and isinstance(self._link, NXfield):
                 self._setclass(NXlinkfield)
@@ -3997,17 +3997,17 @@ class NXlink(NXobject):
 
     @property
     def attrs(self):
-        if not self.is_external():
-            return self.nxlink._attrs
-        else:
-            try:
+        try:
+            if not self.is_external():
+                return self.nxlink._attrs
+            else:
                 with self.nxfile as f:
                     f.nxpath = self.nxtarget
                     self._attrs._setattrs(f._readattrs())
                 if 'NX_class' in self._attrs:
                     del self._attrs['NX_class']
-            except Exception as error:
-                pass
+        except Exception as error:
+            self._attrs = AttrDict(self)
             return self._attrs
 
     @property

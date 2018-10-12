@@ -4008,7 +4008,7 @@ class NXlink(NXobject):
                     del self._attrs['NX_class']
         except Exception as error:
             self._attrs = AttrDict(self)
-            return self._attrs
+        return self._attrs
 
     @property
     def abspath(self):

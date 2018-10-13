@@ -1618,7 +1618,12 @@ class NXobject(object):
 
     @property
     def attrs(self):
+        if self._attrs is None:
+            self._attrs = AttrDict()
         return self._attrs
+
+    def is_plottable(self):
+        return False
 
     def is_external(self):
         return (self.nxfilename is not None and 
@@ -4907,14 +4912,16 @@ class NXdata(NXgroup):
         """
 
         # Check there is a plottable signal
-        if self.nxsignal is None:
+        signal = self.nxsignal
+        if signal is None:
             raise NeXusError("No plotting signal defined")
+        elif not signal.exists():
+            raise NeXusError("Data for '%s' does not exist" % signal.nxpath)
+        elif not signal.is_plottable():
+            raise NeXusError("'%s' is not plottable" % signal.nxpath)
         elif (self.nxaxes is not None and 
               not self.nxsignal.valid_axes(self.nxaxes)):
             raise NeXusError("Defined axes not compatible with the signal")
-        elif not self.nxsignal.exists():
-            raise NeXusError("'%s' does not exist" % 
-                             os.path.abspath(self.nxfilename))
 
         # Plot with the available plotter
         try:

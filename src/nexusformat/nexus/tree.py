@@ -4999,7 +4999,7 @@ class NXdata(NXgroup):
         def empty_axis(i):
             return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
+            return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
         try:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])

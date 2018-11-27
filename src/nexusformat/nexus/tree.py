@@ -785,7 +785,8 @@ class NXFile(object):
             self.nxpath = item.nxpath
 
     def rename(self, old_path, new_path):
-        self.file['/'].move(old_path, new_path)
+        if old_path != new_path:
+            self.file['/'].move(old_path, new_path)
 
     @property
     def filename(self):
@@ -1366,6 +1367,9 @@ class NXobject(object):
         return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
+        name = text(name)
+        if name == self.nxname:
+            return
         group = self.nxgroup
         if group is not None:
             if group.nxfilemode == 'r':
@@ -1375,7 +1379,6 @@ class NXobject(object):
                 axes = group.nxaxes
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
-        name = text(name)
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name

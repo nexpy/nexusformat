@@ -4162,7 +4162,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getitem__(self, key):
         if self.is_external():
-            return super(NXlinkgroup, self).__getitem__(key)
+            return self._entries[key]
         else:
             return self.nxlink.__getitem__(key)
 

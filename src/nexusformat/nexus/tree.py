@@ -2195,7 +2195,19 @@ class NXfield(NXobject):
         """
         Implements key iteration
         """
-        return self.nxvalue.__iter__()
+        try:
+            return self.nxvalue.__iter__()
+        except AttributeError:
+            return self
+            
+    def __next__(self):
+        """
+        Implements key iteration
+        """
+        try:
+            return self.nxvalue.__next__()
+        except AttributeError:
+            raise StopIteration
             
     def __contains__(self, key):
         """Implements 'k in d' test using the NXfield nxvalue."""

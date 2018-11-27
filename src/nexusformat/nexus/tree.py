@@ -2650,21 +2650,23 @@ class NXfield(NXobject):
         if self.nxgroup:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
-            elif self.nxgroup and 'axes' in self.nxgroup.attrs:
+            elif 'axes' in self.nxgroup.attrs:
                 axis_names = _readaxes(self.nxgroup.attrs['axes'])
             else:
                 axis_names = ['.'] * self.plot_rank
-            axes = [None] * len(axis_names)
+            if len(axis_names) > self.plot_rank:
+                axis_names = axis_names[:self.plot_rank]
+            axes = []
             for i, axis_name in enumerate(axis_names):
                 axis_name = axis_name.strip()
                 if (axis_name not in self.nxgroup or  
                     invalid_axis(self.nxgroup[axis_name])):
-                    axes[i] = empty_axis(i)
+                    axes.append(empty_axis(i))
                 else:
-                    axes[i] = plot_axis(self.nxgroup[axis_name])
+                    axes.append(plot_axis(self.nxgroup[axis_name]))
             return axes
         else:
-            return [empty_axis(i) for i in range(self.ndim)]
+            return [empty_axis(i) for i in range(self.plot_rank)]
 
     def valid_axes(self, axes):
         """Return True if the axes are consistent with the field.

@@ -3746,21 +3746,46 @@ class NXgroup(NXobject):
         Returns an NXfield containing the moments of the NXdata group
         assuming the signal is one-dimensional.
 
-        Currently, only the first moment has been defined. Eventually, the
-        order of the moment will be defined by the 'order' parameter.
+        Currently, the first two moments have been defined (order =1 or 2).
         """
         if self.nxsignal is None:
             raise NeXusError("No signal to calculate")
         elif len(self.nxsignal.shape) > 1:
             raise NeXusError(
                 "Operation only possible on one-dimensional signals")
-        elif order > 1:
+        elif order > 2:
             raise NeXusError("Higher moments not yet implemented")
         if not hasattr(self,"nxclass"):
             raise NeXusError(
                 "Operation not allowed for groups of unknown class")
-        return ((centers(self.nxsignal, self.nxaxes) * self.nxsignal).sum()
-                   / self.nxsignal.sum())
+        y = self.nxsignal
+        x = centers(y, self.nxaxes)[0]
+        mean = (y * x).sum() / y.sum()
+        if order == 1:
+            return mean
+        elif order == 2:
+            return ((y * x**2).sum() / y.sum()) - mean**2
+
+    def mean(self):
+        """
+        Returns an NXfield containing the mean of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return self.moment(1)
+
+    def var(self):
+        """
+        Returns an NXfield containing the variance of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return self.moment(2)
+
+    def std(self):
+        """
+        Returns an NXfield containing the standard deviation of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return np.sqrt(self.moment(2))
 
     def is_plottable(self):
         plottable = False

@@ -2780,22 +2780,15 @@ class NXfield(NXobject):
         If there is no title attribute in the parent group, the group's path is 
         returned.
         """
-        parent = self.nxgroup
-        if parent:
-            if 'title' in parent:
-                return text(parent.title)
-            elif parent.nxgroup and 'title' in parent.nxgroup:
-                return text(parent.nxgroup.title)        
+        root = self.nxroot
+        if root.nxname != '' and root.nxname != 'root':
+            return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
         else:
-            root = self.nxroot
-            if root.nxname != '' and root.nxname != 'root':
-                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            fname = self.nxfilename
+            if fname is not None:
+                return fname + ':' + self.nxpath
             else:
-                fname = self.nxfilename
-                if fname is not None:
-                    return fname + ':' + self.nxpath
-                else:
-                    return self.nxpath
+                return self.nxpath
 
     @property
     def mask(self):

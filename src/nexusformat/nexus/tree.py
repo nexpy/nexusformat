@@ -785,7 +785,8 @@ class NXFile(object):
             self.nxpath = item.nxpath
 
     def rename(self, old_path, new_path):
-        self.file['/'].move(old_path, new_path)
+        if old_path != new_path:
+            self.file['/'].move(old_path, new_path)
 
     @property
     def filename(self):
@@ -1366,6 +1367,9 @@ class NXobject(object):
         return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
+        name = text(name)
+        if name == self.nxname:
+            return
         group = self.nxgroup
         if group is not None:
             if group.nxfilemode == 'r':
@@ -1375,7 +1379,6 @@ class NXobject(object):
                 axes = group.nxaxes
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
-        name = text(name)
         old_path = self.nxpath
         if group is not None:
             new_path = group.nxpath + '/' + name
@@ -2195,7 +2198,19 @@ class NXfield(NXobject):
         """
         Implements key iteration
         """
-        return self.nxvalue.__iter__()
+        try:
+            return self.nxvalue.__iter__()
+        except AttributeError:
+            return self
+            
+    def __next__(self):
+        """
+        Implements key iteration
+        """
+        try:
+            return self.nxvalue.__next__()
+        except AttributeError:
+            raise StopIteration
             
     def __contains__(self, key):
         """Implements 'k in d' test using the NXfield nxvalue."""
@@ -2635,21 +2650,23 @@ class NXfield(NXobject):
         if self.nxgroup:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
-            elif self.nxgroup and 'axes' in self.nxgroup.attrs:
+            elif 'axes' in self.nxgroup.attrs:
                 axis_names = _readaxes(self.nxgroup.attrs['axes'])
             else:
                 axis_names = ['.'] * self.plot_rank
-            axes = [None] * len(axis_names)
+            if len(axis_names) > self.plot_rank:
+                axis_names = axis_names[:self.plot_rank]
+            axes = []
             for i, axis_name in enumerate(axis_names):
                 axis_name = axis_name.strip()
                 if (axis_name not in self.nxgroup or  
                     invalid_axis(self.nxgroup[axis_name])):
-                    axes[i] = empty_axis(i)
+                    axes.append(empty_axis(i))
                 else:
-                    axes[i] = plot_axis(self.nxgroup[axis_name])
+                    axes.append(plot_axis(self.nxgroup[axis_name]))
             return axes
         else:
-            return [empty_axis(i) for i in range(self.ndim)]
+            return [empty_axis(i) for i in range(self.plot_rank)]
 
     def valid_axes(self, axes):
         """Return True if the axes are consistent with the field.
@@ -2763,22 +2780,15 @@ class NXfield(NXobject):
         If there is no title attribute in the parent group, the group's path is 
         returned.
         """
-        parent = self.nxgroup
-        if parent:
-            if 'title' in parent:
-                return text(parent.title)
-            elif parent.nxgroup and 'title' in parent.nxgroup:
-                return text(parent.nxgroup.title)        
+        root = self.nxroot
+        if root.nxname != '' and root.nxname != 'root':
+            return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
         else:
-            root = self.nxroot
-            if root.nxname != '' and root.nxname != 'root':
-                return (root.nxname + '/' + self.nxpath.lstrip('/')).rstrip('/')
+            fname = self.nxfilename
+            if fname is not None:
+                return fname + ':' + self.nxpath
             else:
-                fname = self.nxfilename
-                if fname is not None:
-                    return fname + ':' + self.nxpath
-                else:
-                    return self.nxpath
+                return self.nxpath
 
     @property
     def mask(self):
@@ -3736,21 +3746,46 @@ class NXgroup(NXobject):
         Returns an NXfield containing the moments of the NXdata group
         assuming the signal is one-dimensional.
 
-        Currently, only the first moment has been defined. Eventually, the
-        order of the moment will be defined by the 'order' parameter.
+        Currently, the first two moments have been defined (order =1 or 2).
         """
         if self.nxsignal is None:
             raise NeXusError("No signal to calculate")
         elif len(self.nxsignal.shape) > 1:
             raise NeXusError(
                 "Operation only possible on one-dimensional signals")
-        elif order > 1:
+        elif order > 2:
             raise NeXusError("Higher moments not yet implemented")
         if not hasattr(self,"nxclass"):
             raise NeXusError(
                 "Operation not allowed for groups of unknown class")
-        return ((centers(self.nxsignal, self.nxaxes) * self.nxsignal).sum()
-                   / self.nxsignal.sum())
+        y = self.nxsignal
+        x = centers(y, self.nxaxes)[0]
+        mean = (y * x).sum() / y.sum()
+        if order == 1:
+            return mean
+        elif order == 2:
+            return ((y * x**2).sum() / y.sum()) - mean**2
+
+    def mean(self):
+        """
+        Returns an NXfield containing the mean of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return self.moment(1)
+
+    def var(self):
+        """
+        Returns an NXfield containing the variance of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return self.moment(2)
+
+    def std(self):
+        """
+        Returns an NXfield containing the standard deviation of the NXdata group
+        assuming the signal is one-dimensional.
+        """
+        return np.sqrt(self.moment(2))
 
     def is_plottable(self):
         plottable = False
@@ -3935,7 +3970,7 @@ class NXlink(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
-        dpcpy._filename = copy(obj.nxfilename)
+        dpcpy._filename = copy(obj._filename)
         dpcpy._abspath = copy(obj._abspath)
         dpcpy._link = None
         dpcpy._group = None
@@ -4147,7 +4182,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getitem__(self, key):
         if self.is_external():
-            return super(NXlinkgroup, self).__getitem__(key)
+            return self._entries[key]
         else:
             return self.nxlink.__getitem__(key)
 

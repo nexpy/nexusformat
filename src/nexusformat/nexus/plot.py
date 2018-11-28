@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013, NeXpy Development Team.
+# Copyright (c) 2013-2015, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #

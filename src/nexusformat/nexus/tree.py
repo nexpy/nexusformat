@@ -3741,30 +3741,30 @@ class NXgroup(NXobject):
         """
         return self.sum(axis, averaged=True)
 
-    def moment(self, order=1):
+    def moment(self, order=1, center=None):
         """
-        Returns an NXfield containing the moments of the NXdata group
+        Returns an NXfield containing the central moments of the NXdata group
         assuming the signal is one-dimensional.
-
-        Currently, the first two moments have been defined (order =1 or 2).
         """
-        if self.nxsignal is None:
+        signal, axes = self.nxsignal, self.nxaxes
+        if signal is None:
             raise NeXusError("No signal to calculate")
-        elif len(self.nxsignal.shape) > 1:
+        elif len(signal.shape) > 1:
             raise NeXusError(
                 "Operation only possible on one-dimensional signals")
-        elif order > 2:
-            raise NeXusError("Higher moments not yet implemented")
-        if not hasattr(self,"nxclass"):
+        if not hasattr(self, "nxclass"):
             raise NeXusError(
                 "Operation not allowed for groups of unknown class")
-        y = self.nxsignal
-        x = centers(y, self.nxaxes)[0]
-        mean = (y * x).sum() / y.sum()
+        y = signal / signal.sum()
+        x = centers(y, axes)[0]
+        if center:
+            c = center
+        else:
+            c = (y * x).sum()
         if order == 1:
-            return mean
-        elif order == 2:
-            return ((y * x**2).sum() / y.sum()) - mean**2
+            return c
+        else:
+            return (y * (x - c)**order).sum()
 
     def mean(self):
         """

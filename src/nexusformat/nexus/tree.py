@@ -910,7 +910,11 @@ def _getvalue(value, dtype=None, shape=None):
             _value = np.asarray(value) #convert subclasses of ndarray
     else:
         try:
-            _value = np.asarray([np.asarray(i) for i in value])
+            _value = [np.asarray(v) for v in value]
+            if len(set([v.shape for v in _value])) > 1:
+                raise NeXusError(
+                    "Cannot assign an iterable with items of multiple shapes")
+            _value = np.asarray(_value)
         except TypeError:
             _value = np.asarray(value)
         if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':

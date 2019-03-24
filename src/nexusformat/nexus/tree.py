@@ -892,7 +892,7 @@ def _getvalue(value, dtype=None, shape=None):
                 _dtype = _getdtype(dtype)
                 if _dtype.kind == 'S':
                     value = text(value).encode('utf-8')
-                return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
+                return np.array(value, dtype=_dtype).item(), _dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the dtype")
         else:
@@ -909,7 +909,14 @@ def _getvalue(value, dtype=None, shape=None):
         else:
             _value = np.asarray(value) #convert subclasses of ndarray
     else:
-        _value = np.asarray(value)
+        try:
+            _value = [np.asarray(v) for v in value]
+            if len(set([v.shape for v in _value])) > 1:
+                raise NeXusError(
+                    "Cannot assign an iterable with items of multiple shapes")
+            _value = np.asarray(_value)
+        except TypeError:
+            _value = np.asarray(value)
         if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
             _value = _value.astype(string_dtype)
     if dtype is not None:
@@ -927,7 +934,7 @@ def _getvalue(value, dtype=None, shape=None):
         except ValueError:
             raise NeXusError("The value is incompatible with the shape")
     if _value.shape == ():
-        return np.asscalar(_value), _value.dtype, _value.shape
+        return _value.item(), _value.dtype, _value.shape
     else:
         return _value, _value.dtype, _value.shape
 
@@ -1161,7 +1168,7 @@ class NXattr(object):
             else:
                 return [text(value) for value in self._value[()]]
         elif self.shape == (1,):
-            return np.asscalar(self._value)
+            return self._value.item()
         else:
             return self._value
 
@@ -2723,7 +2730,7 @@ class NXfield(NXobject):
             else:
                 return [text(value) for value in _value[()]]
         elif self.shape == (1,):
-            return np.asscalar(_value)
+            return _value.item()
         else:
             return _value
 

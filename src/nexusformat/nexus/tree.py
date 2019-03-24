@@ -892,7 +892,7 @@ def _getvalue(value, dtype=None, shape=None):
                 _dtype = _getdtype(dtype)
                 if _dtype.kind == 'S':
                     value = text(value).encode('utf-8')
-                return np.asscalar(np.array(value, dtype=_dtype)), _dtype, ()
+                return np.array(value, dtype=_dtype).item(), _dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the dtype")
         else:
@@ -927,7 +927,7 @@ def _getvalue(value, dtype=None, shape=None):
         except ValueError:
             raise NeXusError("The value is incompatible with the shape")
     if _value.shape == ():
-        return np.asscalar(_value), _value.dtype, _value.shape
+        return _value.item(), _value.dtype, _value.shape
     else:
         return _value, _value.dtype, _value.shape
 
@@ -1161,7 +1161,7 @@ class NXattr(object):
             else:
                 return [text(value) for value in self._value[()]]
         elif self.shape == (1,):
-            return np.asscalar(self._value)
+            return self._value.item()
         else:
             return self._value
 
@@ -2723,7 +2723,7 @@ class NXfield(NXobject):
             else:
                 return [text(value) for value in _value[()]]
         elif self.shape == (1,):
-            return np.asscalar(_value)
+            return _value.item()
         else:
             return _value
 

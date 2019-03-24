@@ -909,7 +909,10 @@ def _getvalue(value, dtype=None, shape=None):
         else:
             _value = np.asarray(value) #convert subclasses of ndarray
     else:
-        _value = np.asarray(value)
+        try:
+            _value = np.asarray([np.asarray(i) for i in value])
+        except TypeError:
+            _value = np.asarray(value)
         if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
             _value = _value.astype(string_dtype)
     if dtype is not None:

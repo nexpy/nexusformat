@@ -1974,7 +1974,7 @@ class NXfield(NXobject):
         """
         idx = convert_index(idx, self)
         if len(self) == 1:
-            result = self
+            result = self.nxvalue
         elif self._value is None:
             if self._uncopied_data:
                 self._get_uncopied_data()

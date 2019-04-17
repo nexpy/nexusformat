@@ -4627,7 +4627,7 @@ class NXdata(NXgroup):
             idx, axes = self.slab(key)
             removed_axes = []
             for axis in axes:
-                if axis.shape == () or axis.shape == (1,):
+                if axis.shape == () or axis.shape == (0,) or axis.shape == (1,):
                     removed_axes.append(axis)
             axes = [ax for ax in axes if ax not in [rax for rax in removed_axes 
                                                     if rax is ax]]            
@@ -4886,8 +4886,8 @@ class NXdata(NXgroup):
             else:
                 ind = convert_index(ind, axes[i])
                 slices.append(ind)
-                if (signal.shape[i] < axes[i].shape[0] and
-                       isinstance(ind, slice) and ind.stop is not None):
+                if (isinstance(ind, slice) and ind.stop is not None
+                    and signal.shape[i] < axes[i].shape[0]):
                     ind = slice(ind.start, ind.stop+1, ind.step)
                 axes[i] = axes[i][ind]
         return tuple(slices), axes

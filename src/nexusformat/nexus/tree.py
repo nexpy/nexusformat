@@ -2327,8 +2327,10 @@ class NXfield(NXobject):
     def __long__(self):
         """
         Casts a scalar field as a long integer
+
+        The use of the 'long' function is not valid in Python 3 and no longer useful in Python 2
         """
-        return long(self.nxvalue)
+        return int(self.nxvalue)
 
     def __float__(self):
         """
@@ -3602,7 +3604,7 @@ class NXgroup(NXobject):
         """
         Returns true if a NeXus object with the specified name is in the group.
         """
-        return self.entries.has_key(name)    
+        return name in self.entries   
 
     def copy(self):
         """

@@ -28,7 +28,7 @@ data.
 Example 1: Loading a NeXus file
 -------------------------------
 The following commands loads NeXus data from a file, displays (some of) the
-contents as a tree, and then accesses individual data items.
+contents as a tree, and then accesses individual data items
 
     >>> from nexusformat import nexus as nx
     >>> a=nx.load('sns/data/ARCS_7326.nxs')
@@ -83,7 +83,7 @@ file. The data are first created as Numpy arrays
     >>> z=np.sin(X)*np.sin(Y)
 
 Then, a NeXus data group is created and the data inserted to produce a
-NeXus-compliant structure that can be saved to a file.
+NeXus-compliant structure that can be saved to a file
 
     >>> root=nx.NXroot(NXentry())
     >>> print root.tree
@@ -3001,7 +3001,7 @@ class NXfield(NXobject):
             return False
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-             zmin=None, zmax=None, **opts):
+             vmin=None, vmax=None, **opts):
         """
         Plot data if the signal attribute is defined.
 
@@ -3040,7 +3040,8 @@ class NXfield(NXobject):
             else:
                 signal_path = self.nxpath
             data.nxsignal.attrs['signal_path'] = signal_path
-            plotview.plot(data, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
+            plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
+                          vmin=None, vmax=None, **opts)
         else:
             raise NeXusError("NXfield not plottable")
     
@@ -3051,23 +3052,23 @@ class NXfield(NXobject):
         self.plot(fmt=fmt, over=True, **opts)
 
     def logplot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                zmin=None, zmax=None, **opts):
+                vmin=None, vmax=None, **opts):
         """
         Plots the data intensity contained within the group on a log scale.
         """
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                  zmin=zmin, zmax=zmax, **opts)
+                  vmin=vmin, vmax=vmax, **opts)
 
     def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                zmin=None, zmax=None, **opts):
+                vmin=None, vmax=None, **opts):
         """
         Plots the data intensity as an RGB(A) image.
         """
         if self.plot_rank > 2 and (self.shape[-1] == 3 or self.shape[-1] == 4):
             self.plot(fmt=fmt, image=True,
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                      zmin=zmin, zmax=zmax, **opts)
+                      vmin=vmin, vmax=vmax, **opts)
         else:
             raise NeXusError("Invalid shape for RGB(A) image")
 
@@ -4933,7 +4934,7 @@ class NXdata(NXgroup):
             return None
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-             zmin=None, zmax=None, **opts):
+             vmin=None, vmax=None, **opts):
         """
         Plot data contained within the group.
 
@@ -4975,7 +4976,8 @@ class NXdata(NXgroup):
         except ImportError:
             from .plot import plotview
             
-        plotview.plot(self, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts)
+        plotview.plot(self, fmt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, 
+                      vmin=vmin, vmax=vmax, **opts)
     
     def oplot(self, fmt='', **opts):
         """
@@ -4984,16 +4986,16 @@ class NXdata(NXgroup):
         self.plot(fmt=fmt, over=True, **opts)
 
     def logplot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                zmin=None, zmax=None, **opts):
+                vmin=None, vmax=None, **opts):
         """
         Plots the data intensity contained within the group on a log scale.
         """
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                  zmin=zmin, zmax=zmax, **opts)
+                  vmin=vmin, vmax=vmax, **opts)
 
     def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                zmin=None, zmax=None, **opts):
+                vmin=None, vmax=None, **opts):
         """
         Plots the data intensity as an image.
         """
@@ -5001,7 +5003,7 @@ class NXdata(NXgroup):
             (self.nxsignal.shape[-1] == 3 or self.nxsignal.shape[-1] == 4)):
             self.plot(fmt=fmt, image=True,
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                      zmin=zmin, zmax=zmax, **opts)
+                      vmin=vmin, vmax=vmax, **opts)
         else:
             raise NeXusError("Invalid shape for RGB(A) image")
 

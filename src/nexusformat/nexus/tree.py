@@ -369,7 +369,7 @@ class NXFile(object):
         elif not os.path.exists(os.path.dirname(name)):
             raise NeXusError("'%s/' does not exist"
                              % os.path.dirname(name))
-        elif mode == 'w' or mode == 'w-' or mode == 'w5':
+        elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a':
             if mode == 'w5':
                 mode = 'w'
             self._file = self.h5.File(name, mode, **opts)

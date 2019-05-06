@@ -54,3 +54,6 @@ Icon?
 
 # Emacs backup files
 *~
+
+# Virtual Studio Code
+.vscode

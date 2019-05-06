@@ -2940,7 +2940,9 @@ class NXfield(NXobject):
 
     @property
     def maxshape(self):
-        if self.nxfilemode:
+        if self._maxshape is not None:
+            return self._maxshape
+        elif self.nxfilemode:
             with self.nxfile as f:
                 _maxshape = f[self.nxfilepath].maxshape
         elif self._memfile:

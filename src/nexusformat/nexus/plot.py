@@ -71,7 +71,7 @@ class PylabPlotter(object):
     Matplotlib plotter class for NeXus data.
     """
 
-    def plot(self, data_group, fmt, xmin, xmax, ymin, ymax, zmin, zmax, **opts):
+    def plot(self, data_group, fmt, xmin, xmax, ymin, ymax, vmin, vmax, **opts):
         """
         Plot the data entry.
 

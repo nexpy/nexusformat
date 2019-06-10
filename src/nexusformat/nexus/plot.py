@@ -71,7 +71,8 @@ class PylabPlotter(object):
     Matplotlib plotter class for NeXus data.
     """
 
-    def plot(self, data_group, fmt, xmin, xmax, ymin, ymax, vmin, vmax, **opts):
+    def plot(self, data_group, fmt='', xmin=None, xmax=None, ymin=None, ymax=None, 
+             vmin=None, vmax=None, **opts):
         """
         Plot the data entry.
 
@@ -159,18 +160,18 @@ class PylabPlotter(object):
                     y = boundaries(axes[-2], data.shape[-2])
                     xlabel, ylabel = label(axes[-1]), label(axes[-2])
 
-                if not zmin: 
-                    zmin = np.nanmin(data[data>-np.inf])
-                if not zmax: 
-                    zmax = np.nanmax(data[data<np.inf])
+                if not vmin: 
+                    vmin = np.nanmin(data[data>-np.inf])
+                if not vmax: 
+                    vmax = np.nanmax(data[data<np.inf])
             
                 if not image:
                     if log:
-                        zmin = max(zmin, 0.01)
-                        zmax = max(zmax, 0.01)
-                        opts["norm"] = LogNorm(zmin, zmax)
+                        vmin = max(vmin, 0.01)
+                        vmax = max(vmax, 0.01)
+                        opts["norm"] = LogNorm(vmin, vmax)
                     else:
-                        opts["norm"] = Normalize(zmin, zmax)
+                        opts["norm"] = Normalize(vmin, vmax)
 
                 ax = plt.gca()
                 if image:

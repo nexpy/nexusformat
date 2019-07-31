@@ -1912,6 +1912,11 @@ class NXfield(NXobject):
         self._memfile = None
         self.set_changed()
 
+    def __dir__(self):
+        return sorted([c for c in dir(super(self.__class__, self)) 
+                       if not c.startswith('_')]+list(self.attrs), 
+                      key=natural_sort)
+
     def __repr__(self):
         if self._value is not None:
             return "NXfield(%s)" % repr(self.nxvalue)
@@ -3327,7 +3332,8 @@ class NXgroup(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted(dir(super(self.__class__, self))+list(self), 
+        return sorted([c for c in dir(super(self.__class__, self))
+                       if not c.startswith('_')]+list(self)+list(self.attrs), 
                       key=natural_sort)
 
     def __repr__(self):

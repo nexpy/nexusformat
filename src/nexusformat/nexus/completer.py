@@ -120,4 +120,5 @@ def load_ipython_extension(ip=None):
     """ Load completer function into IPython """
     if ip is None:
         ip = get_ipython()
+    ip.Completer.use_jedi = False
     ip.set_hook('complete_command', nxcompleter, re_key=r"(?:.*\=)?(.+?)\[")

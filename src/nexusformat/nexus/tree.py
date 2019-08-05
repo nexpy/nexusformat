@@ -882,6 +882,8 @@ def _getvalue(value, dtype=None, shape=None):
     the dtype and shape are determined from the value.
     """
     dtype, shape = _getdtype(dtype), _getshape(shape)
+    if isinstance(value, NXfield) or isinstance(value, NXattr):
+        value = value.nxvalue
     if value is None:
         return None, dtype, shape
     elif is_text(value):
@@ -1910,6 +1912,11 @@ class NXfield(NXobject):
         self._memfile = None
         self.set_changed()
 
+    def __dir__(self):
+        return sorted([c for c in dir(super(self.__class__, self)) 
+                       if not c.startswith('_')]+list(self.attrs), 
+                      key=natural_sort)
+
     def __repr__(self):
         if self._value is not None:
             return "NXfield(%s)" % repr(self.nxvalue)
@@ -2372,7 +2379,7 @@ class NXfield(NXobject):
             else:
                 return self.nxvalue == other.nxvalue
         else:
-            return False
+            return self.nxvalue == other
 
     def __ne__(self, other):
         """
@@ -2388,7 +2395,7 @@ class NXfield(NXobject):
             else:
                 return self.nxvalue != other.nxvalue
         else:
-            return True
+            return self.nxvalue != other
 
     def __lt__(self, other):
         """
@@ -3325,7 +3332,8 @@ class NXgroup(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted(dir(super(self.__class__, self))+list(self), 
+        return sorted([c for c in dir(super(self.__class__, self))
+                       if not c.startswith('_')]+list(self)+list(self.attrs), 
                       key=natural_sort)
 
     def __repr__(self):

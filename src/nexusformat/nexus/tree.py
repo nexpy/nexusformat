@@ -4966,9 +4966,10 @@ class NXdata(NXgroup):
             raise NeXusError("Data for '%s' does not exist" % signal.nxpath)
         elif not signal.is_plottable():
             raise NeXusError("'%s' is not plottable" % signal.nxpath)
-        elif (self.nxaxes is not None and 
-              not self.nxsignal.valid_axes(self.nxaxes)):
-            raise NeXusError("Defined axes not compatible with the signal")
+        else:
+            axes = self.plot_axes
+            if axes is not None and not self.nxsignal.valid_axes(axes):
+                raise NeXusError("Defined axes not compatible with the signal")
 
         # Plot with the available plotter
         try:

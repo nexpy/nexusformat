@@ -28,9 +28,9 @@ from IPython.core.error import TryNext
 
 from .tree import NXobject
 
-re_attr_match = re.compile(r"(?:.*\=)?(.+\[.*\].*)\.(\w*)$")
-re_item_match = re.compile(r"""(?:.*\=)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
-re_object_match = re.compile(r"(?:.*\=)?(.+?)(?:\[)")
+re_attr_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+\[.*\].*)\.(\w*)$")
+re_item_match = re.compile(r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
+re_object_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+?)(?:\[)")
 
 
 def _retrieve_obj(name, context):

@@ -29,7 +29,8 @@ from IPython.core.error import TryNext
 from .tree import NXobject
 
 re_attr_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+\[.*\].*)\.(\w*)$")
-re_item_match = re.compile(r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
+re_item_match = re.compile(
+    r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
 re_object_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+?)(?:\[)")
 
 
@@ -121,4 +122,5 @@ def load_ipython_extension(ip=None):
     if ip is None:
         ip = get_ipython()
     ip.Completer.use_jedi = False
-    ip.set_hook('complete_command', nxcompleter, re_key=r"(?:.*\=)?(.+?)\[")
+    ip.set_hook('complete_command', nxcompleter, 
+                re_key=r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+?)\[")

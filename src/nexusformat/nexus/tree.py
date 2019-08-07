@@ -3969,6 +3969,21 @@ class NXlink(NXobject):
             self._target = text(target)
             self._link = None
 
+    def __repr__(self):
+        if self._filename:
+            return "NXlink(target='%s', file='%s')" % (self._target, 
+                                                       self._filename)
+        else:
+            return "NXlink('%s')" % (self._target)
+
+    def __getattr__(self, name):
+        if not self.is_external():
+            return self.nxlink.__getattr__(name)
+        elif not self.exists():
+            raise NeXusError("Cannot read the external link to '%s'" % self._filename)
+        else:
+            raise NeXusError("'"+name+"' not in "+self.nxpath)
+
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):
             object.__setattr__(self, name, value)
@@ -3976,13 +3991,6 @@ class NXlink(NXobject):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setattr__(name, value)            
-
-    def __repr__(self):
-        if self._filename:
-            return "NXlink(target='%s', file='%s')" % (self._target, 
-                                                       self._filename)
-        else:
-            return "NXlink('%s')" % (self._target)
 
     def __deepcopy__(self, memo={}):
         obj = self
@@ -4199,6 +4207,10 @@ class NXlinkgroup(NXlink, NXgroup):
             return self.nxlink.__getattr__(name)
         elif name in self.entries:
             return self.entries[name]
+        elif name in self.attrs:
+            return self.attrs[name]
+        else:
+            raise NeXusError("'"+name+"' not in "+self.nxpath)
 
     def __getitem__(self, key):
         if self.is_external():

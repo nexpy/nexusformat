@@ -5091,7 +5091,7 @@ class NXdata(NXgroup):
                 else:
                     axes[i] = plot_axis(self[axis_name])
             return axes
-        except (KeyError, AttributeError, UnboundLocalError):
+        except (AttributeError, IndexError, KeyError, UnboundLocalError):
             axes = {}
             for entry in self:
                 if 'axis' in self[entry].attrs:

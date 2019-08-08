@@ -2234,7 +2234,10 @@ class NXfield(NXobject):
         """
         Returns the length of the NXfield data.
         """
-        return int(np.prod(self.shape))
+        if self.shape:
+            return int(np.prod(self.shape))
+        else:
+            return 0
 
     def __nonzero__(self):
         """
@@ -2971,7 +2974,10 @@ class NXfield(NXobject):
 
     @property
     def ndim(self):
-        return len(self.shape)
+        try:
+            return len(self.shape)
+        except TypeError:
+            return 0
 
     @property
     def size(self):

@@ -369,7 +369,7 @@ class NXFile(object):
         elif not os.path.exists(os.path.dirname(name)):
             raise NeXusError("'%s/' does not exist"
                              % os.path.dirname(name))
-        elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a':
+        elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or mode == 'x':
             if mode == 'w5':
                 mode = 'w'
             self._file = self.h5.File(name, mode, **opts)
@@ -752,9 +752,9 @@ class NXFile(object):
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value
 
-    def copyfile(self, input_file):
+    def copyfile(self, input_file, **opts):
         for entry in input_file['/']:
-            input_file.copy(entry, self['/']) 
+            input_file.copy(entry, self['/'], **opts) 
         self._rootattrs()
 
     def _rootattrs(self):
@@ -5439,10 +5439,10 @@ def save(filename, group, mode='w'):
  
 nxsave = save
 
-def duplicate(input_file, output_file):
+def duplicate(input_file, output_file, mode='w-', **opts):
     input = nxload(input_file)
-    output = NXFile(output_file, 'w')
-    output.copyfile(input.nxfile)
+    output = NXFile(output_file, mode)
+    output.copyfile(input.nxfile, **opts)
 
 nxduplicate = duplicate
 

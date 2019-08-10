@@ -3447,7 +3447,8 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXobject):
-                value = deepcopy(value)
+                if value._group:
+                    value = deepcopy(value)
                 value._group = group
                 value._name = key
                 group.entries[key] = value

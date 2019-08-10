@@ -280,6 +280,8 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
              'NXtransformations', 'NXtranslation', 'NXuser', 
              'NXvelocity_selector', 'NXxraylens']
 
+if six.PY3:
+    unicode = str
 
 def text(value):
     """Return a unicode string in both Python 2 and 3"""

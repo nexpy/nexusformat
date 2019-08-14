@@ -1986,8 +1986,8 @@ class NXfield(NXobject):
             result = self.nxvalue
         elif self._value is None:
             if self._uncopied_data:
-                self._get_uncopied_data()
-            if self.nxfilemode:
+                result = self._get_uncopied_data(idx)
+            elif self.nxfilemode:
                 result = self._get_filedata(idx)
             elif self._memfile:
                 result = self._get_memdata(idx)
@@ -2174,15 +2174,23 @@ class NXfield(NXobject):
                 self._value = np.ma.array(self._value)
             self._value[idx] = np.ma.masked
 
-    def _get_uncopied_data(self):
+    def _get_uncopied_data(self, idx=None):
         _file, _path = self._uncopied_data
         with _file as f:
-            if self.nxfilemode == 'rw':
-                f.copy(_path, self.nxpath)
+            if idx:
+                return f.readvalue(_path, idx=idx)
             else:
-                self._create_memfile()
-                f.copy(_path, self._memfile, 'data')
-        self._uncopied_data = None
+                if self.nxfilemode == 'rw':
+                    f.copy(_path, self.nxpath)
+                else:
+                    self._create_memfile()
+                    f.copy(_path, self._memfile, 'data')
+                self._uncopied_data = None
+                if (np.prod(self.shape) * np.dtype(self.dtype).itemsize 
+                    <= NX_MEMORY*1000*1000):
+                    return f.readvalue(_path)
+                else:
+                    return None
 
     def __deepcopy__(self, memo={}):
         obj = self
@@ -2760,7 +2768,7 @@ class NXfield(NXobject):
                     if self.nxfilemode:
                         self._value = self._get_filedata()
                     elif self._uncopied_data:
-                        self._get_uncopied_data()
+                        self._value = self._get_uncopied_data()
                     if self._memfile:
                         self._value = self._get_memdata()
                         self._memfile = None
@@ -3570,7 +3578,7 @@ class NXgroup(NXobject):
         elif self.nxfilemode is None:
             for node in self.walk():
                 if isinstance(node, NXfield) and node._uncopied_data:
-                    node._get_uncopied_data()
+                    node._value = node._get_uncopied_data()
         self.set_changed()
 
     def get(self, name, default=None):

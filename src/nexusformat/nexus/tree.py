@@ -245,6 +245,7 @@ import re
 import sys
 
 import numpy as np
+import tables
 import h5py as h5
 
 from .. import __version__ as nxversion
@@ -2244,9 +2245,9 @@ class NXfield(NXobject):
         """
         Returns the length of the NXfield data.
         """
-        if self.shape:
-            return int(np.prod(self.shape))
-        else:
+        try:
+            return self.shape[0]
+        except Exception:
             return 0
 
     def __nonzero__(self):

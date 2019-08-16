@@ -3985,7 +3985,7 @@ class NXlink(NXobject):
     def __getattr__(self, name):
         if not self.is_external():
             if self.nxlink:
-                return self.nxlink.__getattr__(name)
+                return getattr(self.nxlink, name)
             else:
                 raise NeXusError("Cannot resolve the link to '%s'" % self._target)
         elif not self.exists():
@@ -4117,7 +4117,7 @@ class NXlinkfield(NXlink, NXfield):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in _npattrs:
             return object.__getattribute__(self.nxvalue, name)
         elif name in self.attrs:
@@ -4213,7 +4213,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in self.entries:
             return self.entries[name]
         elif name in self.attrs:

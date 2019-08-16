@@ -1892,7 +1892,7 @@ class NXfield(NXobject):
         _h5opts['fletcher32'] = kwds.pop('fletcher32', None)
         _h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
         _h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
-        _h5opts['shuffle'] = kwds.pop('shuffle', None)
+        _h5opts['shuffle'] = kwds.pop('shuffle', True if _size>10000 else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
         attrs.update(kwds)
         self._attrs = AttrDict(self, attrs=attrs)

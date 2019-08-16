@@ -1642,13 +1642,25 @@ class NXobject(object):
     def is_external(self):
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
-    
-    def exists(self):
+
+    def file_exists(self):
         if self.nxfilename is not None:
             return os.path.exists(self.nxfilename)
         else:
             return True
 
+    def path_exists(self):
+        if self.is_external():
+            if self.file_exists():
+                with self.nxfile as nxfile:
+                    return self.nxfilepath in nxfile
+            else:
+                return False
+        else:
+            return self.nxpath in self.nxroot
+
+    def exists(self):
+        return self.file_exists() and self.path_exists()
 
 class NXfield(NXobject):
 

@@ -668,11 +668,6 @@ class NXFile(object):
             data.nxfile.copy(data.nxpath, self[self.nxparent])
         elif data.dtype is not None:
             if data.nxname not in self[self.nxparent]:
-                if np.prod(data.shape) > 10000:
-                    if not data._h5opts['chunks']:
-                        data._h5opts['chunks'] = True
-                    if not data._h5opts['compression']:
-                        data._h5opts['compression'] = NX_COMPRESSION
                 self[self.nxparent].create_dataset(data.nxname, 
                                                    shape=data.shape, dtype=data.dtype,
                                                    **data._h5opts)
@@ -970,6 +965,16 @@ def _getshape(shape):
                 return tuple([int(i) for i in shape])
         except ValueError:
             raise NeXusError("Invalid shape: %s" % str(shape))
+
+    
+def _getsize(shape):
+    if shape is None:
+        return 1
+    else:
+        try:
+            return np.prod(shape)
+        except Exception:
+            return 1
 
     
 def _getmaxshape(maxshape, shape):
@@ -1877,15 +1882,18 @@ class NXfield(NXobject):
         self._name = name
         self._group = group
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
-        self._h5opts = {}
-        self._h5opts['chunks'] = kwds.pop('chunks', None)
-        self._h5opts['compression'] = kwds.pop('compression', None)
-        self._h5opts['compression_opts'] = kwds.pop('compression_opts', None)
-        self._h5opts['fillvalue'] = kwds.pop('fillvalue', None)
-        self._h5opts['fletcher32'] = kwds.pop('fletcher32', False)
-        self._h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
-        self._h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
-        self._h5opts['shuffle'] = kwds.pop('shuffle', False)
+        _size = _getsize(self._shape)
+        _h5opts = {}
+        _h5opts['chunks'] = kwds.pop('chunks', True if _size>10000 else None)
+        _h5opts['compression'] = kwds.pop('compression', 
+                                          NX_COMPRESSION if _size>10000 else None)
+        _h5opts['compression_opts'] = kwds.pop('compression_opts', None)
+        _h5opts['fillvalue'] = kwds.pop('fillvalue', None)
+        _h5opts['fletcher32'] = kwds.pop('fletcher32', None)
+        _h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
+        _h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
+        _h5opts['shuffle'] = kwds.pop('shuffle', None)
+        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
         attrs.update(kwds)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None
@@ -2090,11 +2098,6 @@ class NXfield(NXobject):
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
-            if np.prod(self._shape) > 10000:
-                if not self._h5opts['chunks']:
-                    self._h5opts['chunks'] = True
-                if not self._h5opts['compression']:
-                    self._h5opts['compression'] = NX_COMPRESSION
             self._memfile.create_dataset('data', shape=self._shape, dtype=self._dtype, 
                                          **self._h5opts)
         else:
@@ -2108,11 +2111,8 @@ class NXfield(NXobject):
         if self._shape is not None:
             if self._memfile is None:
                 self._create_memfile()
-            if np.prod(self._shape) > 10000:
-                self._h5opts['chunks'] = True
-                self._h5opts['compression'] = NX_COMPRESSION
             self._memfile.create_dataset('mask', shape=self._shape, dtype=np.bool,
-                                         **self.h5opts)
+                                         **self._h5opts)
         else:
             raise NeXusError("Cannot allocate mask before setting shape")       
 
@@ -2868,6 +2868,9 @@ class NXfield(NXobject):
                 raise ValueError("Total size of new array must be unchanged")
             self._value.shape = _shape
         self._shape = _shape
+        if _getsize(_shape) > 10000:
+            self.chunks = True
+            self.compression = NX_COMPRESSION
 
     def get_h5opt(self, name):
         if self.nxfilemode:
@@ -2875,7 +2878,10 @@ class NXfield(NXobject):
                 self._h5opts[name] = getattr(f[self.nxfilepath], name)
         elif self._memfile:
             self._h5opts[name] = getattr(self._memfile['data'], name)
-        return self._h5opts[name]
+        if name in self._h5opts:
+            return self._h5opts[name]
+        else:
+            return None
 
     def set_h5opt(self, name, value):
         if self.nxfilemode:

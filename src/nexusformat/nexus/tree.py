@@ -1942,7 +1942,7 @@ class NXfield(NXobject):
         Enables standard numpy ndarray attributes if not otherwise defined.
         """
         if name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -4123,7 +4123,7 @@ class NXlinkfield(NXlink, NXfield):
         if not self.is_external():
             return getattr(self.nxlink, name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxvalue, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -4205,8 +4205,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **opts):
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if 'nxclass' in opts:

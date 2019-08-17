@@ -1618,6 +1618,10 @@ class NXobject(object):
             return self.nxname
 
     @property
+    def nxfullpath(self):
+        return self.nxfilename+"['"+self.nxfilepath+"']"
+
+    @property
     def nxfilemode(self):
         if self._mode is not None:
             return self._mode

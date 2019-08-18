@@ -2031,6 +2031,8 @@ class NXfield(NXobject):
                     "Cannot set a Boolean value to a non-Boolean data type")
             elif value is np.ma.nomask:
                 value = False
+            if isinstance(value, NXfield):
+                value = value.nxdata
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':

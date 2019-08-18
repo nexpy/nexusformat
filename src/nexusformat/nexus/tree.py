@@ -1892,7 +1892,7 @@ class NXfield(NXobject):
     properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 'compression_opts',
                   'fillvalue', 'fletcher32', 'maxshape', 'scaleoffset', 'shuffle']
 
-    def __init__(self, value=None, name='unknown', dtype=None, shape=None, 
+    def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
                  group=None, attrs={}, **kwds):
         self._class = 'NXfield'
         self._name = name

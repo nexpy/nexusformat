@@ -2757,7 +2757,6 @@ class NXfield(NXobject):
                         self._value = self._get_uncopied_data()
                     if self._memfile:
                         self._value = self._get_memdata()
-                        self._memfile = None
                 except Exception:
                     raise NeXusError("Cannot read data for '%s'" % self.nxname)
                 if self._value is not None:
@@ -2785,6 +2784,8 @@ class NXfield(NXobject):
         else:
             self._value, self._dtype, self._shape = _getvalue(
                 value, self._dtype, self._shape)
+            if self._memfile:
+                self._put_memdata(self._value)
             self.update()
 
     @property
@@ -2846,8 +2847,6 @@ class NXfield(NXobject):
             else:
                 self._value = np.ma.array(self._value, mask=value)
 
-    @property
-    def dtype(self):
         return self._dtype
 
     @dtype.setter

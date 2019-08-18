@@ -250,19 +250,18 @@ import h5py as h5
 
 from .. import __version__ as nxversion
 
-#Memory in MB
-NX_MEMORY = 2000
+NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = sys.getfilesystemencoding()
+NX_MAXSIZE = 10000
 
 np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'NX_MEMORY', 'nxgetmemory', 'nxsetmemory', 
-           'NX_COMPRESSION', 'nxgetcompression', 'nxsetcompression',
-           'NX_ENCODING', 'nxgetencoding', 'nxsetencoding',
+           'nxgetmemory', 'nxsetmemory', 'nxgetcompression', 'nxsetcompression',
+           'nxgetencoding', 'nxsetencoding', 'nxgetmaxsize', 'nxsetmaxsize',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
 
@@ -5412,6 +5411,24 @@ def setencoding(value):
     NX_ENCODING = value
 
 nxsetencoding = setencoding
+
+def getmaxsize():
+    """
+    Returns the default maximum size for arrays without using core memory.
+    """
+    global NX_MAXSIZE
+    return NX_MAXSIZE
+
+nxgetmaxsize = getmaxsize
+
+def setmaxsize(value):
+    """
+    Sets the default maximum size for arrays without using core memory.
+    """
+    global NX_MAXSIZE
+    NX_MAXSIZE = value
+
+nxsetmaxsize = setmaxsize
 
 # File level operations
 def load(filename, mode='r'):

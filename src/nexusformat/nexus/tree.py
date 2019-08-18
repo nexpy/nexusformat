@@ -2855,6 +2855,52 @@ class NXfield(NXobject):
             else:
                 self._value = np.ma.array(self._value, mask=value)
 
+    def resize(self, shape, axis=None):
+        if axis is not None:
+            if not (axis >=0 and axis < self.ndim):
+                raise NeXusError("Invalid axis (0 to %s allowed)" % (self.ndim-1))
+            try:
+                newlen = int(shape)
+            except TypeError:
+                raise NeXusError("Argument must be a single integer if axis is specified")
+            shape = list(self._shape)
+            shape[axis] = newlen
+        _shape = _getshape(shape)
+        _maxshape = self.maxshape
+        if _maxshape:
+            if _checkshape(_shape, _maxshape):
+                self._shape = _shape
+                if self.nxfilemode:
+                    with self.nxfile as f:
+                        f[self.nxpath].shape = _shape
+                elif self._memfile:
+                    self._memfile['data'].shape = _shape
+                self._value = None
+            else:
+                raise NeXusError("Shape incompatible with maxshape")
+        else:
+            if self._value is not None:
+                if self._value.size != np.prod(_shape):
+                    raise NeXusError("Total size of new array must be unchanged")
+                self._value.shape = _shape
+            self._shape = _shape
+            if _getsize(_shape) > NX_MAXSIZE:
+                self.chunks = True
+                self.compression = NX_COMPRESSION
+
+    @property
+    def shape(self):
+        try:
+            return _getshape(self._shape)
+        except TypeError:
+            return ()
+
+    @shape.setter
+    def shape(self, value):
+        self.resize(value)
+
+    @property
+    def dtype(self):
         return self._dtype
 
     @dtype.setter
@@ -2868,31 +2914,6 @@ class NXfield(NXobject):
         self._dtype = _getdtype(value)
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
-
-    @property
-    def shape(self):
-        try:
-            return _getshape(self._shape)
-        except TypeError:
-            return ()
-
-    @shape.setter
-    def shape(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-                "Cannot change the shape of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-                "Cannot change the shape of a field already in core memory")
-        _shape = _getshape(value)
-        if self._value is not None:
-            if self._value.size != np.prod(_shape):
-                raise ValueError("Total size of new array must be unchanged")
-            self._value.shape = _shape
-        self._shape = _shape
-        if _getsize(_shape) > 10000:
-            self.chunks = True
-            self.compression = NX_COMPRESSION
 
     def get_h5opt(self, name):
         if self.nxfilemode:
@@ -2912,7 +2933,8 @@ class NXfield(NXobject):
         elif self._memfile:
             raise NeXusError(
             "Cannot change the %s of a field already in core memory" % name)
-        self._h5opts[name] = value
+        if value is not None:
+            self._h5opts[name] = value
         
     @property
     def compression(self):

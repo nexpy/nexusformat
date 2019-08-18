@@ -2026,9 +2026,9 @@ class NXfield(NXobject):
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':
-                self._put_filedata(idx, value)
+                self._put_filedata(value, idx)
             elif self._value is None:
-                self._put_memdata(idx, value)
+                self._put_memdata(value, idx)
         self.set_changed()
 
     def _str_name(self, indent=0):
@@ -2069,7 +2069,7 @@ class NXfield(NXobject):
                     pass
         return result
 
-    def _put_filedata(self, idx, value):
+    def _put_filedata(self, value, idx=()):
         with self.nxfile as f:
             if isinstance(value, np.ma.MaskedArray):
                 if self.mask is None:
@@ -2087,7 +2087,7 @@ class NXfield(NXobject):
                 result = np.ma.array(result, mask=mask)
         return result
     
-    def _put_memdata(self, idx, value):
+    def _put_memdata(self, value, idx=()):
         if self._memfile is None:
             self._create_memfile()
         if 'data' not in self._memfile:

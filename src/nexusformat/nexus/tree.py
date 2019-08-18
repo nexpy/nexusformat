@@ -951,19 +951,45 @@ def _getdtype(dtype):
             raise NeXusError("Invalid data type: %s" % dtype)
 
 
-def _getshape(shape):
+def _getshape(shape, maxshape=False):
     if shape is None:
         return None
     else:
         try:
             if not is_iterable(shape):
-                shape = [shape]
-            if None in shape:
+                shape = [shape]       
+            if maxshape:
+                return tuple([None if i is None else int(i) for i in shape])
+            elif None in shape:
                 return None
             else:
                 return tuple([int(i) for i in shape])
         except ValueError:
             raise NeXusError("Invalid shape: %s" % str(shape))
+
+    
+def _getmaxshape(maxshape, shape):
+    maxshape, shape = _getshape(maxshape, maxshape=True), _getshape(shape)
+    if maxshape is None or shape is None:
+        return None
+    else:
+        if maxshape == (1,) and shape == ():
+            return ()
+        elif len(maxshape) != len(shape):
+            raise NeXusError(
+            "Number of dimensions in maximum shape does not match the field")
+        else:
+            if _checkshape(shape, maxshape):
+                return maxshape
+            else:
+                raise NeXusError("Maximum shape must be larger than the field shape")
+
+
+def _checkshape(shape, maxshape):
+    for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
+        if i is not None and i < j:
+            return False
+    return True
 
     
 def _getsize(shape):
@@ -974,24 +1000,6 @@ def _getsize(shape):
             return np.prod(shape)
         except Exception:
             return 1
-
-    
-def _getmaxshape(maxshape, shape):
-    maxshape, shape = _getshape(maxshape), _getshape(shape)
-    if maxshape is None or shape is None:
-        return None
-    else:
-        if maxshape == (1,) and shape == ():
-            maxshape = ()
-        elif len(maxshape) != len(shape):
-            raise NeXusError(
-            "Number of dimensions in maximum shape does not match the field")
-        else:
-            for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
-                if i < j:
-                    raise NeXusError(
-                        "Maximum shape must be larger than the field shape")
-        return maxshape
 
     
 def _readaxes(axes):

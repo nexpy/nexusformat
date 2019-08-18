@@ -2867,28 +2867,26 @@ class NXfield(NXobject):
                 raise NeXusError("Argument must be a single integer if axis is specified")
             shape = list(self._shape)
             shape[axis] = newlen
-        _shape = _getshape(shape)
-        _maxshape = self.maxshape
-        if _maxshape:
-            if _checkshape(_shape, _maxshape):
-                self._shape = _shape
-                if self.nxfilemode:
-                    with self.nxfile as f:
-                        f[self.nxpath].shape = _shape
-                elif self._memfile:
-                    self._memfile['data'].shape = _shape
-                self._value = None
-            else:
-                raise NeXusError("Shape incompatible with maxshape")
+        if self.checkshape(shape):
+            if self.nxfilemode:
+                with self.nxfile as f:
+                    f[self.nxpath].shape = shape
+            elif self._memfile:
+                self._memfile['data'].shape = shape
         else:
-            if self._value is not None:
-                if self._value.size != np.prod(_shape):
-                    raise NeXusError("Total size of new array must be unchanged")
-                self._value.shape = _shape
-            self._shape = _shape
-            if _getsize(_shape) > NX_MAXSIZE:
-                self.chunks = True
-                self.compression = NX_COMPRESSION
+            raise NeXusError("Shape incompatible with current NXfield")
+        self._shape = shape
+        if self._value is not None:
+            np.resize(self._value, shape)
+
+    def checkshape(self, shape):
+        _maxshape = self.maxshape
+        if _maxshape and not _checkshape(shape, _maxshape):
+            return False
+        elif self.nxfilemode or self._memfile:
+            return _checkshape(self._shape, shape)
+        else:
+            return True
 
     @property
     def shape(self):

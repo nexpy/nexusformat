@@ -3536,7 +3536,9 @@ class NXgroup(NXobject):
         """
         Implements 'k in d' test using the group's entries.
         """
-        if isinstance(key, NXobject):
+        if isinstance(self, NXroot) and key == '/':
+            return True
+        elif isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
             try:

@@ -1899,15 +1899,15 @@ class NXfield(NXobject):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         _size = _getsize(self._shape)
         _h5opts = {}
-        _h5opts['chunks'] = kwds.pop('chunks', True if _size>10000 else None)
+        _h5opts['chunks'] = kwds.pop('chunks', True if _size>NX_MAXSIZE else None)
         _h5opts['compression'] = kwds.pop('compression', 
-                                          NX_COMPRESSION if _size>10000 else None)
+                                          NX_COMPRESSION if _size>NX_MAXSIZE else None)
         _h5opts['compression_opts'] = kwds.pop('compression_opts', None)
         _h5opts['fillvalue'] = kwds.pop('fillvalue', None)
         _h5opts['fletcher32'] = kwds.pop('fletcher32', None)
         _h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
         _h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
-        _h5opts['shuffle'] = kwds.pop('shuffle', True if _size>10000 else None)
+        _h5opts['shuffle'] = kwds.pop('shuffle', True if _size>NX_MAXSIZE else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
         attrs.update(kwds)
         self._attrs = AttrDict(self, attrs=attrs)

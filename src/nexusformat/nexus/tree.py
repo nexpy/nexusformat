@@ -1983,7 +1983,7 @@ class NXfield(NXobject):
         decreasing) one-dimensional arrays.
         """
         idx = convert_index(idx, self)
-        if len(self) == 1:
+        if self.size == 1:
             result = self.nxvalue
         elif self._value is None:
             if self._uncopied_data:
@@ -5310,7 +5310,7 @@ def convert_index(idx, axis):
             "NXfield must be one-dimensional for floating point slices")
     elif is_iterable(idx) and len(idx) > axis.ndim:
         raise NeXusError("Slice dimension incompatible with NXfield")
-    if len(axis) == 1:
+    if axis.size == 1:
         idx = 0
     elif isinstance(idx, slice) and not is_real_slice(idx):
         if idx.start is not None and idx.stop is not None:

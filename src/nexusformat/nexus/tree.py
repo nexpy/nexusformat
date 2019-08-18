@@ -936,6 +936,21 @@ def _getvalue(value, dtype=None, shape=None):
 
 
 def _getdtype(dtype):
+    """Return a valid h5py dtype.
+
+    This converts string dtypes to the special HDF5 dtype for variable length 
+    strings. Other values are checked against valid Numpy dtypes.
+    
+    Parameters
+    ----------
+    dtype : dtype
+        Proposed datatype of an NXfield.
+    
+    Returns
+    -------
+    dtype
+        Valid dtype for storing in an HDF5 file.
+    """
     if dtype is None:
         return None
     elif is_text(dtype) and dtype == 'char':
@@ -952,6 +967,24 @@ def _getdtype(dtype):
 
 
 def _getshape(shape, maxshape=False):
+    """Return valid shape tuple.
+
+    The returned shape tuple will contain integer values, unless maxshape is
+    True, in which case, values of None are allowed.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Proposed new shape
+    maxshape : bool, optional
+        True if values of None are permitted in a shape element,
+        by default False
+    
+    Returns
+    -------
+    tuple of int
+        Valid shape tuple.
+    """
     if shape is None:
         return None
     else:
@@ -969,6 +1002,24 @@ def _getshape(shape, maxshape=False):
 
     
 def _getmaxshape(maxshape, shape):
+    """Return maximum shape if compatible with the specified shape.
+
+    This raises a NeXusError if the length of the shapes do not match or if
+    any of the elements in maxshape are smaller than the corresponding 
+    element in shape. If maxshape has a size of 1, an empty tuple is returned.
+    
+    Parameters
+    ----------
+    maxshape : tuple of int
+        Proposed maximum shape of the array
+    shape : tuple of int
+        Current shape of the array
+    
+    Returns
+    -------
+    tuple of int
+        Maximum shape
+    """
     maxshape, shape = _getshape(maxshape, maxshape=True), _getshape(shape)
     if maxshape is None or shape is None:
         return None
@@ -986,6 +1037,24 @@ def _getmaxshape(maxshape, shape):
 
 
 def _checkshape(shape, maxshape):
+    """Return True if the shape is consistent with the maximum allowed shape.
+
+    Each element of shape must be less than or equal to the 
+    corresponding element of maxshape, unless the latter is set to None, in 
+    which case the value of the shape element is unlimited.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape to be checked.
+    maxshape : tuple of int
+        Maximum allowed shape
+    
+    Returns
+    -------
+    bool
+        True if the shape is consistent.
+    """
     for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
         if i is not None and i < j:
             return False
@@ -993,6 +1062,20 @@ def _checkshape(shape, maxshape):
 
     
 def _getsize(shape):
+    """Return the total size of the array with the specified shape.
+
+    If the shape is None, a size of 1 is returned.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape of the array.
+    
+    Returns
+    -------
+    int
+        Size of the array
+    """
     if shape is None:
         return 1
     else:

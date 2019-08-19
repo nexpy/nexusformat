@@ -2955,8 +2955,10 @@ class NXfield(NXobject):
             if self.nxfilemode:
                 with self.nxfile as f:
                     f[self.nxpath].shape = shape
+                self._value = None
             elif self._memfile:
                 self._memfile['data'].shape = shape
+                self._value = None
         else:
             raise NeXusError("Shape incompatible with current NXfield")
         self._shape = shape
@@ -3043,7 +3045,7 @@ class NXfield(NXobject):
     @fillvalue.setter
     def fillvalue(self, value):
         self.set_h5opt('fillvalue', value)
-        
+
     @property
     def fletcher32(self):
         return self.get_h5opt('fletcher32')

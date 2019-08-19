@@ -245,23 +245,23 @@ import re
 import sys
 
 import numpy as np
+import tables
 import h5py as h5
 
 from .. import __version__ as nxversion
 
-#Memory in MB
-NX_MEMORY = 2000
+NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = sys.getfilesystemencoding()
+NX_MAXSIZE = 10000
 
 np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'NX_MEMORY', 'nxgetmemory', 'nxsetmemory', 
-           'NX_COMPRESSION', 'nxgetcompression', 'nxsetcompression',
-           'NX_ENCODING', 'nxgetencoding', 'nxsetencoding',
+           'nxgetmemory', 'nxsetmemory', 'nxgetcompression', 'nxsetcompression',
+           'nxgetencoding', 'nxsetencoding', 'nxgetmaxsize', 'nxsetmaxsize',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
 
@@ -280,6 +280,8 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
              'NXtransformations', 'NXtranslation', 'NXuser', 
              'NXvelocity_selector', 'NXxraylens']
 
+if six.PY3:
+    unicode = str
 
 def text(value):
     """Return a unicode string in both Python 2 and 3.
@@ -731,17 +733,9 @@ class NXFile(object):
             data.nxfile.copy(data.nxpath, self[self.nxparent])
         elif data.dtype is not None:
             if data.nxname not in self[self.nxparent]:
-                if np.prod(data.shape) > 10000:
-                    if not data._chunks:
-                        data._chunks = True
-                    if not data._compression:
-                        data._compression = NX_COMPRESSION
                 self[self.nxparent].create_dataset(data.nxname, 
-                                            dtype=data.dtype, shape=data.shape,
-                                            compression=data._compression,
-                                            chunks=data._chunks,
-                                            maxshape=data._maxshape,
-                                            fillvalue = data._fillvalue)
+                                                   shape=data.shape, dtype=data.dtype,
+                                                   **data._h5opts)
             try:
                 if data._value is not None:
                     self[self.nxpath][()] = data._value 
@@ -1008,6 +1002,21 @@ def _getvalue(value, dtype=None, shape=None):
 
 
 def _getdtype(dtype):
+    """Return a valid h5py dtype.
+
+    This converts string dtypes to the special HDF5 dtype for variable length 
+    strings. Other values are checked against valid Numpy dtypes.
+    
+    Parameters
+    ----------
+    dtype : dtype
+        Proposed datatype of an NXfield.
+    
+    Returns
+    -------
+    dtype
+        Valid dtype for storing in an HDF5 file.
+    """
     if dtype is None:
         return None
     elif is_text(dtype) and dtype == 'char':
@@ -1023,14 +1032,34 @@ def _getdtype(dtype):
             raise NeXusError("Invalid data type: %s" % dtype)
 
 
-def _getshape(shape):
+def _getshape(shape, maxshape=False):
+    """Return valid shape tuple.
+
+    The returned shape tuple will contain integer values, unless maxshape is
+    True, in which case, values of None are allowed.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Proposed new shape
+    maxshape : bool, optional
+        True if values of None are permitted in a shape element,
+        by default False
+    
+    Returns
+    -------
+    tuple of int
+        Valid shape tuple.
+    """
     if shape is None:
         return None
     else:
         try:
             if not is_iterable(shape):
-                shape = [shape]
-            if None in shape:
+                shape = [shape]       
+            if maxshape:
+                return tuple([None if i is None else int(i) for i in shape])
+            elif None in shape:
                 return None
             else:
                 return tuple([int(i) for i in shape])
@@ -1039,21 +1068,87 @@ def _getshape(shape):
 
     
 def _getmaxshape(maxshape, shape):
-    maxshape, shape = _getshape(maxshape), _getshape(shape)
+    """Return maximum shape if compatible with the specified shape.
+
+    This raises a NeXusError if the length of the shapes do not match or if
+    any of the elements in maxshape are smaller than the corresponding 
+    element in shape. If maxshape has a size of 1, an empty tuple is returned.
+    
+    Parameters
+    ----------
+    maxshape : tuple of int
+        Proposed maximum shape of the array
+    shape : tuple of int
+        Current shape of the array
+    
+    Returns
+    -------
+    tuple of int
+        Maximum shape
+    """
+    maxshape, shape = _getshape(maxshape, maxshape=True), _getshape(shape)
     if maxshape is None or shape is None:
         return None
     else:
         if maxshape == (1,) and shape == ():
-            maxshape = ()
+            return ()
         elif len(maxshape) != len(shape):
             raise NeXusError(
             "Number of dimensions in maximum shape does not match the field")
         else:
-            for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
-                if i < j:
-                    raise NeXusError(
-                        "Maximum shape must be larger than the field shape")
-        return maxshape
+            if _checkshape(shape, maxshape):
+                return maxshape
+            else:
+                raise NeXusError("Maximum shape must be larger than the field shape")
+
+
+def _checkshape(shape, maxshape):
+    """Return True if the shape is consistent with the maximum allowed shape.
+
+    Each element of shape must be less than or equal to the 
+    corresponding element of maxshape, unless the latter is set to None, in 
+    which case the value of the shape element is unlimited.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape to be checked.
+    maxshape : tuple of int
+        Maximum allowed shape
+    
+    Returns
+    -------
+    bool
+        True if the shape is consistent.
+    """
+    for i, j in [(_i, _j) for _i, _j in zip(maxshape, shape)]:
+        if i is not None and i < j:
+            return False
+    return True
+
+    
+def _getsize(shape):
+    """Return the total size of the array with the specified shape.
+
+    If the shape is None, a size of 1 is returned.
+    
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape of the array.
+    
+    Returns
+    -------
+    int
+        Size of the array
+    """
+    if shape is None:
+        return 1
+    else:
+        try:
+            return np.prod(shape)
+        except Exception:
+            return 1
 
     
 def _readaxes(axes):
@@ -1176,9 +1271,7 @@ class NXattr(object):
     """
 
     def __init__(self, value=None, dtype=None, shape=None):
-        if isinstance(value, NXattr):
-            value = value.nxdata
-        elif isinstance(value, NXfield):
+        if isinstance(value, NXattr) or isinstance(value, NXfield):
             value = value.nxdata
         elif isinstance(value, NXgroup):
             raise NeXusError("A data attribute cannot be a NXgroup")
@@ -1348,8 +1441,7 @@ class NXobject(object):
         hidden_keys = [key for key in result if key.startswith('_')]
         needed_keys = ['_class', '_name', '_group', '_target', 
                        '_entries', '_attrs', '_filename', '_mode', 
-                       '_dtype', '_shape', '_value', '_maxshape', '_chunks', 
-                       '_fillvalue', '_compression', '_changed']
+                       '_dtype', '_shape', '_value', '_h5opts', '_changed']
         for key in hidden_keys:
             if key not in needed_keys:
                 del result[key]
@@ -1682,6 +1774,10 @@ class NXobject(object):
             return self.nxname
 
     @property
+    def nxfullpath(self):
+        return self.nxfilename+"['"+self.nxfilepath+"']"
+
+    @property
     def nxfilemode(self):
         if self._mode is not None:
             return self._mode
@@ -1706,13 +1802,25 @@ class NXobject(object):
     def is_external(self):
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
-    
-    def exists(self):
+
+    def file_exists(self):
         if self.nxfilename is not None:
             return os.path.exists(self.nxfilename)
         else:
             return True
 
+    def path_exists(self):
+        if self.is_external():
+            if self.file_exists():
+                with self.nxfile as nxfile:
+                    return self.nxfilepath in nxfile
+            else:
+                return False
+        else:
+            return self.nxpath in self.nxroot
+
+    def exists(self):
+        return self.file_exists() and self.path_exists()
 
 class NXfield(NXobject):
 
@@ -1937,45 +2045,31 @@ class NXfield(NXobject):
                     value = slab.get([i,j,0],size)
 
     """
-    properties = ['mask', 'dtype', 'shape', 'compression', 'fillvalue', 
-                  'chunks', 'maxshape']
+    properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 'compression_opts',
+                  'fillvalue', 'fletcher32', 'maxshape', 'scaleoffset', 'shuffle']
 
-    def __init__(self, value=None, name='unknown', dtype=None, shape=None, 
-                 group=None, attrs=None, **attr):
+    def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
+                 group=None, attrs={}, **kwds):
         self._class = 'NXfield'
         self._name = name
         self._group = group
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
-        # Append extra keywords to the attribute list
-        if not attrs:
-            attrs = {}
-        # Store h5py attributes as private variables
-        if 'maxshape' in attr:
-            self._maxshape = _getmaxshape(attr['maxshape'], self._shape)
-            del attr['maxshape']
-        else:
-            self._maxshape = None
-        if 'compression' in attr:
-            self._compression = attr['compression']
-            del attr['compression']
-        else:
-            self._compression = None
-        if 'chunks' in attr:
-            self._chunks = attr['chunks']
-            del attr['chunks']
-        else:
-            self._chunks = None
-        if 'fillvalue' in attr:
-            self._fillvalue = attr['fillvalue']
-            del attr['fillvalue']
-        else:
-            self._fillvalue = None
-        for key in attr:
-            attrs[key] = attr[key]
-        # Convert NeXus attributes to python attributes
+        _size = _getsize(self._shape)
+        _h5opts = {}
+        _h5opts['chunks'] = kwds.pop('chunks', True if _size>NX_MAXSIZE else None)
+        _h5opts['compression'] = kwds.pop('compression', 
+                                          NX_COMPRESSION if _size>NX_MAXSIZE else None)
+        _h5opts['compression_opts'] = kwds.pop('compression_opts', None)
+        _h5opts['fillvalue'] = kwds.pop('fillvalue', None)
+        _h5opts['fletcher32'] = kwds.pop('fletcher32', None)
+        _h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
+        _h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
+        _h5opts['shuffle'] = kwds.pop('shuffle', True if _size>NX_MAXSIZE else None)
+        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
+        attrs.update(kwds)
         self._attrs = AttrDict(self, attrs=attrs)
-        del attrs
         self._memfile = None
+        self._uncopied_data = None
         self.set_changed()
 
     def __dir__(self):
@@ -2004,7 +2098,7 @@ class NXfield(NXobject):
         Enables standard numpy ndarray attributes if not otherwise defined.
         """
         if name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -2046,12 +2140,10 @@ class NXfield(NXobject):
         decreasing) one-dimensional arrays.
         """
         idx = convert_index(idx, self)
-        if len(self) == 1:
-            result = self.nxvalue
-        elif self._value is None:
+        if self._value is None:
             if self._uncopied_data:
-                self._get_uncopied_data()
-            if self.nxfilemode:
+                result = self._get_uncopied_data(idx)
+            elif self.nxfilemode:
                 result = self._get_filedata(idx)
             elif self._memfile:
                 result = self._get_memdata(idx)
@@ -2064,12 +2156,18 @@ class NXfield(NXobject):
                     if isinstance(result, np.ma.MaskedArray):
                         result = result.data
                     result = np.ma.array(result, mask=mask)
+            elif self.fillvalue:
+                result = np.asarray(np.empty(self.shape, dtype=self.dtype)[idx])
+                result.fill(self.fillvalue)
             else:
                 raise NeXusError(
                     "Data not available either in file or in memory")
         else:
-            result = self.nxdata.__getitem__(idx)
-        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
+            result = np.asarray(self.nxdata[idx])
+        if result.size == 1:
+            return result[()]
+        else:
+            return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """
@@ -2086,12 +2184,14 @@ class NXfield(NXobject):
                     "Cannot set a Boolean value to a non-Boolean data type")
             elif value is np.ma.nomask:
                 value = False
+            if isinstance(value, NXfield):
+                value = value.nxdata
             if self._value is not None:
                 self._value[idx] = value
             if self.nxfilemode == 'rw':
-                self._put_filedata(idx, value)
+                self._put_filedata(value, idx)
             elif self._value is None:
-                self._put_memdata(idx, value)
+                self._put_memdata(value, idx)
         self.set_changed()
 
     def _str_name(self, indent=0):
@@ -2132,7 +2232,7 @@ class NXfield(NXobject):
                     pass
         return result
 
-    def _put_filedata(self, idx, value):
+    def _put_filedata(self, value, idx=()):
         with self.nxfile as f:
             if isinstance(value, np.ma.MaskedArray):
                 if self.mask is None:
@@ -2150,7 +2250,7 @@ class NXfield(NXobject):
                 result = np.ma.array(result, mask=mask)
         return result
     
-    def _put_memdata(self, idx, value):
+    def _put_memdata(self, value, idx=()):
         if self._memfile is None:
             self._create_memfile()
         if 'data' not in self._memfile:
@@ -2176,18 +2276,8 @@ class NXfield(NXobject):
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
-            if np.prod(self._shape) > 10000:
-                if not self._chunks:
-                    self._chunks = True
-                if not self._compression:
-                    self._compression = NX_COMPRESSION
-            self._memfile.create_dataset('data', shape=self._shape, 
-                                         dtype=self._dtype, 
-                                         compression=self._compression,
-                                         chunks=self._chunks,
-                                         maxshape=self._maxshape,
-                                         fillvalue=self._fillvalue)
-            self._chunks = self._memfile['data'].chunks
+            self._memfile.create_dataset('data', shape=self._shape, dtype=self._dtype, 
+                                         **self._h5opts)
         else:
             raise NeXusError(
                 "Cannot allocate to field before setting shape and dtype")       
@@ -2199,10 +2289,8 @@ class NXfield(NXobject):
         if self._shape is not None:
             if self._memfile is None:
                 self._create_memfile()
-            self._memfile.create_dataset('mask', shape=self._shape, 
-                                         dtype=np.bool, 
-                                         compression=NX_COMPRESSION, 
-                                         chunks=True)
+            self._memfile.create_dataset('mask', shape=self._shape, dtype=np.bool,
+                                         **self._h5opts)
         else:
             raise NeXusError("Cannot allocate mask before setting shape")       
 
@@ -2238,15 +2326,23 @@ class NXfield(NXobject):
                 self._value = np.ma.array(self._value)
             self._value[idx] = np.ma.masked
 
-    def _get_uncopied_data(self):
+    def _get_uncopied_data(self, idx=None):
         _file, _path = self._uncopied_data
         with _file as f:
-            if self.nxfilemode == 'rw':
-                f.copy(_path, self.nxpath)
+            if idx:
+                return f.readvalue(_path, idx=idx)
             else:
-                self._create_memfile()
-                f.copy(_path, self._memfile, 'data')
-        self._uncopied_data = None
+                if self.nxfilemode == 'rw':
+                    f.copy(_path, self.nxpath)
+                else:
+                    self._create_memfile()
+                    f.copy(_path, self._memfile, 'data')
+                self._uncopied_data = None
+                if (np.prod(self.shape) * np.dtype(self.dtype).itemsize 
+                    <= NX_MEMORY*1000*1000):
+                    return f.readvalue(_path)
+                else:
+                    return None
 
     def __deepcopy__(self, memo={}):
         obj = self
@@ -2255,10 +2351,7 @@ class NXfield(NXobject):
         dpcpy._name = copy(self.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
-        dpcpy._chunks = copy(obj.chunks)
-        dpcpy._compression = copy(obj.compression)
-        dpcpy._fillvalue = copy(obj.fillvalue)
-        dpcpy._maxshape = copy(obj.maxshape)
+        dpcpy._h5opts = copy(obj._h5opts)
         dpcpy._changed = True
         dpcpy._memfile = obj._memfile
         dpcpy._uncopied_data = obj._uncopied_data
@@ -2300,9 +2393,9 @@ class NXfield(NXobject):
         """
         Returns the length of the NXfield data.
         """
-        if self.shape:
-            return int(np.prod(self.shape))
-        else:
+        try:
+            return self.shape[0]
+        except Exception:
             return 0
 
     def __nonzero__(self):
@@ -2824,10 +2917,9 @@ class NXfield(NXobject):
                     if self.nxfilemode:
                         self._value = self._get_filedata()
                     elif self._uncopied_data:
-                        self._get_uncopied_data()
+                        self._value = self._get_uncopied_data()
                     if self._memfile:
                         self._value = self._get_memdata()
-                        self._memfile = None
                 except Exception:
                     raise NeXusError("Cannot read data for '%s'" % self.nxname)
                 if self._value is not None:
@@ -2855,6 +2947,8 @@ class NXfield(NXobject):
         else:
             self._value, self._dtype, self._shape = _getvalue(
                 value, self._dtype, self._shape)
+            if self._memfile:
+                self._put_memdata(self._value)
             self.update()
 
     @property
@@ -2916,6 +3010,48 @@ class NXfield(NXobject):
             else:
                 self._value = np.ma.array(self._value, mask=value)
 
+    def resize(self, shape, axis=None):
+        if axis is not None:
+            if not (axis >=0 and axis < self.ndim):
+                raise NeXusError("Invalid axis (0 to %s allowed)" % (self.ndim-1))
+            try:
+                newlen = int(shape)
+            except TypeError:
+                raise NeXusError("Argument must be a single integer if axis is specified")
+            shape = list(self._shape)
+            shape[axis] = newlen
+        if self.checkshape(shape):
+            if self.nxfilemode:
+                with self.nxfile as f:
+                    f[self.nxpath].shape = shape
+            elif self._memfile:
+                self._memfile['data'].shape = shape
+        else:
+            raise NeXusError("Shape incompatible with current NXfield")
+        self._shape = shape
+        if self._value is not None:
+            np.resize(self._value, shape)
+
+    def checkshape(self, shape):
+        _maxshape = self.maxshape
+        if _maxshape and not _checkshape(shape, _maxshape):
+            return False
+        elif self.nxfilemode or self._memfile:
+            return _checkshape(self._shape, shape)
+        else:
+            return True
+
+    @property
+    def shape(self):
+        try:
+            return _getshape(self._shape)
+        except TypeError:
+            return ()
+
+    @shape.setter
+    def shape(self, value):
+        self.resize(value)
+
     @property
     def dtype(self):
         return self._dtype
@@ -2932,112 +3068,94 @@ class NXfield(NXobject):
         if self._value is not None:
             self._value = np.asarray(self._value, dtype=self._dtype)
 
-    @property
-    def shape(self):
-        try:
-            return _getshape(self._shape)
-        except TypeError:
-            return ()
-
-    @shape.setter
-    def shape(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-                "Cannot change the shape of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-                "Cannot change the shape of a field already in core memory")
-        _shape = _getshape(value)
-        if self._value is not None:
-            if self._value.size != np.prod(_shape):
-                raise ValueError("Total size of new array must be unchanged")
-            self._value.shape = _shape
-        self._shape = _shape
-
-    @property
-    def compression(self):
+    def get_h5opt(self, name):
         if self.nxfilemode:
             with self.nxfile as f:
-                self._compression = f[self.nxfilepath].compression
+                self._h5opts[name] = getattr(f[self.nxfilepath], name)
         elif self._memfile:
-            self._compression = self._memfile['data'].compression
-        return self._compression
+            self._h5opts[name] = getattr(self._memfile['data'], name)
+        if name in self._h5opts:
+            return self._h5opts[name]
+        else:
+            return None
+
+    def set_h5opt(self, name, value):
+        if self.nxfilemode:
+            raise NeXusError(
+            "Cannot change the %s of a field already stored in a file" % name)
+        elif self._memfile:
+            raise NeXusError(
+            "Cannot change the %s of a field already in core memory" % name)
+        if value is not None:
+            self._h5opts[name] = value
+        
+    @property
+    def compression(self):
+        return self.get_h5opt('compression')
 
     @compression.setter
     def compression(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-            "Cannot change the compression of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-            "Cannot change the compression of a field already in core memory")
-        self._compression = value
+        self.set_h5opt('compression', value)
+        
+    @property
+    def compression_opts(self):
+        return self.get_h5opt('compression_opts')
+
+    @compression_opts.setter
+    def compression_opts(self, value):
+        self.set_h5opt('compression_opts', value)
         
     @property
     def fillvalue(self):
-        if self.nxfilemode:
-            with self.nxfile as f:
-                self._fillvalue = f[self.nxfilepath].fillvalue
-        elif self._memfile:
-            self._fillvalue = self._memfile['data'].fillvalue
-        return self._fillvalue
+        return self.get_h5opt('fillvalue')
 
     @fillvalue.setter
     def fillvalue(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-            "Cannot change the fill values of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-            "Cannot change the fill values of a field already in core memory")
-        self._fillvalue = value
+        self.set_h5opt('fillvalue', value)
+        
+    @property
+    def fletcher32(self):
+        return self.get_h5opt('fletcher32')
+
+    @fletcher32.setter
+    def fletcher32(self, value):
+        self.set_h5opt('fletcher32', value)
         
     @property
     def chunks(self):
-        if self.nxfilemode:
-            with self.nxfile as f:
-                self._chunks = f[self.nxfilepath].chunks
-        elif self._memfile:
-            self._chunks = self._memfile['data'].chunks
-        return self._chunks
+        return self.get_h5opt('chunks')
 
     @chunks.setter
     def chunks(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-            "Cannot change the chunk sizes of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-            "Cannot change the chunk sizes of a field already in core memory")
-        elif is_iterable(value) and len(value) != self.ndim:
+        if is_iterable(value) and len(value) != self.ndim:
             raise NeXusError(
                 "Number of chunks does not match the no. of array dimensions")
-        self._chunks = tuple(value)
+        self.set_h5opt('chunks', value)
 
     @property
     def maxshape(self):
-        if self._maxshape is not None:
-            return self._maxshape
-        elif self.nxfilemode:
-            with self.nxfile as f:
-                _maxshape = f[self.nxfilepath].maxshape
-        elif self._memfile:
-            _maxshape = self._memfile['data'].maxshape
-        else:
-            _maxshape = self.shape
-        self._maxshape = _getmaxshape(_maxshape, self.shape)
-        return self._maxshape
+        return self.get_h5opt('maxshape')
 
     @maxshape.setter
     def maxshape(self, value):
-        if self.nxfilemode:
-            raise NeXusError(
-        "Cannot change the maximum shape of a field already stored in a file")
-        elif self._memfile:
-            raise NeXusError(
-        "Cannot change the maximum shape  of a field already in core memory")
-        self._maxshape = _getmaxshape(value, self.shape) 
+        self.set_h5opt('maxshape', _getmaxshape(value, self.shape))
 
+    @property
+    def scaleoffset(self):
+        return self.get_h5opt('scaleoffset')
+
+    @scaleoffset.setter
+    def scaleoffset(self, value):
+        self.set_h5opt('scaleoffset', value)
+        
+    @property
+    def shuffle(self):
+        return self.get_h5opt('shuffle')
+
+    @shuffle.setter
+    def shuffle(self, value):
+        self.set_h5opt('shuffle', value)
+        
     @property
     def ndim(self):
         try:
@@ -3047,7 +3165,7 @@ class NXfield(NXobject):
 
     @property
     def size(self):
-        return len(self)
+        return int(np.prod(self.shape))
 
     @property
     def safe_attrs(self):
@@ -3513,7 +3631,8 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXobject):
-                value = deepcopy(value)
+                if value._group:
+                    value = deepcopy(value)
                 value._group = group
                 value._name = key
                 group.entries[key] = value
@@ -3568,7 +3687,9 @@ class NXgroup(NXobject):
         """
         Implements 'k in d' test using the group's entries.
         """
-        if isinstance(key, NXobject):
+        if isinstance(self, NXroot) and key == '/':
+            return True
+        elif isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
         else:
             try:
@@ -3633,7 +3754,7 @@ class NXgroup(NXobject):
         elif self.nxfilemode is None:
             for node in self.walk():
                 if isinstance(node, NXfield) and node._uncopied_data:
-                    node._get_uncopied_data()
+                    node._value = node._get_uncopied_data()
         self.set_changed()
 
     def get(self, name, default=None):
@@ -4051,7 +4172,7 @@ class NXlink(NXobject):
     def __getattr__(self, name):
         if not self.is_external():
             if self.nxlink:
-                return self.nxlink.__getattr__(name)
+                return getattr(self.nxlink, name)
             else:
                 raise NeXusError("Cannot resolve the link to '%s'" % self._target)
         elif not self.exists():
@@ -4183,9 +4304,9 @@ class NXlinkfield(NXlink, NXfield):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxvalue, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -4267,8 +4388,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **opts):
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if 'nxclass' in opts:
@@ -4279,7 +4399,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in self.entries:
             return self.entries[name]
         elif name in self.attrs:
@@ -5374,7 +5494,7 @@ def convert_index(idx, axis):
             "NXfield must be one-dimensional for floating point slices")
     elif is_iterable(idx) and len(idx) > axis.ndim:
         raise NeXusError("Slice dimension incompatible with NXfield")
-    if len(axis) == 1:
+    if axis.size == 1:
         idx = 0
     elif isinstance(idx, slice) and not is_real_slice(idx):
         if idx.start is not None and idx.stop is not None:
@@ -5475,6 +5595,24 @@ def setencoding(value):
     NX_ENCODING = value
 
 nxsetencoding = setencoding
+
+def getmaxsize():
+    """
+    Returns the default maximum size for arrays without using core memory.
+    """
+    global NX_MAXSIZE
+    return NX_MAXSIZE
+
+nxgetmaxsize = getmaxsize
+
+def setmaxsize(value):
+    """
+    Sets the default maximum size for arrays without using core memory.
+    """
+    global NX_MAXSIZE
+    NX_MAXSIZE = value
+
+nxsetmaxsize = setmaxsize
 
 # File level operations
 def load(filename, mode='r'):

@@ -1618,6 +1618,10 @@ class NXobject(object):
             return self.nxname
 
     @property
+    def nxfullpath(self):
+        return self.nxfilename+"['"+self.nxfilepath+"']"
+
+    @property
     def nxfilemode(self):
         if self._mode is not None:
             return self._mode
@@ -1642,13 +1646,25 @@ class NXobject(object):
     def is_external(self):
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
-    
-    def exists(self):
+
+    def file_exists(self):
         if self.nxfilename is not None:
             return os.path.exists(self.nxfilename)
         else:
             return True
 
+    def path_exists(self):
+        if self.is_external():
+            if self.file_exists():
+                with self.nxfile as nxfile:
+                    return self.nxfilepath in nxfile
+            else:
+                return False
+        else:
+            return self.nxpath in self.nxroot
+
+    def exists(self):
+        return self.file_exists() and self.path_exists()
 
 class NXfield(NXobject):
 
@@ -1926,7 +1942,7 @@ class NXfield(NXobject):
         Enables standard numpy ndarray attributes if not otherwise defined.
         """
         if name in _npattrs:
-            return object.__getattribute__(self.nxdata, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -3973,7 +3989,7 @@ class NXlink(NXobject):
     def __getattr__(self, name):
         if not self.is_external():
             if self.nxlink:
-                return self.nxlink.__getattr__(name)
+                return getattr(self.nxlink, name)
             else:
                 raise NeXusError("Cannot resolve the link to '%s'" % self._target)
         elif not self.exists():
@@ -4105,9 +4121,9 @@ class NXlinkfield(NXlink, NXfield):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in _npattrs:
-            return object.__getattribute__(self.nxvalue, name)
+            return getattr(self.nxdata, name)
         elif name in self.attrs:
             return self.attrs[name]
         else:
@@ -4189,8 +4205,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **opts):
+    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if 'nxclass' in opts:
@@ -4201,7 +4216,7 @@ class NXlinkgroup(NXlink, NXgroup):
 
     def __getattr__(self, name):
         if not self.is_external():
-            return self.nxlink.__getattr__(name)
+            return getattr(self.nxlink, name)
         elif name in self.entries:
             return self.entries[name]
         elif name in self.attrs:

@@ -245,7 +245,6 @@ import re
 import sys
 
 import numpy as np
-import tables
 import h5py as h5
 
 from .. import __version__ as nxversion

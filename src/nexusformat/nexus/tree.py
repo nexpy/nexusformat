@@ -2122,7 +2122,17 @@ class NXfield(NXobject):
             if self.nxfilemode == 'rw':
                 self._put_filedata(value, idx)
             elif self._value is None:
-                self._put_memdata(value, idx)
+                if self.size > NX_MAXSIZE:
+                    self._put_memdata(value, idx)
+                else:
+                    self._value = np.empty(self.shape, self.dtype)
+                    if self.fillvalue:
+                        self._value.fill(self.fillvalue)
+                    elif is_string_dtype(self.dtype):
+                        self._value.fill(' ')
+                    else:
+                        self._value.fill(0)
+                    self._value[idx] = value
         self.set_changed()
 
     def _str_name(self, indent=0):

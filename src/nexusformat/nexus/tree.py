@@ -2098,10 +2098,7 @@ class NXfield(NXobject):
                     "Data not available either in file or in memory")
         else:
             result = np.asarray(self.nxdata[idx])
-        if result.size == 1:
-            return result[()]
-        else:
-            return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
+        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """

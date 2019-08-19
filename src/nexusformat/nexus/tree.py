@@ -2074,9 +2074,7 @@ class NXfield(NXobject):
         decreasing) one-dimensional arrays.
         """
         idx = convert_index(idx, self)
-        if self.size == 1:
-            result = self.nxvalue
-        elif self._value is None:
+        if self._value is None:
             if self._uncopied_data:
                 result = self._get_uncopied_data(idx)
             elif self.nxfilemode:
@@ -2092,12 +2090,18 @@ class NXfield(NXobject):
                     if isinstance(result, np.ma.MaskedArray):
                         result = result.data
                     result = np.ma.array(result, mask=mask)
+            elif self.fillvalue:
+                result = np.asarray(np.empty(self.shape, dtype=self.dtype)[idx])
+                result.fill(self.fillvalue)
             else:
                 raise NeXusError(
                     "Data not available either in file or in memory")
         else:
-            result = self.nxdata.__getitem__(idx)
-        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
+            result = np.asarray(self.nxdata[idx])
+        if result.size == 1:
+            return result[()]
+        else:
+            return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """

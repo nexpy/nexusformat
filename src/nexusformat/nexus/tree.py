@@ -1817,7 +1817,7 @@ class NXobject(object):
             else:
                 return False
         else:
-            return self.nxpath in self.nxroot
+            return True
 
     def exists(self):
         return self.file_exists() and self.path_exists()

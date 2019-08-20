@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013-2018, NeXpy Development Team.
+# Copyright (c) 2013-2019, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -283,7 +283,26 @@ if six.PY3:
     unicode = str
 
 def text(value):
-    """Return a unicode string in both Python 2 and 3"""
+    """Return a unicode string in both Python 2 and 3.
+    
+    Parameters
+    ----------
+    value : str or bytes
+        String or byte array to be converted.
+    
+    Returns
+    -------
+    str
+        Converted unicode string
+    
+    Notes
+    -----
+    If the argument is a byte array, the function will decode the array using
+    the encoding specified by NX_ENCODING, which is initially set to the
+    system's default encoding, usually 'utf-8'. If this generates a 
+    UnicodeDecodeError exception, an alternate encoding is tried. Null 
+    characters are removed from the return value.
+    """
     if isinstance(value, np.ndarray) and value.shape == (1,):
         value = value[0]
     if isinstance(value, bytes):
@@ -302,7 +321,18 @@ def text(value):
 
 
 def is_text(value):
-    """Determine if the value presents text in both Python 2 and 3"""
+    """Return True if the value represents text in both Python 2 and 3.
+    
+    Parameters
+    ----------
+    value : str or bytes
+        Value to be checked.
+    
+    Returns
+    -------
+    bool
+        True if the value is a string or bytes array.
+    """
     if isinstance(value, bytes) or isinstance(value, six.string_types):
         return True
     else:
@@ -310,16 +340,53 @@ def is_text(value):
 
 
 def is_string_dtype(dtype):
+    """Return True if the dtype corresponds to a string type.
+    
+    Parameters
+    ----------
+    dtype : np.dtype
+        Numpy data type to be tested.
+    
+    Returns
+    -------
+    bool
+        True if the dtype corresponds to a string type.
+    """
     return dtype == string_dtype or dtype.kind == 'S' or dtype.kind == 'U'
 
 
 def is_iterable(obj):
-    """Return true if the argument is a tuple or list."""
+    """Return True if the object is a list or a tuple.
+    
+    Parameters
+    ----------
+    obj : list or tuple
+        Object to be tested.
+    
+    Returns
+    -------
+    bool
+        True if the object is a list or a tuple.
+    """
     return isinstance(obj, list) or isinstance(obj, tuple)
 
 
 def natural_sort(key):
-    """Sort numbers according to their value, not their first character"""
+    """Key to sort a list of strings containing numbers in natural order.
+
+    This function is used to customize the sorting of lists of strings. For 
+    example, it ensures that 'label_10' follows 'label_9' after sorting.
+    
+    Parameters
+    ----------
+    key : str
+        String in the list to be sorted.
+    
+    Returns
+    -------
+    list
+        List of string components splitting embedded numbers as integers.
+    """
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]    
 
 
@@ -329,7 +396,6 @@ class NeXusError(Exception):
 
 
 class NXFile(object):
-
     """
     Structure-based interface to the NeXus file API.
 
@@ -1750,7 +1816,7 @@ class NXobject(object):
             else:
                 return False
         else:
-            return self.nxpath in self.nxroot
+            return True
 
     def exists(self):
         return self.file_exists() and self.path_exists()

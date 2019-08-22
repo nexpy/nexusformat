@@ -478,14 +478,14 @@ class NXFile(object):
     def __enter__(self):
         return self.open()
 
-    def __exit__(self, *items):
+    def __exit__(self, *args):
         self.close()
 
-    def get(self, *items, **kwargs):
-        return self.file.get(*items, **kwargs)
+    def get(self, *args, **kwargs):
+        return self.file.get(*args, **kwargs)
 
-    def copy(self, *items, **kwargs):
-        self.file.copy(*items, **kwargs)
+    def copy(self, *args, **kwargs):
+        self.file.copy(*args, **kwargs)
 
     def open(self, **kwargs):
         if not self.isopen():
@@ -3476,7 +3476,7 @@ class NXgroup(NXobject):
 
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._entries = {}
         if "name" in kwargs:
             self._name = kwargs["name"]
@@ -3513,9 +3513,9 @@ class NXgroup(NXobject):
                 self.__class__ = _getclass(self._class)
             except Exception:
                 pass
-        for item in items:
+        for arg in args:
             try:
-                self[item.nxname] = item
+                self[arg.nxname] = arg
             except AttributeError:
                 raise NeXusError(
                     "Non-keyword arguments must be valid NXobjects")
@@ -3819,16 +3819,16 @@ class NXgroup(NXobject):
     def clear(self):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def pop(self, *items, **kwargs):
+    def pop(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def popitem(self, *items, **kwargs):
+    def popitem(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def fromkeys(self, *items, **kwargs):
+    def fromkeys(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def setdefault(self, *items, **kwargs):
+    def setdefault(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
     def component(self, nxclass):
@@ -4456,10 +4456,10 @@ class NXroot(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXroot"
         self._backup = None
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def lock(self):
         """Make the tree readonly"""
@@ -4603,9 +4603,9 @@ class NXentry(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXentry"
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def __add__(self, other):
         """
@@ -4678,9 +4678,9 @@ class NXsubentry(NXentry):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXsubentry"
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
 
 
 class NXdata(NXgroup):
@@ -4765,9 +4765,9 @@ class NXdata(NXgroup):
              @signal = 1
     """
 
-    def __init__(self, signal=None, axes=None, errors=None, *items, **kwargs):
+    def __init__(self, signal=None, axes=None, errors=None, *args, **kwargs):
         self._class = 'NXdata'
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
         attrs = {}
         if axes is not None:
             if not is_iterable(axes):
@@ -5374,8 +5374,8 @@ class NXmonitor(NXdata):
     See the NXdata and NXgroup documentation for more details.
     """
 
-    def __init__(self, signal=None, axes=None, *items, **kwargs):
-        NXdata.__init__(self, signal=signal, axes=axes, *items, **kwargs)
+    def __init__(self, signal=None, axes=None, *args, **kwargs):
+        NXdata.__init__(self, signal=signal, axes=axes, *args, **kwargs)
         self._class = "NXmonitor"
         if "name" not in kwargs:
             self._name = "monitor"
@@ -5389,9 +5389,9 @@ class NXlog(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXlog"
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def plot(self, **kwargs):
         """
@@ -5413,9 +5413,9 @@ class NXprocess(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXprocess"
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
         if "date" not in self:
             from datetime import datetime as dt
             self.date = dt.isoformat(dt.today())
@@ -5429,17 +5429,17 @@ class NXnote(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._class = "NXnote"
         NXgroup.__init__(self, **kwargs)
-        for item in items:
-            if is_text(item):
+        for arg in args:
+            if is_text(arg):
                 if "description" not in self:
-                    self.description = item
+                    self.description = arg
                 elif "data" not in self:
-                    self.data = item
-            elif isinstance(item, NXobject):
-                setattr(self, item.nxname, item)
+                    self.data = arg
+            elif isinstance(arg, NXobject):
+                setattr(self, arg.nxname, arg)
             else:
                 raise NeXusError(
                     "Non-keyword arguments must be valid NXobjects")

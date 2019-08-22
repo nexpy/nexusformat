@@ -11,18 +11,21 @@
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
 
-"""IPython extension to allow autocompletion of NeXus object names in shell commands.
+"""IPython extension to allow autocompletion of NeXus object names.
 
-This modifies h5py.ipy_completer, written by Darren Dale, to accommodate the completion
-of NeXus paths defined as nested dictionaries. It will also autocomplete attributes at 
-the end of a dictionary path. The NeXus objects can follow an assignment or be embedded
-in function arguments. 
+This modifies h5py.ipy_completer, written by Darren Dale, to accommodate 
+the completion of NeXus paths defined as nested dictionaries. It will also 
+autocomplete attributes at the end of a dictionary path. The NeXus objects 
+can follow an assignment or be embedded in function arguments. 
 
 Examples
 --------
-    >>> signal = root[entry/data/signal]
-    >>> units = root[entry/data/signal].units
-    >>> data = NXdata(root[entry/data/signal])
+Autocompletion works on each component of the following commands::
+
+>>> signal = root[entry/data/signal]
+>>> units = root[entry/data/signal].units
+>>> data = NXdata(root[entry/data/signal])
+
 """
 from __future__ import absolute_import
 
@@ -39,7 +42,7 @@ from .tree import NXobject
 re_attr_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(
     r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
-re_object_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+?)(?:\[)")
+re_object_match = re.compile(r"(?:.*\s+)?(?:.*\=\s*)?(?:.*\(\s*)?(?:.*,\s*)?(.+?)(?:\[)")
 
 
 def _retrieve_obj(name, shell):

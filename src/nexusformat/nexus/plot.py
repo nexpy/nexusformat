@@ -24,7 +24,7 @@ def centers(axis, dimlen):
     """Return the centers of the axis bins.
 
     This works regardless of whether the axis consists of bin boundaries,
-    i.e, dimlen = len(axis) + 1, or centers, i.e., dimlen = len(axis).
+    i.e, `dimlen = len(axis) + 1``, or centers, i.e., `dimlen = len(axis)`.
     
     Parameters
     ----------
@@ -132,11 +132,6 @@ class PylabPlotter(object):
             Maximum signal value for 2D plots, by default None
         **kwargs : dict
             Options used to customize the plot.
-        
-        Raises
-        ------
-        NeXusError
-            If the data cannot be plotted.
         """
         try:
             import matplotlib.pyplot as plt

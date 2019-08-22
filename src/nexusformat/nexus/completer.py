@@ -39,7 +39,7 @@ from .tree import NXobject
 re_attr_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(
     r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
-re_object_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+?)(?:\[)")
+re_object_match = re.compile(r"(?:.*\s+)?(?:.*\=\s*)?(?:.*\(\s*)?(?:.*,\s*)?(.+?)(?:\[)")
 
 
 def _retrieve_obj(name, shell):

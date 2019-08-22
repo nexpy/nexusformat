@@ -789,7 +789,7 @@ class NXFile(object):
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-            except ValueError:
+            except Exception as error:
                 value = None
         else:
             value = None
@@ -802,10 +802,7 @@ class NXFile(object):
     def readvalue(self, path, idx=()):
         field = self.get(path)
         if field is not None:
-            try:
-                return field[idx]
-            except Exception:
-                pass
+            return field[idx]
         return None
 
     def writevalue(self, path, value, idx=()):

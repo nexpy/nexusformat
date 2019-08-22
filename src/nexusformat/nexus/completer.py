@@ -26,13 +26,13 @@ Examples
 """
 from __future__ import absolute_import
 
-import posixpath
 import re
 import readline
 
+import posixpath
 from IPython import get_ipython
-from IPython.utils import generics
 from IPython.core.error import TryNext
+from IPython.utils import generics
 
 from .tree import NXobject
 

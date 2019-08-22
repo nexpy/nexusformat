@@ -11,8 +11,7 @@
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
 
-"""
-This module provides a standard Matplotlib plotting option to the NeXus Python
+"""Module to provide standard Matplotlib plotting to the NeXus Python.
 API
 """
 from __future__ import (absolute_import, division, print_function)
@@ -22,10 +21,22 @@ from . import NXfield, NeXusError
 
 
 def centers(axis, dimlen):
-    """
-    Return the centers of the axis bins.
+    """Return the centers of the axis bins.
 
-    This works regardless if the axis contains bin boundaries or centers.
+    This works regardless of whether the axis consists of bin boundaries,
+    i.e, dimlen = len(axis) + 1, or centers, i.e., dimlen = len(axis).
+    
+    Parameters
+    ----------
+    axis : ndarray
+        Array containing the axis values.
+    dimlen : int
+        Length of corresponding data dimension.
+    
+    Returns
+    -------
+    ndarray
+        Array of bin centers with a size of dimlen.
     """
     ax = axis.astype(np.float32)
     if ax.shape[0] == dimlen+1:
@@ -36,10 +47,22 @@ def centers(axis, dimlen):
 
 
 def boundaries(axis, dimlen):
-    """
-    Return the boundaries of the axis bins.
+    """Return the axis bin boundaries.
 
-    This works regardless if the axis contains bin boundaries or centers.
+    This works regardless of whether the axis consists of bin boundaries,
+    i.e, dimlen = len(axis) + 1, or centers, i.e., dimlen = len(axis).
+    
+    Parameters
+    ----------
+    axis : ndarray
+        Array containing the axis values.
+    dimlen : int
+        Length of corresponding data dimension.
+    
+    Returns
+    -------
+    ndarray
+        Array of bin boundaries with a size of dimlen + 1.
     """
     ax = axis.astype(np.float32)
     if ax.shape[0] == dimlen:
@@ -54,8 +77,20 @@ def boundaries(axis, dimlen):
 
 
 def label(field):
-    """
-    Return a label for a data field suitable for use on a graph axis.
+    """Return a label for a data field suitable for use on a graph axis.
+
+    This returns the attribute 'long_name' if it exists, or the field name,
+    followed by the units attribute if it exists.
+    
+    Parameters
+    ----------
+    field : NXfield
+        NeXus field used to construct the label.
+    
+    Returns
+    -------
+    str
+        Axis label.
     """
     if 'long_name' in field.attrs:
         return field.long_name
@@ -66,28 +101,53 @@ def label(field):
 
 
 class PylabPlotter(object):
+    """Matplotlib plotter class for 1D or 2D NeXus data.
 
-    """
-    Matplotlib plotter class for NeXus data.
+    When the nexusformat package is used within NeXpy, plots are produced by 
+    calling the NXPlotView class function, 'plot'. This provides a function 
+    with the same call signature for use outside NeXpy.
     """
 
     def plot(self, data_group, fmt='', xmin=None, xmax=None, ymin=None, ymax=None, 
-             vmin=None, vmax=None, **opts):
-        """
-        Plot the data entry.
-
-        Raises NeXusError if the data cannot be plotted.
+             vmin=None, vmax=None, **kwargs):
+        """Plot the NXdata group.
+        
+        Parameters
+        ----------
+        data_group : NXdata
+            NeXus group containing the data to be plotted.
+        fmt : str, optional
+            Formatting options that are compliant with PyPlot, by default ''
+        xmin : float, optional
+            Minimum x-boundary, by default None
+        xmax : float, optional
+            Maximum x-boundary, by default None
+        ymin : float, optional
+            Minimum y-boundary, by default None
+        ymax : float, optional
+            Maximum y-boundary, by default None
+        vmin : float, optional
+            Minimum signal value for 2D plots, by default None
+        vmax : float, optional
+            Maximum signal value for 2D plots, by default None
+        **kwargs : dict
+            Options used to customize the plot.
+        
+        Raises
+        ------
+        NeXusError
+            If the data cannot be plotted.
         """
         try:
             import matplotlib.pyplot as plt
         except ImportError:
             raise NeXusError("Default plotting package (matplotlib) not available.")
 
-        over = opts.pop("over", False)
-        image = opts.pop("image", False)
-        log = opts.pop("log", False)
-        logx = opts.pop("logx", False)
-        logy = opts.pop("logy", False)
+        over = kwargs.pop("over", False)
+        image = kwargs.pop("image", False)
+        log = kwargs.pop("log", False)
+        logx = kwargs.pop("logx", False)
+        logy = kwargs.pop("logy", False)
 
         signal = data_group.nxsignal
         if signal.ndim > 2 and not image:
@@ -122,9 +182,9 @@ class PylabPlotter(object):
                 if errors:
                     ebars = errors.nxdata
                     plt.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
-                                 fmt=fmt, **opts)
+                                 fmt=fmt, **kwargs)
                 else:
-                    plt.plot(centers(axes[0], data.shape[0]), data, fmt, **opts)
+                    plt.plot(centers(axes[0], data.shape[0]), data, fmt, **kwargs)
                 if not over:
                     ax = plt.gca()
                     xlo, xhi = ax.set_xlim(auto=True)        
@@ -169,16 +229,16 @@ class PylabPlotter(object):
                     if log:
                         vmin = max(vmin, 0.01)
                         vmax = max(vmax, 0.01)
-                        opts["norm"] = LogNorm(vmin, vmax)
+                        kwargs["norm"] = LogNorm(vmin, vmax)
                     else:
-                        opts["norm"] = Normalize(vmin, vmax)
+                        kwargs["norm"] = Normalize(vmin, vmax)
 
                 ax = plt.gca()
                 if image:
-                    im = ax.imshow(data, **opts)
+                    im = ax.imshow(data, **kwargs)
                     ax.set_aspect('equal')
                 else:
-                    im = ax.pcolormesh(x, y, data, **opts)
+                    im = ax.pcolormesh(x, y, data, **kwargs)
                     im.get_cmap().set_bad('k', 1.0)
                     ax.set_xlim(x[0], x[-1])
                     ax.set_ylim(y[0], y[-1])
@@ -186,7 +246,7 @@ class PylabPlotter(object):
                 if not image:
                     plt.colorbar(im)
 	
-                if 'origin' in opts and opts['origin'] == 'lower':
+                if 'origin' in kwargs and kwargs['origin'] == 'lower':
                     image = False
                 if xmin: 
                     ax.set_xlim(left=xmin)

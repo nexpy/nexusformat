@@ -232,22 +232,22 @@ where signal is the field containing the data, axes are the fields listing the
 signal sample points, entry is file/path within the file to the data group and
 title is the title of the group or the parent :class:`NXentry`, if available.
 """
-from __future__ import (absolute_import, division, print_function)
-import six
+from __future__ import absolute_import, division, print_function
 
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from copy import copy, deepcopy
 import numbers
 import os
 import re
 import sys
+import warnings
+from copy import copy, deepcopy
 
-import numpy as np
 import h5py as h5
+import numpy as np
+import six
 
 from .. import __version__ as nxversion
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
@@ -5708,4 +5708,3 @@ nxdemo = demo
 if __name__ == "__main__":
     import sys
     nxdemo(sys.argv)
-

@@ -245,7 +245,6 @@ import re
 import sys
 
 import numpy as np
-import tables
 import h5py as h5
 
 from .. import __version__ as nxversion
@@ -1817,7 +1816,7 @@ class NXobject(object):
             else:
                 return False
         else:
-            return self.nxpath in self.nxroot
+            return True
 
     def exists(self):
         return self.file_exists() and self.path_exists()
@@ -2164,10 +2163,7 @@ class NXfield(NXobject):
                     "Data not available either in file or in memory")
         else:
             result = np.asarray(self.nxdata[idx])
-        if result.size == 1:
-            return result[()]
-        else:
-            return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
+        return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):
         """
@@ -2191,7 +2187,17 @@ class NXfield(NXobject):
             if self.nxfilemode == 'rw':
                 self._put_filedata(value, idx)
             elif self._value is None:
-                self._put_memdata(value, idx)
+                if self.size > NX_MAXSIZE:
+                    self._put_memdata(value, idx)
+                else:
+                    self._value = np.empty(self.shape, self.dtype)
+                    if self.fillvalue:
+                        self._value.fill(self.fillvalue)
+                    elif is_string_dtype(self.dtype):
+                        self._value.fill(' ')
+                    else:
+                        self._value.fill(0)
+                    self._value[idx] = value
         self.set_changed()
 
     def _str_name(self, indent=0):
@@ -3024,8 +3030,10 @@ class NXfield(NXobject):
             if self.nxfilemode:
                 with self.nxfile as f:
                     f[self.nxpath].shape = shape
+                self._value = None
             elif self._memfile:
                 self._memfile['data'].shape = shape
+                self._value = None
         else:
             raise NeXusError("Shape incompatible with current NXfield")
         self._shape = shape
@@ -3112,7 +3120,7 @@ class NXfield(NXobject):
     @fillvalue.setter
     def fillvalue(self, value):
         self.set_h5opt('fillvalue', value)
-        
+
     @property
     def fletcher32(self):
         return self.get_h5opt('fletcher32')

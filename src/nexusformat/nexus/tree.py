@@ -2500,7 +2500,8 @@ class NXfield(NXobject):
         """
         Casts a scalar field as a long integer
 
-        The use of the 'long' function is not valid in Python 3 and no longer useful in Python 2
+        The use of the 'long' function is not valid in Python 3 and 
+        no longer useful in Python 2
         """
         return int(self.nxvalue)
 
@@ -3035,7 +3036,7 @@ class NXfield(NXobject):
             raise NeXusError("Shape incompatible with current NXfield")
         self._shape = shape
         if self._value is not None:
-            np.resize(self._value, shape)
+            self._value.resize(self._shape, refcheck=False)
 
     def checkshape(self, shape):
         _maxshape = self.maxshape

@@ -1,14 +1,15 @@
 package:
   name: nexusformat
-  version: "0.4.21"
+  version: "0.5.0"
 
 source:
   git_url: https://github.com/nexpy/nexusformat.git
-  git_tag: v0.4.21
+  git_tag: v0.5.0
 
 build:
   entry_points:
     - nxstack = nexusformat.scripts.nxstack:main
+    - nxduplicate = nexusformat.scripts.nxduplicate:main
   number: 0
 
 requirements:
@@ -17,6 +18,7 @@ requirements:
     - setuptools
     - numpy >=1.6.0
     - h5py
+    - ipython
 
   run:
     - python

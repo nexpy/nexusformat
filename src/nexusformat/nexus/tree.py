@@ -520,6 +520,8 @@ class NXFile(object):
         root._file = self
         root._filename = self._filename
         root._mode = self._mode = _mode
+        root._mtime = os.path.getmtime(self._filename)
+        root._file_modified = False
         return root
 
     def _readattrs(self):
@@ -4465,14 +4467,29 @@ class NXroot(NXgroup):
     def __init__(self, *args, **kwargs):
         self._class = "NXroot"
         self._backup = None
-        NXgroup.__init__(self, *args, **kwargs)
+        self._mtime = None
+        self._file_modified = False
+        NXgroup.__init__(self, *items, **kwargs)
+
+    def set_changed(self, change_lock=False):
+        """
+        Sets an object's change status to changed.
+        """
+        if not change_lock:
+            try:
+                self._mtime = os.path.getmtime(self.nxfilename)
+            except (TypeError, FileNotFoundError):
+                self._mtime = None
+        self._changed = True
+        if self.nxgroup:
+            self.nxgroup.set_changed()
 
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
-            if self.exists():
+            if self.file_exists():
                 self._mode = self._file.mode = 'r'
-                self.set_changed()
+                self.set_changed(change_lock=True)
             else:
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
@@ -4480,13 +4497,13 @@ class NXroot(NXgroup):
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
-            if self.exists():
+            if self.file_exists():
                 self._mode = self._file.mode = 'rw'
-                self.set_changed()
+                self.set_changed(change_lock=True)
             else:
                 self._mode = None
                 self._file = None
-                self.set_changed()
+                self.set_changed(change_lock=True)
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
 

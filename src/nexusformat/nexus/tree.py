@@ -4469,7 +4469,7 @@ class NXroot(NXgroup):
         self._backup = None
         self._mtime = None
         self._file_modified = False
-        NXgroup.__init__(self, *items, **kwargs)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def set_changed(self, change_lock=False):
         """

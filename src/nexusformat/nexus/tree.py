@@ -520,6 +520,8 @@ class NXFile(object):
         root._file = self
         root._filename = self._filename
         root._mode = self._mode = _mode
+        root._mtime = os.path.getmtime(self._filename)
+        root._file_modified = False
         return root
 
     def _readattrs(self):
@@ -789,7 +791,7 @@ class NXFile(object):
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-            except ValueError:
+            except Exception as error:
                 value = None
         else:
             value = None
@@ -802,10 +804,7 @@ class NXFile(object):
     def readvalue(self, path, idx=()):
         field = self.get(path)
         if field is not None:
-            try:
-                return field[idx]
-            except Exception:
-                pass
+            return field[idx]
         return None
 
     def writevalue(self, path, value, idx=()):
@@ -2503,7 +2502,8 @@ class NXfield(NXobject):
         """
         Casts a scalar field as a long integer
 
-        The use of the 'long' function is not valid in Python 3 and no longer useful in Python 2
+        The use of the 'long' function is not valid in Python 3 and 
+        no longer useful in Python 2
         """
         return int(self.nxvalue)
 
@@ -3038,7 +3038,7 @@ class NXfield(NXobject):
             raise NeXusError("Shape incompatible with current NXfield")
         self._shape = shape
         if self._value is not None:
-            np.resize(self._value, shape)
+            self._value.resize(self._shape, refcheck=False)
 
     def checkshape(self, shape):
         _maxshape = self.maxshape
@@ -4467,14 +4467,29 @@ class NXroot(NXgroup):
     def __init__(self, *items, **opts):
         self._class = "NXroot"
         self._backup = None
+        self._mtime = None
+        self._file_modified = False
         NXgroup.__init__(self, *items, **opts)
+
+    def set_changed(self, change_lock=False):
+        """
+        Sets an object's change status to changed.
+        """
+        if not change_lock:
+            try:
+                self._mtime = os.path.getmtime(self.nxfilename)
+            except (TypeError, FileNotFoundError):
+                self._mtime = None
+        self._changed = True
+        if self.nxgroup:
+            self.nxgroup.set_changed()
 
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
-            if self.exists():
+            if self.file_exists():
                 self._mode = self._file.mode = 'r'
-                self.set_changed()
+                self.set_changed(change_lock=True)
             else:
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
@@ -4482,13 +4497,13 @@ class NXroot(NXgroup):
     def unlock(self):
         """Make the tree modifiable"""
         if self._filename:
-            if self.exists():
+            if self.file_exists():
                 self._mode = self._file.mode = 'rw'
-                self.set_changed()
+                self.set_changed(change_lock=True)
             else:
                 self._mode = None
                 self._file = None
-                self.set_changed()
+                self.set_changed(change_lock=True)
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
 

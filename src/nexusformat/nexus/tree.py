@@ -226,28 +226,28 @@ Although the :meth:`plot()` method uses matplotlib by default to plot the data, 
 this with your own plotter by setting `nexus.NXgroup._plotter` to your own plotter
 class.  The plotter class has one method::
 
-    plot(signal, axes, entry, title, format, **opts)
+    plot(signal, axes, entry, title, format, **kwargs)
 
 where signal is the field containing the data, axes are the fields listing the
 signal sample points, entry is file/path within the file to the data group and
 title is the title of the group or the parent :class:`NXentry`, if available.
 """
-from __future__ import (absolute_import, division, print_function)
-import six
+from __future__ import absolute_import, division, print_function
 
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from copy import copy, deepcopy
 import numbers
 import os
 import re
 import sys
+import warnings
+from copy import copy, deepcopy
 
-import numpy as np
 import h5py as h5
+import numpy as np
+import six
 
 from .. import __version__ as nxversion
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
@@ -424,7 +424,7 @@ class NXFile(object):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', **opts):
+    def __init__(self, name, mode='r', **kwargs):
         """
         Creates an h5py File object for reading and writing.
         """
@@ -439,7 +439,7 @@ class NXFile(object):
         elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or mode == 'x':
             if mode == 'w5':
                 mode = 'w'
-            self._file = self.h5.File(name, mode, **opts)
+            self._file = self.h5.File(name, mode, **kwargs)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -448,7 +448,7 @@ class NXFile(object):
             else:
                 self._mode = 'r'
             if os.path.exists(name):
-                self._file = self.h5.File(name, mode, **opts)
+                self._file = self.h5.File(name, mode, **kwargs)
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
@@ -477,21 +477,21 @@ class NXFile(object):
     def __enter__(self):
         return self.open()
 
-    def __exit__(self, *items):
+    def __exit__(self, *args):
         self.close()
 
-    def get(self, *items, **opts):
-        return self.file.get(*items, **opts)
+    def get(self, *args, **kwargs):
+        return self.file.get(*args, **kwargs)
 
-    def copy(self, *items, **opts):
-        self.file.copy(*items, **opts)
+    def copy(self, *args, **kwargs):
+        self.file.copy(*args, **kwargs)
 
-    def open(self, **opts):
+    def open(self, **kwargs):
         if not self.isopen():
             if self._mode == 'rw':
-                self._file = self.h5.File(self._filename, 'r+', **opts)
+                self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
-                self._file = self.h5.File(self._filename, self._mode, **opts)
+                self._file = self.h5.File(self._filename, self._mode, **kwargs)
             self.nxpath = '/'
         return self
 
@@ -810,9 +810,9 @@ class NXFile(object):
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value
 
-    def copyfile(self, input_file, **opts):
+    def copyfile(self, input_file, **kwargs):
         for entry in input_file['/']:
-            input_file.copy(entry, self['/'], **opts) 
+            input_file.copy(entry, self['/'], **kwargs) 
         self._rootattrs()
 
     def _rootattrs(self):
@@ -2047,24 +2047,24 @@ class NXfield(NXobject):
                   'fillvalue', 'fletcher32', 'maxshape', 'scaleoffset', 'shuffle']
 
     def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
-                 group=None, attrs={}, **kwds):
+                 group=None, attrs={}, **kwargs):
         self._class = 'NXfield'
         self._name = name
         self._group = group
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         _size = _getsize(self._shape)
         _h5opts = {}
-        _h5opts['chunks'] = kwds.pop('chunks', True if _size>NX_MAXSIZE else None)
-        _h5opts['compression'] = kwds.pop('compression', 
-                                          NX_COMPRESSION if _size>NX_MAXSIZE else None)
-        _h5opts['compression_opts'] = kwds.pop('compression_opts', None)
-        _h5opts['fillvalue'] = kwds.pop('fillvalue', None)
-        _h5opts['fletcher32'] = kwds.pop('fletcher32', None)
-        _h5opts['maxshape'] = _getmaxshape(kwds.pop('maxshape', None), self._shape)
-        _h5opts['scaleoffset'] = kwds.pop('scaleoffset', None)
-        _h5opts['shuffle'] = kwds.pop('shuffle', True if _size>NX_MAXSIZE else None)
+        _h5opts['chunks'] = kwargs.pop('chunks', True if _size>NX_MAXSIZE else None)
+        _h5opts['compression'] = kwargs.pop('compression', 
+                                            NX_COMPRESSION if _size>NX_MAXSIZE else None)
+        _h5opts['compression_opts'] = kwargs.pop('compression_opts', None)
+        _h5opts['fillvalue'] = kwargs.pop('fillvalue', None)
+        _h5opts['fletcher32'] = kwargs.pop('fletcher32', None)
+        _h5opts['maxshape'] = _getmaxshape(kwargs.pop('maxshape', None), self._shape)
+        _h5opts['scaleoffset'] = kwargs.pop('scaleoffset', None)
+        _h5opts['shuffle'] = kwargs.pop('shuffle', True if _size>NX_MAXSIZE else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
-        attrs.update(kwds)
+        attrs.update(kwargs)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None
         self._uncopied_data = None
@@ -3208,7 +3208,7 @@ class NXfield(NXobject):
             return False
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-             vmin=None, vmax=None, **opts):
+             vmin=None, vmax=None, **kwargs):
         """
         Plot data if the signal attribute is defined.
 
@@ -3248,34 +3248,34 @@ class NXfield(NXobject):
                 signal_path = self.nxpath
             data.nxsignal.attrs['signal_path'] = signal_path
             plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
-                          vmin=None, vmax=None, **opts)
+                          vmin=None, vmax=None, **kwargs)
         else:
             raise NeXusError("NXfield not plottable")
     
-    def oplot(self, fmt='', **opts):
+    def oplot(self, fmt='', **kwargs):
         """
         Plots the data contained within the group over the current figure.
         """
-        self.plot(fmt=fmt, over=True, **opts)
+        self.plot(fmt=fmt, over=True, **kwargs)
 
     def logplot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                vmin=None, vmax=None, **opts):
+                vmin=None, vmax=None, **kwargs):
         """
         Plots the data intensity contained within the group on a log scale.
         """
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                  vmin=vmin, vmax=vmax, **opts)
+                  vmin=vmin, vmax=vmax, **kwargs)
 
     def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                vmin=None, vmax=None, **opts):
+                vmin=None, vmax=None, **kwargs):
         """
         Plots the data intensity as an RGB(A) image.
         """
         if self.plot_rank > 2 and (self.shape[-1] == 3 or self.shape[-1] == 4):
             self.plot(fmt=fmt, image=True,
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                      vmin=vmin, vmax=vmax, **opts)
+                      vmin=vmin, vmax=vmax, **kwargs)
         else:
             raise NeXusError("Invalid shape for RGB(A) image")
 
@@ -3484,31 +3484,31 @@ class NXgroup(NXobject):
 
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._entries = {}
-        if "name" in opts:
-            self._name = opts["name"]
-            del opts["name"]
-        if "entries" in opts:
-            for k,v in opts["entries"].items():
+        if "name" in kwargs:
+            self._name = kwargs["name"]
+            del kwargs["name"]
+        if "entries" in kwargs:
+            for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
-            del opts["entries"]
-        if "new_entries" in opts:
-            for k,v in opts["new_entries"].items():
+            del kwargs["entries"]
+        if "new_entries" in kwargs:
+            for k,v in kwargs["new_entries"].items():
                 self._entries[k] = v
-            del opts["new_entries"]            
-        if "attrs" in opts:
-            self._attrs = AttrDict(self, attrs=opts["attrs"])
-            del opts["attrs"]
+            del kwargs["new_entries"]            
+        if "attrs" in kwargs:
+            self._attrs = AttrDict(self, attrs=kwargs["attrs"])
+            del kwargs["attrs"]
         else:
             self._attrs = AttrDict(self)
-        if "nxclass" in opts:
-            self._class = opts["nxclass"]
-            del opts["nxclass"]
-        if "group" in opts:
-            self._group = opts["group"]
-            del opts["group"]
-        for k,v in opts.items():
+        if "nxclass" in kwargs:
+            self._class = kwargs["nxclass"]
+            del kwargs["nxclass"]
+        if "group" in kwargs:
+            self._group = kwargs["group"]
+            del kwargs["group"]
+        for k,v in kwargs.items():
             try:
                 self[k] = v
             except AttributeError:
@@ -3521,9 +3521,9 @@ class NXgroup(NXobject):
                 self.__class__ = _getclass(self._class)
             except Exception:
                 pass
-        for item in items:
+        for arg in args:
             try:
-                self[item.nxname] = item
+                self[arg.nxname] = arg
             except AttributeError:
                 raise NeXusError(
                     "Non-keyword arguments must be valid NXobjects")
@@ -3827,16 +3827,16 @@ class NXgroup(NXobject):
     def clear(self):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def pop(self, *items, **opts):
+    def pop(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def popitem(self, *items, **opts):
+    def popitem(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def fromkeys(self, *items, **opts):
+    def fromkeys(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
-    def setdefault(self, *items, **opts):
+    def setdefault(self, *args, **kwargs):
         raise NeXusError("This method is not implemented for NXgroups")
 
     def component(self, nxclass):
@@ -4022,43 +4022,43 @@ class NXgroup(NXobject):
         """
         return None
 
-    def plot(self, **opts):
+    def plot(self, **kwargs):
         """
         Plot data contained within the group.
         """
         plotdata = self.plottable_data
         if plotdata:
-            plotdata.plot(**opts)
+            plotdata.plot(**kwargs)
         else:
             raise NeXusError("There is no plottable data")
 
-    def oplot(self, **opts):
+    def oplot(self, **kwargs):
         """
         Plots the data contained within the group over the current figure.
         """
         plotdata = self.plottable_data
         if plotdata:
-            plotdata.oplot(**opts)
+            plotdata.oplot(**kwargs)
         else:
             raise NeXusError("There is no plottable data")
 
-    def logplot(self, **opts):
+    def logplot(self, **kwargs):
         """
         Plots the data intensity contained within the group on a log scale.
         """
         plotdata = self.plottable_data
         if plotdata:
-            plotdata.logplot(**opts)
+            plotdata.logplot(**kwargs)
         else:
             raise NeXusError("There is no plottable data")
 
-    def implot(self, **opts):
+    def implot(self, **kwargs):
         """
         Plots the data intensity as an RGB(A) image.
         """
         plotdata = self.plottable_data
         if plotdata:
-            plotdata.implot(**opts)
+            plotdata.implot(**kwargs)
         else:
             raise NeXusError("There is no plottable data")
 
@@ -4303,11 +4303,11 @@ class NXlinkfield(NXlink, NXfield):
     The real field will be accessible by following the link attribute.
     """
     def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **opts):
+                 **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if self._filename is not None:
-            NXfield.__init__(self, name=name, **opts)
+            NXfield.__init__(self, name=name, **kwargs)
         self._class = "NXfield"
 
     def __getattr__(self, name):
@@ -4382,11 +4382,11 @@ class NXlinkfield(NXlink, NXfield):
         else:
             return self.nxlink.maxshape
 
-    def plot(self, **opts):
+    def plot(self, **kwargs):
         if self.is_external():
-            super(NXlinkfield, self).plot(**opts)
+            super(NXlinkfield, self).plot(**kwargs)
         else:
-            self.nxlink.plot(**opts)            
+            self.nxlink.plot(**kwargs)            
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -4396,12 +4396,12 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, **opts):
+    def __init__(self, target=None, file=None, name=None, abspath=False, **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
-        if 'nxclass' in opts:
-            NXgroup.__init__(self, **opts)
-            self._setclass(_getclass(opts['nxclass'], link=True))
+        if 'nxclass' in kwargs:
+            NXgroup.__init__(self, **kwargs)
+            self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
             self._class = 'NXlink'
 
@@ -4447,11 +4447,11 @@ class NXlinkgroup(NXlink, NXgroup):
     def entries(self):
         return self.nxlink._entries
 
-    def plot(self, **opts):
+    def plot(self, **kwargs):
         if self.is_external():
-            super(NXlinkgroup, self).plot(**opts)
+            super(NXlinkgroup, self).plot(**kwargs)
         else:
-            self.nxlink.plot(**opts)        
+            self.nxlink.plot(**kwargs)        
 
 
 class NXroot(NXgroup):
@@ -4464,12 +4464,12 @@ class NXroot(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXroot"
         self._backup = None
         self._mtime = None
         self._file_modified = False
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def set_changed(self, change_lock=False):
         """
@@ -4626,9 +4626,9 @@ class NXentry(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXentry"
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
 
     def __add__(self, other):
         """
@@ -4701,9 +4701,9 @@ class NXsubentry(NXentry):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXsubentry"
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
 
 
 class NXdata(NXgroup):
@@ -4788,9 +4788,9 @@ class NXdata(NXgroup):
              @signal = 1
     """
 
-    def __init__(self, signal=None, axes=None, errors=None, *items, **opts):
+    def __init__(self, signal=None, axes=None, errors=None, *args, **kwargs):
         self._class = 'NXdata'
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
         attrs = {}
         if axes is not None:
             if not is_iterable(axes):
@@ -5174,7 +5174,7 @@ class NXdata(NXgroup):
             return None
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-             vmin=None, vmax=None, **opts):
+             vmin=None, vmax=None, **kwargs):
         """
         Plot data contained within the group.
 
@@ -5218,25 +5218,25 @@ class NXdata(NXgroup):
             from .plot import plotview
             
         plotview.plot(self, fmt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, 
-                      vmin=vmin, vmax=vmax, **opts)
+                      vmin=vmin, vmax=vmax, **kwargs)
     
-    def oplot(self, fmt='', **opts):
+    def oplot(self, fmt='', **kwargs):
         """
         Plots the data contained within the group over the current figure.
         """
-        self.plot(fmt=fmt, over=True, **opts)
+        self.plot(fmt=fmt, over=True, **kwargs)
 
     def logplot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                vmin=None, vmax=None, **opts):
+                vmin=None, vmax=None, **kwargs):
         """
         Plots the data intensity contained within the group on a log scale.
         """
         self.plot(fmt=fmt, log=True,
                   xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                  vmin=vmin, vmax=vmax, **opts)
+                  vmin=vmin, vmax=vmax, **kwargs)
 
     def implot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
-                vmin=None, vmax=None, **opts):
+                vmin=None, vmax=None, **kwargs):
         """
         Plots the data intensity as an image.
         """
@@ -5244,7 +5244,7 @@ class NXdata(NXgroup):
             (self.nxsignal.shape[-1] == 3 or self.nxsignal.shape[-1] == 4)):
             self.plot(fmt=fmt, image=True,
                       xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
-                      vmin=vmin, vmax=vmax, **opts)
+                      vmin=vmin, vmax=vmax, **kwargs)
         else:
             raise NeXusError("Invalid shape for RGB(A) image")
 
@@ -5397,10 +5397,10 @@ class NXmonitor(NXdata):
     See the NXdata and NXgroup documentation for more details.
     """
 
-    def __init__(self, signal=None, axes=None, *items, **opts):
-        NXdata.__init__(self, signal=signal, axes=axes, *items, **opts)
+    def __init__(self, signal=None, axes=None, *args, **kwargs):
+        NXdata.__init__(self, signal=signal, axes=axes, *args, **kwargs)
         self._class = "NXmonitor"
-        if "name" not in opts:
+        if "name" not in kwargs:
             self._name = "monitor"
 
 
@@ -5412,20 +5412,20 @@ class NXlog(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXlog"
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
 
-    def plot(self, **opts):
+    def plot(self, **kwargs):
         """
         Plots the logged values against the elapsed time. Valid Matplotlib 
         parameters, specifying markers, colors, etc, can be specified using the 
-        'opts' dictionary.
+        'kwargs' dictionary.
         """
         title = NXfield("%s Log" % self.nxname)
         if 'start' in self['time'].attrs:
             title = title + ' - starting at ' + self['time'].attrs['start']
-        NXdata(self['value'], self['time'], title=title).plot(**opts)
+        NXdata(self['value'], self['time'], title=title).plot(**kwargs)
 
 
 class NXprocess(NXgroup):
@@ -5436,9 +5436,9 @@ class NXprocess(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXprocess"
-        NXgroup.__init__(self, *items, **opts)
+        NXgroup.__init__(self, *args, **kwargs)
         if "date" not in self:
             from datetime import datetime as dt
             self.date = dt.isoformat(dt.today())
@@ -5452,17 +5452,17 @@ class NXnote(NXgroup):
     See the NXgroup documentation for more details.
     """
 
-    def __init__(self, *items, **opts):
+    def __init__(self, *args, **kwargs):
         self._class = "NXnote"
-        NXgroup.__init__(self, **opts)
-        for item in items:
-            if is_text(item):
+        NXgroup.__init__(self, **kwargs)
+        for arg in args:
+            if is_text(arg):
                 if "description" not in self:
-                    self.description = item
+                    self.description = arg
                 elif "data" not in self:
-                    self.data = item
-            elif isinstance(item, NXobject):
-                setattr(self, item.nxname, item)
+                    self.data = arg
+            elif isinstance(arg, NXobject):
+                setattr(self, arg.nxname, arg)
             else:
                 raise NeXusError(
                     "Non-keyword arguments must be valid NXobjects")
@@ -5666,10 +5666,10 @@ def save(filename, group, mode='w'):
  
 nxsave = save
 
-def duplicate(input_file, output_file, mode='w-', **opts):
+def duplicate(input_file, output_file, mode='w-', **kwargs):
     input = nxload(input_file)
     output = NXFile(output_file, mode)
-    output.copyfile(input.nxfile, **opts)
+    output.copyfile(input.nxfile, **kwargs)
 
 nxduplicate = duplicate
 
@@ -5723,4 +5723,3 @@ nxdemo = demo
 if __name__ == "__main__":
     import sys
     nxdemo(sys.argv)
-

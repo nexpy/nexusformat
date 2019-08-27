@@ -5593,10 +5593,7 @@ def getmemory():
     """
     Returns the memory limit for data arrays (in MB).
     """
-    global NX_MEMORY
     return NX_MEMORY
-
-nxgetmemory = getmemory
 
 def setmemory(value):
     """
@@ -5605,16 +5602,14 @@ def setmemory(value):
     global NX_MEMORY
     NX_MEMORY = value
 
+nxgetmemory = getmemory
 nxsetmemory = setmemory
 
 def getcompression():
     """
     Returns default compression filter.
     """
-    global NX_COMPRESSION
     return NX_COMPRESSION
-
-nxgetcompression = getcompression
 
 def setcompression(value):
     """
@@ -5625,16 +5620,14 @@ def setcompression(value):
         value = None
     NX_COMPRESSION = value
 
+nxgetcompression = getcompression
 nxsetcompression = setcompression
 
 def getencoding():
     """
     Returns the default encoding for input strings (usually 'utf-8').
     """
-    global NX_ENCODING
     return NX_ENCODING
-
-nxgetencoding = getencoding
 
 def setencoding(value):
     """
@@ -5643,16 +5636,14 @@ def setencoding(value):
     global NX_ENCODING
     NX_ENCODING = value
 
+nxgetencoding = getencoding
 nxsetencoding = setencoding
 
 def getmaxsize():
     """
     Returns the default maximum size for arrays without using core memory.
     """
-    global NX_MAXSIZE
     return NX_MAXSIZE
-
-nxgetmaxsize = getmaxsize
 
 def setmaxsize(value):
     """
@@ -5661,6 +5652,7 @@ def setmaxsize(value):
     global NX_MAXSIZE
     NX_MAXSIZE = value
 
+nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations

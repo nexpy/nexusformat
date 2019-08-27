@@ -37,7 +37,7 @@ We can examine the file structure using a number of commands::
 
     f.attrs             # Shows file name, date, user, and NeXus version
     f.tree()            # Lists the entire contents of the NeXus file
-    f.NXentry             # Shows the list of datasets in the file
+    f.NXentry           # Shows the list of datasets in the file
     f.NXentry[0].dir()  # Lists the fields in the first entry
 
 Some files can even be plotted automatically::
@@ -50,25 +50,14 @@ We can create a copy of the file using write::
 
 For a complete description of the features available in this tree view
 of the NeXus data file, see `nexus.tree`.
-
-NeXus API
-=========
-
-When converting code to python from other languages you do not
-necessarily want to rewrite the file handling code using the
-tree view.  The `nexus.napi` module provides an interface which
-more closely follows the NeXus application programming
-interface (NAPI_).
-
-.. _Nexus: http://www.nexusformat.org/Introduction
-.. _NAPI:  http://www.nexusformat.org/Application_Program_Interface
-.. _HDF:   http://www.hdfgroup.org
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from .tree import *
 from .completer import nxcompleter
+from .lock import NXLock, NXLockException
+from .tree import *
+
 try:
     import h5pyd
     from .remote import *

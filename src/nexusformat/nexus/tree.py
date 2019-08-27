@@ -246,6 +246,7 @@ import numpy as np
 import six
 
 from .. import __version__ as nxversion
+from .lock import NXLock, NXLockException
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -253,13 +254,15 @@ NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = sys.getfilesystemencoding()
 NX_MAXSIZE = 10000
+NX_LOCK = 0
 
 np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'nxgetmemory', 'nxsetmemory', 'nxgetcompression', 'nxsetcompression',
+           'nxgetlock', 'nxsetlock', 'nxgetmemory', 'nxsetmemory', 
+           'nxgetcompression', 'nxsetcompression', 
            'nxgetencoding', 'nxsetencoding', 'nxgetmaxsize', 'nxsetmaxsize',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
@@ -281,6 +284,7 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
 
 if six.PY3:
     unicode = str
+
 
 def text(value):
     """Return a unicode string in both Python 2 and 3.
@@ -453,6 +457,10 @@ class NXFile(object):
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
         self._path = '/'
+        if NX_LOCK:
+            self._lock = NXLock(self._filename, timeout=NX_LOCK)
+        else:
+            self._lock = None
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -479,6 +487,14 @@ class NXFile(object):
 
     def __exit__(self, *args):
         self.close()
+
+    def lock(self):
+        if self._lock:
+            self._lock.acquire()
+
+    def unlock(self):
+        if self._lock:
+            self._lock.release()
 
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)
@@ -5562,6 +5578,16 @@ def centers(signal, axes):
             assert axis.shape[0] == dimlen
             return axis.nxdata
     return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
+
+def getlock():
+    return NX_LOCK
+    
+def setlock(value):
+    global NX_LOCK
+    NX_LOCK = value
+
+nxgetlock = getlock
+nxsetlock = setlock
 
 def getmemory():
     """

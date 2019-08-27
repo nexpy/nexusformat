@@ -5685,9 +5685,8 @@ def save(filename, group, mode='w'):
 nxsave = save
 
 def duplicate(input_file, output_file, mode='w-', **kwargs):
-    input = nxload(input_file)
-    output = NXFile(output_file, mode)
-    output.copyfile(input.nxfile, **kwargs)
+    with NXFile(input_file, 'r') as input, NXFile(output_file, mode) as output:
+        output.copyfile(input, **kwargs)
 
 nxduplicate = duplicate
 

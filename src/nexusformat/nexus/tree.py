@@ -452,6 +452,7 @@ class NXFile(object):
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
+        self._file.close()
         self._path = '/'
 
     def __repr__(self):
@@ -475,7 +476,8 @@ class NXFile(object):
         return self.file.__contains__(key)
 
     def __enter__(self):
-        return self.open()
+        self.open()
+        return self
 
     def __exit__(self, *args):
         self.close()
@@ -493,17 +495,13 @@ class NXFile(object):
             else:
                 self._file = self.h5.File(self._filename, self._mode, **kwargs)
             self.nxpath = '/'
-        return self
 
     def close(self):
         if self.isopen():
             self._file.close()
 
     def isopen(self):
-        if self._file.id:
-            return True
-        else:
-            return False
+        return self._file.id.valid:
 
     def readfile(self):
         """
@@ -865,12 +863,9 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self.isopen() and self.file.mode == 'r':
-                self.close()
         else:
             self._mode = 'r'   
-            if self.isopen() and self.file.mode == 'r+':
-                self.close()
+        self.close()
 
     @property
     def attrs(self):
@@ -1819,6 +1814,7 @@ class NXobject(object):
 
     def exists(self):
         return self.file_exists() and self.path_exists()
+
 
 class NXfield(NXobject):
 

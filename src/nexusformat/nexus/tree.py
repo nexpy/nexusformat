@@ -483,9 +483,6 @@ class NXFile(object):
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)
 
-    def copy(self, *args, **kwargs):
-        self.file.copy(*args, **kwargs)
-
     def open(self, **kwargs):
         if not self.isopen():
             if self._mode == 'rw':
@@ -498,6 +495,12 @@ class NXFile(object):
     def close(self):
         if self.isopen():
             self._file.close()
+
+    def move(self, source, destination):
+        self.file.move(source, destination)
+
+    def copy(self, source, destination, **kwargs):
+        self.file.copy(source, destination, **kwargs)
 
     def isopen(self):
         if self._file.id:

@@ -496,12 +496,6 @@ class NXFile(object):
         if self.isopen():
             self._file.close()
 
-    def move(self, source, destination):
-        self.file.move(source, destination)
-
-    def copy(self, source, destination, **kwargs):
-        self.file.copy(source, destination, **kwargs)
-
     def isopen(self):
         if self._file.id:
             return True
@@ -726,12 +720,12 @@ class NXFile(object):
             _file, _path = data._uncopied_data
             if _file._filename != self._filename:
                 with _file as f:
-                    f.copy(_path, self[self.nxparent], self.nxpath)
+                    f.copy(_path, self[self.nxparent], name=self.nxpath)
             else:
-                self.file.copy(_path, self[self.nxparent], self.nxpath)
+                self.file.copy(_path, self[self.nxparent], name=self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
-            data._memfile.copy('data', self[self.nxparent], self.nxpath)
+            data._memfile.copy('data', self[self.nxparent], name=self.nxpath)
             data._memfile = None
         elif data.nxfile and data.nxfile.filename != self.filename:
             data.nxfile.copy(data.nxpath, self[self.nxparent])
@@ -812,6 +806,12 @@ class NXFile(object):
 
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value
+
+    def move(self, source, destination):
+        self.file.move(source, destination)
+
+    def copy(self, source, destination, **kwargs):
+        self.file.copy(source, destination, **kwargs)
 
     def copyfile(self, input_file, **kwargs):
         for entry in input_file['/']:
@@ -2344,7 +2344,7 @@ class NXfield(NXobject):
                     f.copy(_path, self.nxpath)
                 else:
                     self._create_memfile()
-                    f.copy(_path, self._memfile, 'data')
+                    f.copy(_path, self._memfile, name='data')
                 self._uncopied_data = None
                 if (np.prod(self.shape) * np.dtype(self.dtype).itemsize 
                     <= NX_MEMORY*1000*1000):

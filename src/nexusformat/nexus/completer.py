@@ -31,6 +31,7 @@ from __future__ import absolute_import
 
 import re
 import readline
+from string import punctuation
 
 import posixpath
 from IPython import get_ipython
@@ -39,11 +40,9 @@ from IPython.utils import generics
 
 from .tree import NXobject
 
-re_attr_match = re.compile(r"(?:.*\=)?(?:.*\()?(?:.*,)?(.+\[.*\].*)\.(\w*)$")
-re_item_match = re.compile(
-    r"""(?:.*\=)?(?:.*\()?(?:.*,)?(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
-re_object_match = re.compile(r"(?:.*\s+)?(?:.*\=\s*)?(?:.*\(\s*)?(?:.*,\s*)?(.+?)(?:\[)")
-
+re_attr_match = re.compile(r"(.+\[.*\].*)\.(\w*)$")
+re_item_match = re.compile(r"""(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
+re_object_match = re.compile(r"(.+?)(?:\[)")
 
 def _retrieve_obj(name, shell):
     """Retrieve the NeXus object at the base of the command.
@@ -100,10 +99,13 @@ def nxitem_completer(shell, command):
         return []
 
     path, _ = posixpath.split(item)
-    if path:
-        items = (posixpath.join(path, name) for name in obj[path].keys())
-    else:
-        items = obj.keys()
+    try:
+        if path:
+            items = (posixpath.join(path, name) for name in obj[path].keys())
+        else:
+            items = obj.keys()
+    except Exception:
+        items = []
     items = list(items)
 
     readline.set_completer_delims(' \t\n`!@#$^&*()=+[{]}\\|;:\'",<>?')
@@ -178,18 +180,22 @@ def nxcompleter(shell, event):
     TryNext
         If no completions are found.
     """
-    base = re_object_match.split(event.line)[1]
+    command = re.split('[ !#$%&()*+,:;<=>?@^~]', event.line)[-1].lstrip(punctuation)
+    try:
+        base = re_object_match.split(command)[1]
+    except Exception:
+        raise TryNext
 
     if not isinstance(shell._ofind(base)['obj'], NXobject):
         raise TryNext
 
     try:
-        return nxattr_completer(shell, event.line)
+        return nxattr_completer(shell, command)
     except ValueError:
         pass
 
     try:
-        return nxitem_completer(shell, event.line)
+        return nxitem_completer(shell, command)
     except ValueError:
         pass
 

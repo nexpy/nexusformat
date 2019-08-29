@@ -3724,6 +3724,12 @@ class NXgroup(NXobject):
         """
         return len(self.entries)
 
+    def __nonzero__(self):
+        """
+        Return confirmation that the group exists.
+        """
+        return True
+
     def __deepcopy__(self, memo):
         obj = self
         dpcpy = obj.__class__()

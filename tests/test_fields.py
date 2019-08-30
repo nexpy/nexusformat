@@ -20,7 +20,7 @@ def test_string_field_creation(text):
     assert field.nxvalue == text
     assert field.dtype == string_dtype
     assert len(field) == 0
- 
+
 
 @pytest.mark.parametrize("text", ["a", "abc", "αβγ"])
 def test_byte_field_creation(text):
@@ -74,6 +74,3 @@ def test_field_index(arr, ind):
 
     assert np.all(field[ind].nxvalue == arr[ind])
     assert field[ind].shape == arr[ind].shape
-
-
-        

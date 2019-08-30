@@ -484,7 +484,7 @@ class NXFile(object):
         return self.file.get(*args, **kwargs)
 
     def open(self, **kwargs):
-        if not self.isopen():
+        if not self.is_open():
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
@@ -493,10 +493,10 @@ class NXFile(object):
         return self
 
     def close(self):
-        if self.isopen():
+        if self.is_open():
             self._file.close()
 
-    def isopen(self):
+    def is_open(self):
         if self._file.id:
             return True
         else:
@@ -856,7 +856,7 @@ class NXFile(object):
 
     @property
     def file(self):
-        if not self.isopen():
+        if not self.is_open():
             self.open()
         return self._file
 
@@ -868,11 +868,11 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self.isopen() and self.file.mode == 'r':
+            if self.is_open() and self.file.mode == 'r':
                 self.close()
         else:
             self._mode = 'r'   
-            if self.isopen() and self.file.mode == 'r+':
+            if self.is_open() and self.file.mode == 'r+':
                 self.close()
 
     @property
@@ -3821,12 +3821,6 @@ class NXgroup(NXobject):
         """
         return name in self.entries   
 
-    def copy(self):
-        """
-        Returns a copy of the group's entries
-        """
-        return deepcopy(self)
-
     def clear(self):
         raise NeXusError("This method is not implemented for NXgroups")
 
@@ -3848,6 +3842,77 @@ class NXgroup(NXobject):
         """
         return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
                 if self.entries[i].nxclass==nxclass]
+
+    def move(self, item, group, name=None):
+        """Move an item in the group to another group within the same tree.
+        
+        Parameters
+        ----------
+        item : NXobject or str
+            Item to be moved, defined either by the item itself or by its name.
+        group : NXgroup or str
+            New group to contain the item.
+        name : str, optional
+            Name of the item in the new group. By default, the name is unchanged.
+        """
+        if is_text(item):
+            if item in self:
+                item = self[item]
+            else:
+                raise NeXusError("'%s' not in group" % item)
+        if is_text(group):
+            if group in self:
+                group = self[group]
+            elif group in self.nxroot:
+                group = self.nxroot[group]
+            else:
+                raise NeXusError("'%s' not in tree")
+            if not isinstance(group, NXgroup):
+                raise NeXusError("Destination must be a valid NeXus group")
+        if item.nxroot != group.nxroot:
+            raise NeXusError("The item can only be moved within the same tree")
+        if name is None:
+            name = item.nxname
+        if name in group:
+            raise NeXusError("'%s' already in the destination group")
+        group[name] = item
+        del self[item.nxname]
+
+    def copy(self, group=None, name=None, **kwargs):
+        """Returns a copy of a group or copies the group to another group.
+        
+        Parameters
+        ----------
+        group : NXgroup or str, optional
+            Group to which the current group is copied, by default None.
+        name : str, optional
+            Name of copied group if different from current group.
+        Returns
+        -------
+        NXgroup
+            Deep copy of current group or copied group if specified.
+        """
+        if group is None:
+            return deepcopy(self)
+        elif (isinstance(group, NXgroup) and self.nxfilename and group.nxfilename and
+              self.nxfilename != group.nxfilename):
+            with self.nxfile as f:
+                f.copy(self.nxpath, group, **kwargs)
+            group.set_changed()  
+        else:
+            if is_text(group):
+                if group in self:
+                    group = self[group]
+                elif group in self.nxroot:
+                    group = self.nxroot[group]
+                else:
+                    raise NeXusError("'%s' not in tree")
+            if name is None:
+                name = self.nxname
+            if name in group:
+                raise NeXusError("'%s' already in the destination group")
+            group[name] = self
+        return group            
 
     def insert(self, value, name='unknown'):
         """

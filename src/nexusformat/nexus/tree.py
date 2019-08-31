@@ -3724,6 +3724,12 @@ class NXgroup(NXobject):
         """
         return len(self.entries)
 
+    def __nonzero__(self):
+        """
+        Return confirmation that the group exists.
+        """
+        return True
+
     def __deepcopy__(self, memo):
         obj = self
         dpcpy = obj.__class__()
@@ -4193,16 +4199,22 @@ class NXlink(NXobject):
             self.nxlink.__setattr__(name, value)            
 
     def __deepcopy__(self, memo={}):
-        obj = self
-        dpcpy = obj.__class__()
-        memo[id(self)] = dpcpy
-        dpcpy._name = copy(self.nxname)
-        dpcpy._target = copy(obj._target)
-        dpcpy._filename = copy(obj._filename)
-        dpcpy._abspath = copy(obj._abspath)
-        dpcpy._link = None
-        dpcpy._group = None
-        return dpcpy
+        if self.is_external() or self.nxlink is None:
+            obj = self
+            dpcpy = obj.__class__()
+            memo[id(self)] = dpcpy
+            dpcpy._name = copy(self.nxname)
+            dpcpy._target = copy(obj._target)
+            if obj._filename:
+                dpcpy._filename = copy(obj.nxfilename)
+            else:
+                dpcpy._filename = None
+            dpcpy._abspath = copy(obj._abspath)
+            dpcpy._link = None
+            dpcpy._group = None
+            return dpcpy
+        elif self.nxlink:
+            return self.nxlink.__deepcopy__(memo)
 
     def _str_name(self, indent=0):
         if self._filename:

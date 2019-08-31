@@ -456,6 +456,7 @@ class NXFile(object):
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
+        self._file.close()
         self._path = '/'
         if NX_LOCK:
             self._lock = NXLock(self._filename, timeout=NX_LOCK)
@@ -483,7 +484,8 @@ class NXFile(object):
         return self.file.__contains__(key)
 
     def __enter__(self):
-        return self.open()
+        self.open()
+        return self
 
     def __exit__(self, *args):
         self.close()
@@ -509,17 +511,13 @@ class NXFile(object):
             else:
                 self._file = self.h5.File(self._filename, self._mode, **kwargs)
             self.nxpath = '/'
-        return self
 
     def close(self):
         if self.isopen():
             self._file.close()
 
     def isopen(self):
-        if self._file.id:
-            return True
-        else:
-            return False
+        return self._file.id.valid
 
     def readfile(self):
         """
@@ -881,12 +879,9 @@ class NXFile(object):
     def mode(self, mode):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
-            if self.isopen() and self.file.mode == 'r':
-                self.close()
         else:
             self._mode = 'r'   
-            if self.isopen() and self.file.mode == 'r+':
-                self.close()
+        self.close()
 
     @property
     def attrs(self):
@@ -1835,6 +1830,7 @@ class NXobject(object):
 
     def exists(self):
         return self.file_exists() and self.path_exists()
+
 
 class NXfield(NXobject):
 
@@ -3744,6 +3740,12 @@ class NXgroup(NXobject):
         """
         return len(self.entries)
 
+    def __nonzero__(self):
+        """
+        Return confirmation that the group exists.
+        """
+        return True
+
     def __deepcopy__(self, memo):
         obj = self
         dpcpy = obj.__class__()
@@ -4213,16 +4215,22 @@ class NXlink(NXobject):
             self.nxlink.__setattr__(name, value)            
 
     def __deepcopy__(self, memo={}):
-        obj = self
-        dpcpy = obj.__class__()
-        memo[id(self)] = dpcpy
-        dpcpy._name = copy(self.nxname)
-        dpcpy._target = copy(obj._target)
-        dpcpy._filename = copy(obj._filename)
-        dpcpy._abspath = copy(obj._abspath)
-        dpcpy._link = None
-        dpcpy._group = None
-        return dpcpy
+        if self.is_external() or self.nxlink is None:
+            obj = self
+            dpcpy = obj.__class__()
+            memo[id(self)] = dpcpy
+            dpcpy._name = copy(self.nxname)
+            dpcpy._target = copy(obj._target)
+            if obj._filename:
+                dpcpy._filename = copy(obj.nxfilename)
+            else:
+                dpcpy._filename = None
+            dpcpy._abspath = copy(obj._abspath)
+            dpcpy._link = None
+            dpcpy._group = None
+            return dpcpy
+        elif self.nxlink:
+            return self.nxlink.__deepcopy__(memo)
 
     def _str_name(self, indent=0):
         if self._filename:

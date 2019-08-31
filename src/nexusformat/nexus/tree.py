@@ -282,7 +282,9 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
              'NXtransformations', 'NXtranslation', 'NXuser', 
              'NXvelocity_selector', 'NXxraylens']
 
-if six.PY3:
+if six.PY2:
+    FileNotFoundError = IOError
+else:
     unicode = str
 
 

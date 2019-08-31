@@ -1,10 +1,17 @@
-import os
-import time, timeit
 import errno
+import os
+import time
+import timeit
+
+import six
+
+if six.PY2:
+    FileNotFoundError = IOError
 
 
 class NXLockException(Exception):
     LOCK_FAILED = 1
+
 
 class NXLock(object):
 

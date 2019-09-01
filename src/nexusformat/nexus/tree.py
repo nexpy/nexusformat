@@ -459,11 +459,9 @@ class NXFile(object):
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
         self._file.close()
+        self._lock = None
+        self._mtime = None
         self._path = '/'
-        if NX_LOCK:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK)
-        else:
-            self._lock = None
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -492,13 +490,24 @@ class NXFile(object):
     def __exit__(self, *args):
         self.close()
 
-    def lock(self):
-        if self._lock:
+    def acquire_lock(self):
+        if NX_LOCK:
+            self._lock = NXLock(self._filename, timeout=NX_LOCK)
             self._lock.acquire()
+        else:
+            self._lock = None
 
-    def unlock(self):
+    def release_lock(self):
         if self._lock:
             self._lock.release()
+            self._lock = None
+
+    def is_locked(self):
+        return os.path.exists(self.lock_file)
+
+    @property
+    def lock_file(self):
+        return NXLock(self._filename).lock_file
 
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)

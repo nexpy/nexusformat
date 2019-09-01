@@ -5599,9 +5599,28 @@ def centers(signal, axes):
     return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
 
 def getlock():
+    """Return the number of seconds before a lock acquisition times out.
+
+    If the value is 0, file locking is disabled.
+    
+    Returns
+    -------
+    int
+        Number of seconds before a lock acquisition times out.
+    """
     return NX_LOCK
     
-def setlock(value):
+def setlock(value=60):
+    """Initialize NeXus file locking.
+
+    This creates a file with `.lock` appended to the NeXus file name.
+    
+    Parameters
+    ----------
+    value : int, optional
+        Number of seconds before a lock acquisition times out, by default 60.
+        If the value is set to 0, file locking is disabled.
+    """
     global NX_LOCK
     NX_LOCK = value
 

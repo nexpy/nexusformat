@@ -37,7 +37,11 @@ class NXLock(object):
         self.lock_file = self.filename+'.lock'
         self.timeout = timeout
         self.check_interval = check_interval
+        self.pid = os.getpid()
         self.fd = None
+
+    def __repr__(self):
+        return "NXLock('"+os.path.basename(self.filename)+"', pid="+ str(self.pid)+")"
 
     def acquire(self, timeout=None, check_interval=None):
         """Acquire the lock.
@@ -69,9 +73,8 @@ class NXLock(object):
             try:
                 # Attempt to create the lockfile. If it already exists,
                 # then someone else has the lock and we need to wait
-                self.fd = os.open(self.lock_file,
-                        os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                open(self.lock_file, 'w').write(str(os.getpid()))
+                self.fd = os.open(self.lock_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                open(self.lock_file, 'w').write(str(self.pid))
                 break
             except OSError as e:
                 # Only catch if the lockfile already exists
@@ -86,6 +89,17 @@ class NXLock(object):
         """Release the lock."""
         if self.fd is not None:
             os.close(self.fd)
+            try:
+                os.remove(self.lock_file)
+            except FileNotFoundError:
+                pass
+            self.fd = None
+
+    def clear(self):
+        """Clear the lock even if created by another process."""
+        if self.fd is not None:
+            self.release()
+        else:
             try:
                 os.remove(self.lock_file)
             except FileNotFoundError:

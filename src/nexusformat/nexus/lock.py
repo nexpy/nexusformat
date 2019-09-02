@@ -15,7 +15,7 @@ class NXLockException(Exception):
 
 class NXLock(object):
 
-    def __init__(self, filename, timeout=600, check_interval=1):
+    def __init__(self, filename, timeout=60, check_interval=1):
         """Create a lock to prevent file access.
 
         This creates a lock, which can be later acquired and released. It
@@ -83,7 +83,8 @@ class NXLock(object):
                 time.sleep(check_interval)
         # Raise on error if we had to wait for too long
         else:
-            raise NXLockException("'%s' timeout expired" % self.filename)
+            raise NXLockException("'%s' is currently locked by an external process" 
+                                  % self.filename)
 
     def release(self):
         """Release the lock."""
@@ -105,6 +106,39 @@ class NXLock(object):
             except FileNotFoundError:
                 pass
             self.fd = None
+
+    def wait(self, timeout=None, check_interval=None):
+        """Wait until an existing lock is cleared.
+        
+        This is for use in processes checking for external locks.
+        
+        Parameters
+        ----------
+        timeout : int, optional
+            Number of seconds to wait for a prior lock to clear before 
+            raising a NXLockException, by default `self.timeout`.
+        check_interval : int, optional
+            Number of seconds between attempts to acquire the lock, 
+            by default `self.check_interval`.
+        
+        Raises
+        ------
+        NXLockException
+            If lock not cleared before `timeout`.
+        """
+        if timeout is None:
+            timeout = self.timeout 
+        if check_interval is None:
+            check_interval = self.check_interval
+        timeoutend = timeit.default_timer() + timeout
+        while timeoutend > timeit.default_timer():
+            if not os.path.exists(self.lock_file):
+                break
+            time.sleep(check_interval)
+        else:
+            raise NXLockException("'%s' is currently locked by an external process" 
+                                  % self.lock_file)
+        return        
 
     def __enter__(self):
         return self.acquire()

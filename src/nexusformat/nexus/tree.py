@@ -433,6 +433,25 @@ class NXFile(object):
     def __init__(self, name, mode='r', **kwargs):
         """
         Creates an h5py File object for reading and writing.
+        """Open an HDF5 file for reading and writing NeXus files.
+
+        This creates a h5py File instance that is used for all subsequent
+        input and output. Unlike h5py, where a closed file is no longer 
+        accessible, the NXFile instance is persistent, and can be used to
+        with a context manager to ensure that all file operations are 
+        completed and the h5py File is released. A file locking mechanism
+        is optionally available to prevent corruption of the file when 
+        being accessed by multiple processes.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the HDF5 file.
+        mode : {'r', 'rw', 'r+', 'w', 'w-', 'a'}
+            Read/write mode of the HDF5 file, by default 'r'. These all have 
+            the same meaning as their h5py counterparts, apart from 'rw', 
+            which is equivelent to 'r+'. After creating and/or opening the 
+            file, the mode is set to 'r' or 'rw' for remaining operations.
         """
         self.h5 = h5
         name = os.path.abspath(name)
@@ -468,46 +487,139 @@ class NXFile(object):
                                             self._mode)
 
     def __getitem__(self, key):
-        """Returns an object from the NeXus file."""
+        """Return an object from the NeXus file using its path."""
         return self.file.get(key)
 
     def __setitem__(self, key, value):
-        """Sets an object value in the NeXus file."""
         self.file[key] = value
+        """Set the value of an object defined by its path in the NeXus file."""
 
     def __delitem__(self, name):
-        """ Delete an item from a group. """
+        """ Delete an object from the file. """
         del self.file[name]
 
     def __contains__(self, key):
-        """Implements 'k in d' test for entries in the file."""
+        """Implement 'k in d' test for entries in the file."""
         return self.file.__contains__(key)
 
     def __enter__(self):
+        self.acquire_lock()
         self.open()
         return self
 
     def __exit__(self, *args):
         self.close()
+        self.release_lock()
 
-    def acquire_lock(self):
-        if NX_LOCK:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK)
-            self._lock.acquire()
+    @property
+    def lock(self):
+        """Return the NXLock instance to be used in file locking.
+
+        The global variable, `NX_LOCK`, defines the default timeout in
+        seconds of attempts to acquire the lock. If it is set to 0, the 
+        NXFile object is not locked by default. The `lock` property can 
+        be set to turn on file locking, either by setting it to a new
+        timeout value or by setting it to `True`, in which case a default 
+        timeout of 10 seconds is used.
+
+        Returns
+        -------
+        NXLock
+            Instance of the file lock.
+        """
+        return self._lock
+
+    @lock.setter
+    def lock(self, value):
+        if value is False or value is None or value == 0:
+            self._lock = None
         else:
-            self._lock = None
+            if value is True:
+                if NX_LOCK:
+                    timeout = NX_LOCK
+                else:
+                    timeout = 10
+            else:
+                timeout = value
+            self._lock = NXLock(self._filename, timeout=timeout)
 
-    def release_lock(self):
-        if self._lock:
-            self._lock.release()
-            self._lock = None
-
-    def is_locked(self):
-        return os.path.exists(self.lock_file)
+    @property
+    def locked(self):
+        """Return True if a file lock is active in the current process."""
+        return self._lock is not None and self._lock.locked
 
     @property
     def lock_file(self):
-        return NXLock(self._filename).lock_file
+        """Return the name of the file used to establish the lock."""
+        if self._lock:
+            return self._lock.lock_file
+        else:
+            return NXLock(self._filename).lock_file
+
+    def acquire_lock(self, timeout=None):
+        """Acquire the file lock.
+
+        This uses the NXLock instance returned by `self.lock` creating a 
+        new NXLock instance if `timeout` is specified.
+        
+        Parameters
+        ----------
+        timeout : int, optional
+            Timeout for attempts to acquire the lock, by default None.
+        """
+        if self.locked and self.is_locked():
+            return
+        elif self._lock is None:
+            if timeout is not None:
+                self.lock = timeout
+            elif NX_LOCK:
+                self.lock = NX_LOCK
+            elif self.is_locked():
+                self.lock = True
+            if self._lock is None:
+                return
+        self._lock.acquire()
+
+    def release_lock(self):
+        """Release the lock acquired by the current process."""
+        if self.locked:
+            self._lock.release()
+
+    def wait_lock(self, timeout=True):
+        """Wait for a file lock created by an external process to be cleared.
+        
+        Parameters
+        ----------
+        timeout : bool or int, optional
+            The value, in seconds, of the time to wait. If set to `True`, a
+            default value of 10 seconds is used.
+        """
+        self.lock = timeout
+        NXLock(self._filename, timeout=timeout).wait()
+
+    def clear_lock(self, timeout=True):
+        """Clear the file lock whether created by this or another process.
+
+        Note
+        ----
+        Since the use of this function implies that another process is 
+        accessing this file, file locking is turned on for future 
+        input/output. The `timeout` value applies to future access. The
+        existing lock is cleared immediately.
+        
+        Parameters
+        ----------
+        timeout : bool or int, optional
+            The value, in seconds, of the time to wait for future file locks. 
+            If set to `True`, a default value of 10 seconds is used.
+        """
+        if self.is_locked():
+            self.lock = timeout
+            self._lock.clear()
+
+    def is_locked(self):
+        """Return True if a lock file exists for this NeXus file."""
+        return os.path.exists(self.lock_file)
 
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)
@@ -5622,7 +5734,7 @@ def setlock(value=60):
         If the value is set to 0, file locking is disabled.
     """
     global NX_LOCK
-    NX_LOCK = value
+    NX_LOCK = int(value)
 
 nxgetlock = getlock
 nxsetlock = setlock

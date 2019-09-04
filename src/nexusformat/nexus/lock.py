@@ -110,8 +110,7 @@ class NXLock(object):
             except FileNotFoundError:
                 pass
             self.fd = None
-            print('Unlocked ' + str(self.pid) + ' ' + format_timestamp(timestamp()))
-
+ 
     @property
     def locked(self):
         """Return True if the current process has locked the file."""
@@ -136,7 +135,7 @@ class NXLock(object):
                 os.remove(self.lock_file)
             except FileNotFoundError:
                 pass
- 
+
     def wait(self, timeout=None, check_interval=None):
         """Wait until an existing lock is cleared.
         

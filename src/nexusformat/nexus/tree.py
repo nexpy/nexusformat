@@ -431,8 +431,6 @@ class NXFile(object):
     """
 
     def __init__(self, name, mode='r', **kwargs):
-        """
-        Creates an h5py File object for reading and writing.
         """Open an HDF5 file for reading and writing NeXus files.
 
         This creates a h5py File instance that is used for all subsequent
@@ -491,8 +489,8 @@ class NXFile(object):
         return self.file.get(key)
 
     def __setitem__(self, key, value):
-        self.file[key] = value
         """Set the value of an object defined by its path in the NeXus file."""
+        self.file[key][()] = value
 
     def __delitem__(self, name):
         """ Delete an object from the file. """
@@ -978,6 +976,15 @@ class NXFile(object):
                 links = self._writegroup(item)
                 self._writelinks(links)
             self.nxpath = item.nxpath
+
+    def reload(self, group):
+        self.nxpath = group.nxpath
+        group._entries = self._readchildren()
+        for entry in group._entries:
+            group._entries[entry]._group = group
+        group._changed = True
+        group._mtime = os.path.getmtime(self._filename)
+        group._file_modified = False
 
     def rename(self, old_path, new_path):
         if old_path != new_path:
@@ -1567,6 +1574,7 @@ class NXobject(object):
     _uncopied_data = None
     _changed = True
     _backup = None
+    _file_modified = False
 
     def __getstate__(self):
         result = self.__dict__.copy()
@@ -1865,6 +1873,8 @@ class NXobject(object):
     def nxfile(self):
         if self._file:
             return self._file
+        elif self.nxroot._file:
+            return self.nxroot._file
         elif self.nxfilename:
             return NXFile(self.nxfilename, self.nxfilemode)
         else:
@@ -2940,6 +2950,7 @@ class NXfield(NXobject):
         elif is_text(value):
             if self.dtype == string_dtype:
                 self.nxdata = value
+                group.update()
             else:
                 del group[self.nxname]
                 group[self.nxname] = NXfield(value, attrs=self.attrs)
@@ -2947,6 +2958,7 @@ class NXfield(NXobject):
             value = np.asarray(value)
             if value.shape == self.shape and value.dtype == self.dtype:
                 self.nxdata = value
+                group.update()
             else:
                 del group[self.nxname]
                 group[self.nxname] = NXfield(value, attrs=self.attrs)
@@ -3090,7 +3102,6 @@ class NXfield(NXobject):
                 value, self._dtype, self._shape)
             if self._memfile:
                 self._put_memdata(self._value)
-            self.update()
 
     @property
     def nxtitle(self):
@@ -4370,7 +4381,7 @@ class NXlink(NXobject):
         filename, mode = root.nxfilename, root.nxfilemode
         item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
-            with NXFile(filename, mode) as f:
+            with root.nxfile as f:
                 f.update(self)
         if (self._filename and self.nxfilename and 
             os.path.exists(self.nxfilename)):
@@ -4631,6 +4642,27 @@ class NXroot(NXgroup):
         if self.nxgroup:
             self.nxgroup.set_changed()
 
+    def reload(self):
+        if self.nxfilemode:
+            with self.nxfile as f:
+                f.reload(self)
+            self.set_changed()
+        else:
+            raise NeXusError("'%s' has no associated file to reload")
+
+    def is_modified(self):
+        try:
+            _mtime = os.path.getmtime(self.nxfilename)
+            if self._mtime and _mtime > self._mtime:
+                self._file_modified = True
+                return True
+            else:
+                self._file_modified = False
+                return False
+        except (TypeError, FileNotFoundError):
+            self._file_modified = False
+            return False
+
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
@@ -4645,6 +4677,8 @@ class NXroot(NXgroup):
         """Make the tree modifiable"""
         if self._filename:
             if self.file_exists():
+                if self.is_modified():
+                    raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'
                 self.set_changed(change_lock=True)
             else:
@@ -4733,7 +4767,8 @@ class NXroot(NXgroup):
         if self._file:
             return self._file
         elif self._filename:
-            return NXFile(self._filename, self._mode)
+            self._file = NXFile(self._filename, self._mode)
+            return self._file
         else:
             return None
 

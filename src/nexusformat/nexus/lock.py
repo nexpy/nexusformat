@@ -14,6 +14,18 @@ class NXLockException(Exception):
 
 
 class NXLock(object):
+    """Class for acquiring and releasing file-based locks.
+    
+    Attributes
+    ----------
+    lock_file : str
+        Name of the lock file. This has the extension `.lock` appended to 
+        the name of the locked file.
+    pid : int
+        Current process id.
+    fd : int
+        File descriptor of the opened lock file.
+    """
 
     def __init__(self, filename, timeout=60, check_interval=1):
         """Create a lock to prevent file access.
@@ -62,8 +74,6 @@ class NXLock(object):
         """
         if timeout is None:
             timeout = self.timeout
-        if timeout is None:
-            timeout = 0
 
         if check_interval is None:
             check_interval = self.check_interval
@@ -81,13 +91,18 @@ class NXLock(object):
                 if e.errno != errno.EEXIST:
                     raise
                 time.sleep(check_interval)
-        # Raise on error if we had to wait for too long
+        # Raise an error if we had to wait for too long
         else:
             raise NXLockException("'%s' is currently locked by an external process" 
                                   % self.filename)
 
     def release(self):
-        """Release the lock."""
+        """Release the lock.
+        
+        Note
+        ====
+        This will only work if the lock was created by the current process.
+        """
         if self.fd is not None:
             os.close(self.fd)
             try:
@@ -95,9 +110,25 @@ class NXLock(object):
             except FileNotFoundError:
                 pass
             self.fd = None
+            print('Unlocked ' + str(self.pid) + ' ' + format_timestamp(timestamp()))
+
+    @property
+    def locked(self):
+        """Return True if the current process has locked the file."""
+        return self.fd is not None
 
     def clear(self):
-        """Clear the lock even if created by another process."""
+        """Clear the lock even if created by another process.
+        
+        This will either release a lock created by the current process or
+        remove the lock file created by an external process.
+
+        Note
+        ====
+        This is used to clear stale locks caused by a process that terminated
+        prematurely. It should be used with caution.
+
+        """
         if self.fd is not None:
             self.release()
         else:
@@ -105,8 +136,7 @@ class NXLock(object):
                 os.remove(self.lock_file)
             except FileNotFoundError:
                 pass
-            self.fd = None
-
+ 
     def wait(self, timeout=None, check_interval=None):
         """Wait until an existing lock is cleared.
         
@@ -126,24 +156,25 @@ class NXLock(object):
         NXLockException
             If lock not cleared before `timeout`.
         """
-        if timeout is None:
-            timeout = self.timeout 
-        if check_interval is None:
-            check_interval = self.check_interval
-        timeoutend = timeit.default_timer() + timeout
-        while timeoutend > timeit.default_timer():
-            if not os.path.exists(self.lock_file):
-                break
-            time.sleep(check_interval)
-        else:
-            raise NXLockException("'%s' is currently locked by an external process" 
-                                  % self.lock_file)
+        if os.path.exists(self.lock_file):
+            if timeout is None:
+                timeout = self.timeout 
+            if check_interval is None:
+                check_interval = self.check_interval
+            timeoutend = timeit.default_timer() + timeout
+            while timeoutend > timeit.default_timer():
+                time.sleep(check_interval)
+                if not os.path.exists(self.lock_file):
+                    break
+            else:
+                raise NXLockException("'%s' is currently locked by an external process" 
+                                      % self.filename)
         return        
 
     def __enter__(self):
         return self.acquire()
 
-    def __exit__(self, type_, value, tb):
+    def __exit__(self, *args):
         self.release()
 
     def __del__(self):

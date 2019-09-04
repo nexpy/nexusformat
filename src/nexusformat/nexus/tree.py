@@ -246,6 +246,7 @@ import numpy as np
 import six
 
 from .. import __version__ as nxversion
+from .lock import NXLock, NXLockException
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -253,13 +254,15 @@ NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = sys.getfilesystemencoding()
 NX_MAXSIZE = 10000
+NX_LOCK = 0
 
 np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'nxgetmemory', 'nxsetmemory', 'nxgetcompression', 'nxsetcompression',
+           'nxgetlock', 'nxsetlock', 'nxgetmemory', 'nxsetmemory', 
+           'nxgetcompression', 'nxsetcompression', 
            'nxgetencoding', 'nxsetencoding', 'nxgetmaxsize', 'nxsetmaxsize',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
@@ -279,8 +282,11 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
              'NXtransformations', 'NXtranslation', 'NXuser', 
              'NXvelocity_selector', 'NXxraylens']
 
-if six.PY3:
+if six.PY2:
+    FileNotFoundError = IOError
+else:
     unicode = str
+
 
 def text(value):
     """Return a unicode string in both Python 2 and 3.
@@ -425,8 +431,25 @@ class NXFile(object):
     """
 
     def __init__(self, name, mode='r', **kwargs):
-        """
-        Creates an h5py File object for reading and writing.
+        """Open an HDF5 file for reading and writing NeXus files.
+
+        This creates a h5py File instance that is used for all subsequent
+        input and output. Unlike h5py, where a closed file is no longer 
+        accessible, the NXFile instance is persistent, and can be used to
+        with a context manager to ensure that all file operations are 
+        completed and the h5py File is released. A file locking mechanism
+        is optionally available to prevent corruption of the file when 
+        being accessed by multiple processes.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the HDF5 file.
+        mode : {'r', 'rw', 'r+', 'w', 'w-', 'a'}
+            Read/write mode of the HDF5 file, by default 'r'. These all have 
+            the same meaning as their h5py counterparts, apart from 'rw', 
+            which is equivelent to 'r+'. After creating and/or opening the 
+            file, the mode is set to 'r' or 'rw' for remaining operations.
         """
         self.h5 = h5
         name = os.path.abspath(name)
@@ -453,6 +476,8 @@ class NXFile(object):
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             
         self._file.close()
+        self._lock = None
+        self._mtime = None
         self._path = '/'
 
     def __repr__(self):
@@ -460,27 +485,139 @@ class NXFile(object):
                                             self._mode)
 
     def __getitem__(self, key):
-        """Returns an object from the NeXus file."""
+        """Return an object from the NeXus file using its path."""
         return self.file.get(key)
 
     def __setitem__(self, key, value):
-        """Sets an object value in the NeXus file."""
-        self.file[key] = value
+        """Set the value of an object defined by its path in the NeXus file."""
+        self.file[key][()] = value
 
     def __delitem__(self, name):
-        """ Delete an item from a group. """
+        """ Delete an object from the file. """
         del self.file[name]
 
     def __contains__(self, key):
-        """Implements 'k in d' test for entries in the file."""
+        """Implement 'k in d' test for entries in the file."""
         return self.file.__contains__(key)
 
     def __enter__(self):
+        self.acquire_lock()
         self.open()
         return self
 
     def __exit__(self, *args):
         self.close()
+        self.release_lock()
+
+    @property
+    def lock(self):
+        """Return the NXLock instance to be used in file locking.
+
+        The global variable, `NX_LOCK`, defines the default timeout in
+        seconds of attempts to acquire the lock. If it is set to 0, the 
+        NXFile object is not locked by default. The `lock` property can 
+        be set to turn on file locking, either by setting it to a new
+        timeout value or by setting it to `True`, in which case a default 
+        timeout of 10 seconds is used.
+
+        Returns
+        -------
+        NXLock
+            Instance of the file lock.
+        """
+        return self._lock
+
+    @lock.setter
+    def lock(self, value):
+        if value is False or value is None or value == 0:
+            self._lock = None
+        else:
+            if value is True:
+                if NX_LOCK:
+                    timeout = NX_LOCK
+                else:
+                    timeout = 10
+            else:
+                timeout = value
+            self._lock = NXLock(self._filename, timeout=timeout)
+
+    @property
+    def locked(self):
+        """Return True if a file lock is active in the current process."""
+        return self._lock is not None and self._lock.locked
+
+    @property
+    def lock_file(self):
+        """Return the name of the file used to establish the lock."""
+        if self._lock:
+            return self._lock.lock_file
+        else:
+            return NXLock(self._filename).lock_file
+
+    def acquire_lock(self, timeout=None):
+        """Acquire the file lock.
+
+        This uses the NXLock instance returned by `self.lock` creating a 
+        new NXLock instance if `timeout` is specified.
+        
+        Parameters
+        ----------
+        timeout : int, optional
+            Timeout for attempts to acquire the lock, by default None.
+        """
+        if self.locked and self.is_locked():
+            return
+        elif self._lock is None:
+            if timeout is not None:
+                self.lock = timeout
+            elif NX_LOCK:
+                self.lock = NX_LOCK
+            elif self.is_locked():
+                self.lock = True
+            if self._lock is None:
+                return
+        self._lock.acquire()
+
+    def release_lock(self):
+        """Release the lock acquired by the current process."""
+        if self.locked:
+            self._lock.release()
+
+    def wait_lock(self, timeout=True):
+        """Wait for a file lock created by an external process to be cleared.
+        
+        Parameters
+        ----------
+        timeout : bool or int, optional
+            The value, in seconds, of the time to wait. If set to `True`, a
+            default value of 10 seconds is used.
+        """
+        self.lock = timeout
+        NXLock(self._filename, timeout=timeout).wait()
+
+    def clear_lock(self, timeout=True):
+        """Clear the file lock whether created by this or another process.
+
+        Note
+        ----
+        Since the use of this function implies that another process is 
+        accessing this file, file locking is turned on for future 
+        input/output. The `timeout` value applies to future access. The
+        existing lock is cleared immediately.
+        
+        Parameters
+        ----------
+        timeout : bool or int, optional
+            The value, in seconds, of the time to wait for future file locks. 
+            If set to `True`, a default value of 10 seconds is used.
+        """
+        if self.is_locked():
+            self.lock = timeout
+            self._lock.clear()
+
+    def is_locked(self):
+        """Return True if a lock file exists for this NeXus file."""
+        return os.path.exists(self.lock_file)
 
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)
@@ -839,6 +976,15 @@ class NXFile(object):
                 links = self._writegroup(item)
                 self._writelinks(links)
             self.nxpath = item.nxpath
+
+    def reload(self, group):
+        self.nxpath = group.nxpath
+        group._entries = self._readchildren()
+        for entry in group._entries:
+            group._entries[entry]._group = group
+        group._changed = True
+        group._mtime = os.path.getmtime(self._filename)
+        group._file_modified = False
 
     def rename(self, old_path, new_path):
         if old_path != new_path:
@@ -1428,6 +1574,7 @@ class NXobject(object):
     _uncopied_data = None
     _changed = True
     _backup = None
+    _file_modified = False
 
     def __getstate__(self):
         result = self.__dict__.copy()
@@ -1726,6 +1873,8 @@ class NXobject(object):
     def nxfile(self):
         if self._file:
             return self._file
+        elif self.nxroot._file:
+            return self.nxroot._file
         elif self.nxfilename:
             return NXFile(self.nxfilename, self.nxfilemode)
         else:
@@ -2801,6 +2950,7 @@ class NXfield(NXobject):
         elif is_text(value):
             if self.dtype == string_dtype:
                 self.nxdata = value
+                group.update()
             else:
                 del group[self.nxname]
                 group[self.nxname] = NXfield(value, attrs=self.attrs)
@@ -2808,6 +2958,7 @@ class NXfield(NXobject):
             value = np.asarray(value)
             if value.shape == self.shape and value.dtype == self.dtype:
                 self.nxdata = value
+                group.update()
             else:
                 del group[self.nxname]
                 group[self.nxname] = NXfield(value, attrs=self.attrs)
@@ -2951,7 +3102,6 @@ class NXfield(NXobject):
                 value, self._dtype, self._shape)
             if self._memfile:
                 self._put_memdata(self._value)
-            self.update()
 
     @property
     def nxtitle(self):
@@ -4231,7 +4381,7 @@ class NXlink(NXobject):
         filename, mode = root.nxfilename, root.nxfilemode
         item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
-            with NXFile(filename, mode) as f:
+            with root.nxfile as f:
                 f.update(self)
         if (self._filename and self.nxfilename and 
             os.path.exists(self.nxfilename)):
@@ -4492,6 +4642,27 @@ class NXroot(NXgroup):
         if self.nxgroup:
             self.nxgroup.set_changed()
 
+    def reload(self):
+        if self.nxfilemode:
+            with self.nxfile as f:
+                f.reload(self)
+            self.set_changed()
+        else:
+            raise NeXusError("'%s' has no associated file to reload")
+
+    def is_modified(self):
+        try:
+            _mtime = os.path.getmtime(self.nxfilename)
+            if self._mtime and _mtime > self._mtime:
+                self._file_modified = True
+                return True
+            else:
+                self._file_modified = False
+                return False
+        except (TypeError, FileNotFoundError):
+            self._file_modified = False
+            return False
+
     def lock(self):
         """Make the tree readonly"""
         if self._filename:
@@ -4506,6 +4677,8 @@ class NXroot(NXgroup):
         """Make the tree modifiable"""
         if self._filename:
             if self.file_exists():
+                if self.is_modified():
+                    raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'
                 self.set_changed(change_lock=True)
             else:
@@ -4594,7 +4767,8 @@ class NXroot(NXgroup):
         if self._file:
             return self._file
         elif self._filename:
-            return NXFile(self._filename, self._mode)
+            self._file = NXFile(self._filename, self._mode)
+            return self._file
         else:
             return None
 
@@ -5571,14 +5745,40 @@ def centers(signal, axes):
             return axis.nxdata
     return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
 
+def getlock():
+    """Return the number of seconds before a lock acquisition times out.
+
+    If the value is 0, file locking is disabled.
+    
+    Returns
+    -------
+    int
+        Number of seconds before a lock acquisition times out.
+    """
+    return NX_LOCK
+    
+def setlock(value=60):
+    """Initialize NeXus file locking.
+
+    This creates a file with `.lock` appended to the NeXus file name.
+    
+    Parameters
+    ----------
+    value : int, optional
+        Number of seconds before a lock acquisition times out, by default 60.
+        If the value is set to 0, file locking is disabled.
+    """
+    global NX_LOCK
+    NX_LOCK = int(value)
+
+nxgetlock = getlock
+nxsetlock = setlock
+
 def getmemory():
     """
     Returns the memory limit for data arrays (in MB).
     """
-    global NX_MEMORY
     return NX_MEMORY
-
-nxgetmemory = getmemory
 
 def setmemory(value):
     """
@@ -5587,16 +5787,14 @@ def setmemory(value):
     global NX_MEMORY
     NX_MEMORY = value
 
+nxgetmemory = getmemory
 nxsetmemory = setmemory
 
 def getcompression():
     """
     Returns default compression filter.
     """
-    global NX_COMPRESSION
     return NX_COMPRESSION
-
-nxgetcompression = getcompression
 
 def setcompression(value):
     """
@@ -5607,16 +5805,14 @@ def setcompression(value):
         value = None
     NX_COMPRESSION = value
 
+nxgetcompression = getcompression
 nxsetcompression = setcompression
 
 def getencoding():
     """
     Returns the default encoding for input strings (usually 'utf-8').
     """
-    global NX_ENCODING
     return NX_ENCODING
-
-nxgetencoding = getencoding
 
 def setencoding(value):
     """
@@ -5625,16 +5821,14 @@ def setencoding(value):
     global NX_ENCODING
     NX_ENCODING = value
 
+nxgetencoding = getencoding
 nxsetencoding = setencoding
 
 def getmaxsize():
     """
     Returns the default maximum size for arrays without using core memory.
     """
-    global NX_MAXSIZE
     return NX_MAXSIZE
-
-nxgetmaxsize = getmaxsize
 
 def setmaxsize(value):
     """
@@ -5643,6 +5837,7 @@ def setmaxsize(value):
     global NX_MAXSIZE
     NX_MAXSIZE = value
 
+nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations
@@ -5675,9 +5870,8 @@ def save(filename, group, mode='w'):
 nxsave = save
 
 def duplicate(input_file, output_file, mode='w-', **kwargs):
-    input = nxload(input_file)
-    output = NXFile(output_file, mode)
-    output.copyfile(input.nxfile, **kwargs)
+    with NXFile(input_file, 'r') as input, NXFile(output_file, mode) as output:
+        output.copyfile(input, **kwargs)
 
 nxduplicate = duplicate
 

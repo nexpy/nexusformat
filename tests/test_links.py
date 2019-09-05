@@ -1,7 +1,6 @@
-import h5py as h5
 import numpy as np
+import os
 import pytest
-import six
 from nexusformat.nexus import *
 
 
@@ -43,4 +42,19 @@ def test_linkfield_properties():
     root["g1/f1"].attrs["a1"] = 1
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
-    
+
+
+def test_external_links(tmpdir):
+
+    filename = os.path.join(tmpdir, 'file1.nxs')
+    root = NXroot(NXentry())
+    root.save(filename, mode='w')
+
+    external_filename = os.path.join(tmpdir, 'file2.nxs')
+    external_root = NXroot(NXentry(field1))
+    external_root.save(external_filename, mode='w')
+
+    root['entry/f1'] = NXlink(target='entry/f1', file=external_filename)
+
+    assert root['entry/f1'].file_exists()
+    assert root['entry/f1'].path_exists()

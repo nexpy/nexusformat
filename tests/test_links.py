@@ -58,3 +58,5 @@ def test_external_links(tmpdir):
 
     assert root['entry/f1'].file_exists()
     assert root['entry/f1'].path_exists()
+    assert root['entry/f1'].shape == external_root['entry/f1'].shape
+    assert root['entry/f1'][0] == external_root['entry/f1'][0]

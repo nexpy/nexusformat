@@ -490,7 +490,7 @@ class NXFile(object):
 
     def __setitem__(self, key, value):
         """Set the value of an object defined by its path in the NeXus file."""
-        self.file[key][()] = value
+        self.file[key] = value
 
     def __delitem__(self, name):
         """ Delete an object from the file. """

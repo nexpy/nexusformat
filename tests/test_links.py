@@ -54,9 +54,15 @@ def test_external_links(tmpdir):
     external_root = NXroot(NXentry(field1))
     external_root.save(external_filename, mode='w')
 
-    root['entry/f1'] = NXlink(target='entry/f1', file=external_filename)
+    root['entry/f2'] = NXlink(target='entry/f1', file=external_filename)
 
-    assert root['entry/f1'].file_exists()
-    assert root['entry/f1'].path_exists()
-    assert root['entry/f1'].shape == external_root['entry/f1'].shape
-    assert root['entry/f1'][0] == external_root['entry/f1'][0]
+    assert root['entry/f2'].nxtarget == 'entry/f1'
+    assert root['entry/f2'].nxfilepath == 'entry/f1'
+    assert root['entry/f2'].nxfilename == external_filename
+    assert root['entry/f2'].nxfilemode == 'r'
+    assert root['entry/f2'].nxgroup == root['entry']
+
+    assert root['entry/f2'].file_exists()
+    assert root['entry/f2'].path_exists()
+    assert root['entry/f2'].shape == external_root['entry/f1'].shape
+    assert root['entry/f2'][0] == external_root['entry/f1'][0]

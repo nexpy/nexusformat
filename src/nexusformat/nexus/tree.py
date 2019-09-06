@@ -4321,6 +4321,8 @@ class NXlink(NXobject):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
             self._link = None
+            if self._filename is None:
+                _link = self.nxlink
 
     def __repr__(self):
         if self._filename:

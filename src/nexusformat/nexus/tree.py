@@ -1873,7 +1873,7 @@ class NXobject(object):
     def nxfile(self):
         if self._file:
             return self._file
-        elif self.nxroot._file:
+        elif not self.is_external() and self.nxroot._file:
             return self.nxroot._file
         elif self.nxfilename:
             return NXFile(self.nxfilename, self.nxfilemode)
@@ -1954,8 +1954,8 @@ class NXobject(object):
     def path_exists(self):
         if self.is_external():
             if self.file_exists():
-                with self.nxfile as nxfile:
-                    return self.nxfilepath in nxfile
+                with NXFile(self.nxfilename) as f:
+                    return self.nxfilepath in f
             else:
                 return False
         else:

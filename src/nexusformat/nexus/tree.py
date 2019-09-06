@@ -3629,6 +3629,7 @@ class NXgroup(NXobject):
     >>> entry.sample.temperature.units='K'
 
     """
+    _class = "NXgroup"
 
     def __init__(self, *args, **kwargs):
         self._entries = {}

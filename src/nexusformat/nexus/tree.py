@@ -477,7 +477,6 @@ class NXFile(object):
         self._filename = self._file.filename                             
         self._file.close()
         self._lock = None
-        self._mtime = None
         self._path = '/'
 
     def __repr__(self):
@@ -509,6 +508,11 @@ class NXFile(object):
         self.close()
         self.release_lock()
 
+    @property
+    def mtime(self):
+        """Return the modification time of the NeXus file."""
+        return os.path.getmtime(self._filename)
+    
     @property
     def lock(self):
         """Return the NXLock instance to be used in file locking.
@@ -567,7 +571,7 @@ class NXFile(object):
         """
         if self.locked and self.is_locked():
             return
-        elif self._lock is None:
+        if self._lock is None:
             if timeout is not None:
                 self.lock = timeout
             elif NX_LOCK:
@@ -655,7 +659,7 @@ class NXFile(object):
         root._file = self
         root._filename = self._filename
         root._mode = self._mode = _mode
-        root._mtime = os.path.getmtime(self._filename)
+        root._mtime = self.mtime
         root._file_modified = False
         return root
 
@@ -983,7 +987,7 @@ class NXFile(object):
         for entry in group._entries:
             group._entries[entry]._group = group
         group._changed = True
-        group._mtime = os.path.getmtime(self._filename)
+        group._mtime = self.mtime
         group._file_modified = False
 
     def rename(self, old_path, new_path):
@@ -1873,7 +1877,7 @@ class NXobject(object):
     def nxfile(self):
         if self._file:
             return self._file
-        elif self.nxroot._file:
+        elif not self.is_external() and self.nxroot._file:
             return self.nxroot._file
         elif self.nxfilename:
             return NXFile(self.nxfilename, self.nxfilemode)
@@ -1954,8 +1958,8 @@ class NXobject(object):
     def path_exists(self):
         if self.is_external():
             if self.file_exists():
-                with self.nxfile as nxfile:
-                    return self.nxfilepath in nxfile
+                with NXFile(self.nxfilename) as f:
+                    return self.nxfilepath in f
             else:
                 return False
         else:
@@ -3629,6 +3633,7 @@ class NXgroup(NXobject):
     >>> entry.sample.temperature.units='K'
 
     """
+    _class = "NXgroup"
 
     def __init__(self, *args, **kwargs):
         self._entries = {}
@@ -3789,6 +3794,8 @@ class NXgroup(NXobject):
                     value = deepcopy(value)
                 value._group = group
                 value._name = key
+                if isinstance(value, NXlink):
+                    value.initialize_link()
                 group.entries[key] = value
             else:
                 group.entries[key] = NXfield(value=value, name=key, group=group)
@@ -4403,6 +4410,12 @@ class NXlink(NXobject):
     @property
     def nxlink(self):
         if self._link is None:
+            self.initialize_link()
+        return self._link
+
+    def initialize_link(self):
+        """Determine the link class from the target."""
+        if self._link is None:
             if self._filename is not None:
                 self._link = self
             elif self._target in self.nxroot:
@@ -4633,11 +4646,8 @@ class NXroot(NXgroup):
         """
         Sets an object's change status to changed.
         """
-        if not change_lock:
-            try:
-                self._mtime = os.path.getmtime(self.nxfilename)
-            except (TypeError, FileNotFoundError):
-                self._mtime = None
+        if not change_lock and self.nxfilemode:
+            self._mtime = self.nxfile.mtime
         self._changed = True
         if self.nxgroup:
             self.nxgroup.set_changed()
@@ -4652,14 +4662,14 @@ class NXroot(NXgroup):
 
     def is_modified(self):
         try:
-            _mtime = os.path.getmtime(self.nxfilename)
+            _mtime = self.nxfile.mtime
             if self._mtime and _mtime > self._mtime:
                 self._file_modified = True
                 return True
             else:
                 self._file_modified = False
                 return False
-        except (TypeError, FileNotFoundError):
+        except (AttributeError, TypeError, FileNotFoundError):
             self._file_modified = False
             return False
 
@@ -5757,7 +5767,7 @@ def getlock():
     """
     return NX_LOCK
     
-def setlock(value=60):
+def setlock(value=10):
     """Initialize NeXus file locking.
 
     This creates a file with `.lock` appended to the NeXus file name.
@@ -5765,7 +5775,7 @@ def setlock(value=60):
     Parameters
     ----------
     value : int, optional
-        Number of seconds before a lock acquisition times out, by default 60.
+        Number of seconds before a lock acquisition times out, by default 10.
         If the value is set to 0, file locking is disabled.
     """
     global NX_LOCK

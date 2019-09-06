@@ -44,25 +44,41 @@ def test_linkfield_properties():
     assert root["g2/f1_link"].a1 == 1
 
 
+def test_linkgroup_properties():
+
+    root = NXroot(NXentry())    
+    root["entry/g1"] = NXgroup()
+    root["entry/g1/g2"] = NXgroup(field1)
+    root["entry/g3"] = NXlink("entry/g1/g2")
+
+    assert "f1" in root["entry/g3"].nxlink
+    assert "f1" in root["entry/g3"]
+    assert len(root["entry/g3"]) == len(root["entry/g1/g2"])
+    assert root["entry/g3"].nxtarget == "entry/g1/g2"
+    assert root["entry/g1/g2/f1"].nxgroup is root["entry/g1/g2"]
+    assert root["entry/g3"].nxgroup is root["entry"]
+    assert root["entry/g3"].nxlink is root["entry/g1/g2"]
+
+
 def test_external_links(tmpdir):
 
-    filename = os.path.join(tmpdir, 'file1.nxs')
+    filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry())
-    root.save(filename, mode='w')
+    root.save(filename, mode="w")
 
-    external_filename = os.path.join(tmpdir, 'file2.nxs')
+    external_filename = os.path.join(tmpdir, "file2.nxs")
     external_root = NXroot(NXentry(field1))
-    external_root.save(external_filename, mode='w')
+    external_root.save(external_filename, mode="w")
 
-    root['entry/f2'] = NXlink(target='entry/f1', file=external_filename)
+    root["entry/f2"] = NXlink(target="entry/f1", file=external_filename)
 
-    assert root['entry/f2'].nxtarget == 'entry/f1'
-    assert root['entry/f2'].nxfilepath == 'entry/f1'
-    assert root['entry/f2'].nxfilename == external_filename
-    assert root['entry/f2'].nxfilemode == 'r'
-    assert root['entry/f2'].nxgroup == root['entry']
+    assert root["entry/f2"].nxtarget == "entry/f1"
+    assert root["entry/f2"].nxfilepath == "entry/f1"
+    assert root["entry/f2"].nxfilename == external_filename
+    assert root["entry/f2"].nxfilemode == "r"
+    assert root["entry/f2"].nxgroup == root["entry"]
 
-    assert root['entry/f2'].file_exists()
-    assert root['entry/f2'].path_exists()
-    assert root['entry/f2'].shape == external_root['entry/f1'].shape
-    assert root['entry/f2'][0] == external_root['entry/f1'][0]
+    assert root["entry/f2"].file_exists()
+    assert root["entry/f2"].path_exists()
+    assert root["entry/f2"].shape == external_root["entry/f1"].shape
+    assert root["entry/f2"][0] == external_root["entry/f1"][0]

@@ -3794,6 +3794,8 @@ class NXgroup(NXobject):
                     value = deepcopy(value)
                 value._group = group
                 value._name = key
+                if isinstance(value, NXlink):
+                    value.initialize_link()
                 group.entries[key] = value
             else:
                 group.entries[key] = NXfield(value=value, name=key, group=group)
@@ -4409,6 +4411,12 @@ class NXlink(NXobject):
 
     @property
     def nxlink(self):
+        if self._link is None:
+            self.initialize_link()
+        return self._link
+
+    def initialize_link(self):
+        """Determine the link class from the target."""
         if self._link is None:
             if self._filename is not None:
                 self._link = self

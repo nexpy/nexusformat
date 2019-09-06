@@ -51,7 +51,6 @@ def test_linkgroup_properties():
     root["entry/g1/g2"] = NXgroup(field1)
     root["entry/g3"] = NXlink("entry/g1/g2")
 
-    assert "f1" in root["entry/g3"].nxlink
     assert "f1" in root["entry/g3"]
     assert len(root["entry/g3"]) == len(root["entry/g1/g2"])
     assert root["entry/g3"].nxtarget == "entry/g1/g2"

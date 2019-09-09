@@ -1732,7 +1732,7 @@ class NXobject(object):
         self._name = name
         self.set_changed()
 
-    def save(self, filename=None, mode='w-'):
+    def save(self, filename=None, mode='w-', **kwargs):
         """
         Saves the NeXus object to a data file.
         
@@ -1784,7 +1784,7 @@ class NXobject(object):
                 write_mode = 'w-'
             else:
                 write_mode = 'w'
-            with NXFile(filename, write_mode) as f:
+            with NXFile(filename, write_mode, **kwargs) as f:
                 f.writefile(root)
                 root = f._root
                 root._file = f
@@ -5884,7 +5884,7 @@ def load(filename, mode='r'):
 
 nxload = load
 
-def save(filename, group, mode='w'):
+def save(filename, group, mode='w', **kwargs):
     """
     Writes a NeXus file from a tree of objects.
     """
@@ -5893,8 +5893,8 @@ def save(filename, group, mode='w'):
     elif group.nxclass == "NXentry":
         root = NXroot(group)
     else:
-    with NXFile(filename, mode) as f:
         root = NXroot(NXentry(group))
+    with NXFile(filename, mode, **kwargs) as f:
         f.writefile(root)
         f.close()
  

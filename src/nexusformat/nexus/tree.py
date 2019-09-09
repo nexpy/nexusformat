@@ -452,17 +452,22 @@ class NXFile(object):
             file, the mode is set to 'r' or 'rw' for remaining operations.
         """
         self.h5 = h5
-        name = os.path.abspath(name)
         self.name = name
+        self._file = None
+        self._filename = os.path.abspath(name)
+        self._path = '/'
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
-        elif not os.path.exists(os.path.dirname(name)):
+        elif not os.path.exists(os.path.dirname(self._filename)):
             raise NeXusError("'%s/' does not exist"
-                             % os.path.dirname(name))
+                             % os.path.dirname(self._filename))
         elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or mode == 'x':
             if mode == 'w5':
                 mode = 'w'
-            self._file = self.h5.File(name, mode, **kwargs)
+            try:
+                self._file = self.h5.File(self._filename, mode, **kwargs)
+            except Exception as error:
+                raise NeXusError(str(error))
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -471,13 +476,14 @@ class NXFile(object):
             else:
                 self._mode = 'r'
             if os.path.exists(name):
-                self._file = self.h5.File(name, mode, **kwargs)
+                try:
+                    self._file = self.h5.File(self._filename, mode, **kwargs)
+                except Exception as error:
+                    raise NeXusError(str(error))
             else:
                 raise NeXusError("'%s' does not exist" % name)
-        self._filename = self._file.filename                             
         self._file.close()
         self._lock = None
-        self._path = '/'
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),

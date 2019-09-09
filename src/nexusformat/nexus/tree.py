@@ -4345,7 +4345,6 @@ class NXlink(NXobject):
             if name is None:
                 self._name = target.nxname
             self._target = target.nxpath
-            self._link = target
             if isinstance(target, NXfield):
                 self._setclass(NXlinkfield)
             elif isinstance(target, NXgroup):
@@ -4354,7 +4353,7 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
-            self._link = None
+        self._link = None
 
     def __repr__(self):
         if self._filename:
@@ -4417,21 +4416,15 @@ class NXlink(NXobject):
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with root.nxfile as f:
                 f.update(self)
-        if (self._filename and self.nxfilename and 
-            os.path.exists(self.nxfilename)):
-            with NXFile(self.nxfilename, 'r') as f:
-                if self._target in f:
-                    item = f.readpath(self._target)
-                    if isinstance(item, NXfield):
-                        self.nxclass = NXlinkfield
-                        self._value, self._shape, self._dtype, _ = \
-                            f.readvalues()
-                    elif isinstance(item, NXgroup):
-                        self.nxclass = _getclass(item.nxclass, link=True)
-                        self._entries = item._entries
-                        for entry in self._entries:
-                            self._entries[entry]._group = self
-                    self.attrs._setattrs(item.attrs)
+                if self._filename and self.nxfilename and os.path.exists(self.nxfilename):
+                    with NXFile(self._filename).lock:
+                        item = f.readpath(self.nxpath)
+                        if isinstance(item, NXfield):
+                            self.nxclass = NXlinkfield
+                            self.copy(item)
+                        elif isinstance(item, NXgroup):
+                            self.nxclass = _getclass(item.nxclass, link=True)
+                            self.copy(item)
         self.set_changed()
 
     @property
@@ -4471,11 +4464,7 @@ class NXlink(NXobject):
             if not self.is_external():
                 return self.nxlink._attrs
             else:
-                with self.nxfile as f:
-                    f.nxpath = self.nxtarget
-                    self._attrs._setattrs(f._readattrs())
-                if 'NX_class' in self._attrs:
-                    del self._attrs['NX_class']
+                return self._attrs
         except Exception as error:
             self._attrs = AttrDict(self)
         return self._attrs
@@ -4530,55 +4519,14 @@ class NXlinkfield(NXlink, NXfield):
         else:
             self.nxlink.__setitem__(key, value)
 
-    @property
-    def shape(self):
-        if self.is_external():
-            try:
-                with self.nxfile as f:
-                    return _getshape(f.get(self.nxtarget).shape)
-            except Exception:
-                return ()
-        else:
-            return self.nxlink.shape
-
-    @property
-    def dtype(self):
-        if self.is_external():
-            try:
-                with self.nxfile as f:
-                    return _getdtype(f.get(self.nxtarget).dtype)
-            except Exception:
-                return None
-        else:
-            return self.nxlink.dtype
-
-    @property
-    def compression(self):
-        if self.is_external():
-            return super(NXlinkfield, self).compression
-        else:
-            return self.nxlink.compression
-
-    @property
-    def fillvalue(self):
-        if self.is_external():
-            return super(NXlinkfield, self).fillvalue
-        else:
-            return self.nxlink.fillvalue
-
-    @property
-    def chunks(self):
-        if self.is_external():
-            return super(NXlinkfield, self).chunks
-        else:
-            return self.nxlink.chunks
-
-    @property
-    def maxshape(self):
-        if self.is_external():
-            return super(NXlinkfield, self).maxshape
-        else:
-            return self.nxlink.maxshape
+    def copy(self, field):
+        self._value = field._value
+        self._shape = field._shape
+        self._dtype = field._dtype
+        self._attrs = field._attrs
+        self._h5opts = field._h5opts
+        self._memfile = field._memfile
+        self._uncopied_data = field._uncopied_data
 
     def plot(self, **kwargs):
         if self.is_external():
@@ -4641,6 +4589,12 @@ class NXlinkgroup(NXlink, NXgroup):
         except Exception:
             return NXlink(self)._str_tree(self, indent=indent)
         
+    def copy(self, group):
+        self._entries = group._entries
+        for entry in self._entries:
+            self._entries[entry]._group = self
+        self._attrs = group._attrs
+
     @property
     def entries(self):
         return self.nxlink._entries

@@ -1786,12 +1786,12 @@ class NXobject(object):
                 write_mode = 'w'
             with NXFile(filename, write_mode) as f:
                 f.writefile(root)
+                root = f._root
+                root._file = f
             if mode == 'w' or mode == 'w-':
                 root._mode = 'rw'
             else:
                 root._mode = mode
-            root.nxfile = filename
-            root.nxfile.close()
             self.set_changed()
             return root
         else:
@@ -4672,10 +4672,10 @@ class NXroot(NXgroup):
     def reload(self):
         if self.nxfilemode:
             with self.nxfile as f:
-                f.reload(self)
+                f.reload()
             self.set_changed()
         else:
-            raise NeXusError("'%s' has no associated file to reload")
+            raise NeXusError("'%s' has no associated file to reload" % self.nxname)
 
     def is_modified(self):
         try:

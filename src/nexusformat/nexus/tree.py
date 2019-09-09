@@ -457,6 +457,7 @@ class NXFile(object):
         self._filename = os.path.abspath(name)
         self._lock = NXLock(self._filename, timeout=NX_LOCK)
         self._path = '/'
+        self._root = None
         self._with_count = 0
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
@@ -523,6 +524,11 @@ class NXFile(object):
         self.close()
         self.release_lock()
 
+    @property
+    def root(self):
+        """Return the root group of the NeXus file."""
+        return self._root
+    
     @property
     def mtime(self):
         """Return the modification time of the NeXus file."""
@@ -676,6 +682,7 @@ class NXFile(object):
         root._mode = self._mode = _mode
         root._mtime = self.mtime
         root._file_modified = False
+        self._root = root
         return root
 
     def _readattrs(self):
@@ -801,6 +808,8 @@ class NXFile(object):
         self._writelinks(links)
         if len(root.attrs) > 0:
             self._writeattrs(root.attrs)
+        root._filename = self._filename
+        self._root = root
         self._rootattrs()
 
     def _writeattrs(self, attrs):
@@ -996,14 +1005,13 @@ class NXFile(object):
                 self._writelinks(links)
             self.nxpath = item.nxpath
 
-    def reload(self, group):
-        self.nxpath = group.nxpath
-        group._entries = self._readchildren()
-        for entry in group._entries:
-            group._entries[entry]._group = group
-        group._changed = True
-        group._mtime = self.mtime
-        group._file_modified = False
+    def reload(self):
+        self.nxpath = '/'
+        self._root._entries = self._readchildren()
+        for entry in self._root._entries:
+            self._root._entries[entry]._group = self._root
+        self._root._changed = True
+        self._root._file_modified = False
 
     def rename(self, old_path, new_path):
         if old_path != new_path:

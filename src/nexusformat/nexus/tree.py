@@ -417,11 +417,11 @@ class NXFile(object):
     Example::
 
       nx = NXFile('REF_L_1346.nxs','r')
-      tree = nx.readfile()
-      for entry in tree.NXentry:
+      root = nx.readfile()
+      for entry in root.NXentry:
           process(entry)
       copy = NXFile('modified.nxs','w')
-      copy.writefile(tree)
+      copy.writefile(root)
 
     Note that the large datasets are not loaded immediately.  Instead, the
     when the data set is requested, the file is reopened, the data read, and
@@ -772,7 +772,7 @@ class NXFile(object):
                     _target = None
         return _target, _filename, _abspath
 
-    def writefile(self, tree):
+    def writefile(self, root):
         """
         Writes the NeXus file structure to a file.
 
@@ -781,11 +781,11 @@ class NXFile(object):
         """
         links = []
         self.nxpath = ""
-        for entry in tree.values():
+        for entry in root.values():
             links += self._writegroup(entry)
         self._writelinks(links)
-        if len(tree.attrs) > 0:
-            self._writeattrs(tree.attrs)
+        if len(root.attrs) > 0:
+            self._writeattrs(root.attrs)
         self._rootattrs()
 
     def _writeattrs(self, attrs):
@@ -5858,8 +5858,8 @@ def load(filename, mode='r'):
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
     with NXFile(filename, mode) as f:
-        tree = f.readfile()
-    return tree
+        root = f.readfile()
+    return root
 
 nxload = load
 
@@ -5868,13 +5868,13 @@ def save(filename, group, mode='w'):
     Writes a NeXus file from a tree of objects.
     """
     if group.nxclass == "NXroot":
-        tree = group
+        root = group
     elif group.nxclass == "NXentry":
-        tree = NXroot(group)
+        root = NXroot(group)
     else:
-        tree = NXroot(NXentry(group))
     with NXFile(filename, mode) as f:
-        f.writefile(tree)
+        root = NXroot(NXentry(group))
+        f.writefile(root)
         f.close()
  
 nxsave = save

@@ -663,7 +663,10 @@ class NXFile(object):
             self._file.close()
 
     def isopen(self):
-        return self._file.id.valid
+        if self._file is not None:
+            return self._file.id.valid
+        else:
+            return False
 
     def readfile(self):
         """

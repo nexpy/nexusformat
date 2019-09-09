@@ -661,6 +661,8 @@ class NXFile(object):
     def close(self):
         if self.isopen():
             self._file.close()
+        if self._root:
+            self._root._mtime = self.mtime
 
     def isopen(self):
         if self._file is not None:
@@ -683,7 +685,6 @@ class NXFile(object):
         root._file = self
         root._filename = self._filename
         root._mode = self._mode = _mode
-        root._mtime = self.mtime
         root._file_modified = False
         self._root = root
         return root
@@ -4668,16 +4669,6 @@ class NXroot(NXgroup):
         self._file_modified = False
         NXgroup.__init__(self, *args, **kwargs)
 
-    def set_changed(self, change_lock=False):
-        """
-        Sets an object's change status to changed.
-        """
-        if not change_lock and self.nxfilemode:
-            self._mtime = self.nxfile.mtime
-        self._changed = True
-        if self.nxgroup:
-            self.nxgroup.set_changed()
-
     def reload(self):
         if self.nxfilemode:
             with self.nxfile as f:
@@ -4704,7 +4695,7 @@ class NXroot(NXgroup):
         if self._filename:
             if self.file_exists():
                 self._mode = self._file.mode = 'r'
-                self.set_changed(change_lock=True)
+                self.set_changed()
             else:
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
@@ -4716,13 +4707,12 @@ class NXroot(NXgroup):
                 if self.is_modified():
                     raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'
-                self.set_changed(change_lock=True)
             else:
                 self._mode = None
                 self._file = None
-                self.set_changed(change_lock=True)
                 raise NeXusError("'%s' does not exist" % 
                                  os.path.abspath(self.nxfilename))
+            self.set_changed()
 
     def backup(self, filename=None, dir=None):
         """Backup the NeXus file.
@@ -4827,6 +4817,11 @@ class NXroot(NXgroup):
     def nxbackup(self):
         """Returns name of backup file if it exists"""
         return self._backup
+
+    @property
+    def mtime(self):
+        """Return modification time of last change to root group."""
+        return self._mtime
 
 
 class NXentry(NXgroup):

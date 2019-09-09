@@ -455,7 +455,9 @@ class NXFile(object):
         self.name = name
         self._file = None
         self._filename = os.path.abspath(name)
+        self._lock = NXLock(self._filename, timeout=NX_LOCK)
         self._path = '/'
+        self._with_count = 0
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif not os.path.exists(os.path.dirname(self._filename)):
@@ -483,7 +485,6 @@ class NXFile(object):
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._file.close()
-        self._lock = None
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -506,11 +507,19 @@ class NXFile(object):
         return self.file.__contains__(key)
 
     def __enter__(self):
-        self.acquire_lock()
-        self.open()
+        if self._with_count == 0:
+            self.acquire_lock()
+            self.open()
+        self._with_count += 1
         return self
 
     def __exit__(self, *args):
+        if self._with_count == 1:
+            self.close()
+            self.release_lock()
+        self._with_count -= 1
+
+    def __del__(self):
         self.close()
         self.release_lock()
 
@@ -539,8 +548,10 @@ class NXFile(object):
 
     @lock.setter
     def lock(self, value):
+        if self._lock is None:
+            self._lock = NXLock(self._filename, timeout=NX_LOCK)
         if value is False or value is None or value == 0:
-            self._lock = None
+            self._lock.timeout = 0
         else:
             if value is True:
                 if NX_LOCK:
@@ -549,7 +560,7 @@ class NXFile(object):
                     timeout = 10
             else:
                 timeout = value
-            self._lock = NXLock(self._filename, timeout=timeout)
+            self._lock.timeout=timeout
 
     @property
     def locked(self):
@@ -559,16 +570,14 @@ class NXFile(object):
     @property
     def lock_file(self):
         """Return the name of the file used to establish the lock."""
-        if self._lock:
-            return self._lock.lock_file
-        else:
-            return NXLock(self._filename).lock_file
+        if self._lock is None:
+            self._lock = NXLock(self._filename, timeout=NX_LOCK)
+        return self._lock.lock_file
 
     def acquire_lock(self, timeout=None):
         """Acquire the file lock.
 
-        This uses the NXLock instance returned by `self.lock` creating a 
-        new NXLock instance if `timeout` is specified.
+        This uses the NXLock instance returned by `self.lock`.
         
         Parameters
         ----------

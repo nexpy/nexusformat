@@ -75,6 +75,9 @@ class NXLock(object):
         if timeout is None:
             timeout = self.timeout
 
+        if timeout == 0:
+            return
+
         if check_interval is None:
             check_interval = self.check_interval
 

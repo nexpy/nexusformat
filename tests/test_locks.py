@@ -105,4 +105,37 @@ def test_lock_defaults(tmpdir):
 
     with root.nxfile as f:
         assert not root.nxfile.locked
-        assert not root.nxfile.is_locked()    
+        assert not root.nxfile.is_locked()
+
+
+def test_nested_locks(tmpdir):
+
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry(field1))
+    root.save(filename, "w")
+    root.nxfile.lock = True
+
+    assert isinstance(root.nxfile.lock, NXLock)
+
+    with root.nxfile:
+
+        assert root.nxfile.locked
+        assert root.nxfile.is_locked()
+
+        root["entry/f1"] = "b"
+
+        assert root.nxfile["entry/f1"][()] == "b"
+
+        with root.nxfile:
+
+            root["entry/f1"] = "c"
+
+            assert root.nxfile["entry/f1"][()] == "c"
+            assert root.nxfile.locked
+            assert root.nxfile.is_locked()
+
+        assert root.nxfile.locked
+        assert root.nxfile.is_locked()
+
+    assert not root.nxfile.locked
+    assert not root.nxfile.is_locked()

@@ -439,7 +439,10 @@ class NXFile(object):
         elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or mode == 'x':
             if mode == 'w5':
                 mode = 'w'
-            self._file = self.h5.File(name, mode, **kwargs)
+            try:
+                self._file = self.h5.File(self._filename, mode, **kwargs)
+            except Exception as error:
+                raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -448,7 +451,10 @@ class NXFile(object):
             else:
                 self._mode = 'r'
             if os.path.exists(name):
-                self._file = self.h5.File(name, mode, **kwargs)
+                try:
+                    self._file = self.h5.File(self._filename, mode, **kwargs)
+                except Exception as error:
+                    raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._filename = self._file.filename                             

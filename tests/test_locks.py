@@ -72,7 +72,7 @@ def test_lock_interactions(tmpdir):
     root = NXroot(NXentry(field1))
     root.save(filename)
 
-    assert not root.nxfile.isopen()
+    assert not root.nxfile.is_open()
 
     root1 = nxload(filename, mode="rw")
     root2 = nxload(filename, mode="r")

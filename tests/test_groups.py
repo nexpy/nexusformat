@@ -101,7 +101,7 @@ def test_group_move():
     group['g2/f2'] = NXlink(target='g1/f1')
     group['g2'].move('f2', 'g3', name='f3')
 
-    assert group['g3/f3'].nxlink is group['g1/f1']
+    assert group['g3/f3'].nxlink == field1
 
     
 def test_group_copy():

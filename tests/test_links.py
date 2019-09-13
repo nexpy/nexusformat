@@ -83,6 +83,7 @@ def test_external_field_links(tmpdir):
     assert root["entry/f2"][0] == external_root["entry/f1"][0]
     assert "units" in root["entry/f2"].attrs
 
+
 def test_external_group_links(tmpdir):
 
     filename = os.path.join(tmpdir, "file1.nxs")

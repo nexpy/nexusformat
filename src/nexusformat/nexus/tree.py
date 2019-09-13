@@ -4589,8 +4589,6 @@ class NXlinkgroup(NXlink, NXgroup):
         
     def copy(self, group):
         self._entries = group._entries
-        for entry in self._entries:
-            self._entries[entry]._group = self
         self._attrs = group._attrs
 
     @property

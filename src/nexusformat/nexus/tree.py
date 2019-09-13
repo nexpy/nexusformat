@@ -1907,7 +1907,8 @@ class NXobject(object):
         elif not self.is_external() and self.nxroot._file:
             return self.nxroot._file
         elif self.nxfilename:
-            return NXFile(self.nxfilename, self.nxfilemode)
+            self._file = NXFile(self.nxfilename, self.nxfilemode)
+            return self._file
         else:
             return None
 

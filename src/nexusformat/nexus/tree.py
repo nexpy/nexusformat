@@ -4052,7 +4052,7 @@ class NXgroup(NXobject):
             elif group in self.nxroot:
                 group = self.nxroot[group]
             else:
-                raise NeXusError("'%s' not in tree")
+                raise NeXusError("'%s' not in tree" % group)
             if not isinstance(group, NXgroup):
                 raise NeXusError("Destination must be a valid NeXus group")
         if item.nxroot != group.nxroot:

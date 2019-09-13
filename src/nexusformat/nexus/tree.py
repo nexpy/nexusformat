@@ -4495,16 +4495,6 @@ class NXlinkfield(NXlink, NXfield):
             NXfield.__init__(self, name=name, **kwargs)
         self._class = "NXfield"
 
-    def __getattr__(self, name):
-        if not self.is_external():
-            return getattr(self.nxlink, name)
-        elif name in _npattrs:
-            return getattr(self.nxdata, name)
-        elif name in self.attrs:
-            return self.attrs[name]
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
-
     def __getitem__(self, key):
         if self.is_external():
             return super(NXlinkfield, self).__getitem__(key)
@@ -4525,6 +4515,7 @@ class NXlinkfield(NXlink, NXfield):
         self._h5opts = field._h5opts
         self._memfile = field._memfile
         self._uncopied_data = field._uncopied_data
+        self._attrs = field._attrs
 
     def plot(self, **kwargs):
         if self.is_external():
@@ -4548,16 +4539,6 @@ class NXlinkgroup(NXlink, NXgroup):
             self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
             self._class = 'NXlink'
-
-    def __getattr__(self, name):
-        if not self.is_external():
-            return getattr(self.nxlink, name)
-        elif name in self.entries:
-            return self.entries[name]
-        elif name in self.attrs:
-            return self.attrs[name]
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
 
     def __getitem__(self, key):
         if self.is_external():

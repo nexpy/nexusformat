@@ -4364,15 +4364,18 @@ class NXlink(NXobject):
             return "NXlink('%s')" % (self._target)
 
     def __getattr__(self, name):
-        if not self.is_external():
+        if self.is_external():
+            if self.exists():
+                with self.nxfile as f:
+                    item = f.readpath(self.nxfilepath)
+                return getattr(item, name)
+            else:
+                raise NeXusError("Cannot read the external link to '%s'" % self._filename)
+        else:
             if self.nxlink:
                 return getattr(self.nxlink, name)
             else:
                 raise NeXusError("Cannot resolve the link to '%s'" % self._target)
-        elif not self.exists():
-            raise NeXusError("Cannot read the external link to '%s'" % self._filename)
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
 
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):

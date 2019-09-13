@@ -1986,7 +1986,7 @@ class NXobject(object):
     def path_exists(self):
         if self.is_external():
             if self.file_exists():
-                with NXFile(self.nxfilename) as f:
+                with self.nxfile as f:
                     return self.nxfilepath in f
             else:
                 return False

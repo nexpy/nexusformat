@@ -1910,7 +1910,8 @@ class NXobject(object):
         elif not self.is_external() and self.nxroot._file:
             return self.nxroot._file
         elif self.nxfilename:
-            return NXFile(self.nxfilename, self.nxfilemode)
+            self._file = NXFile(self.nxfilename, self.nxfilemode)
+            return self._file
         else:
             return None
 
@@ -1988,7 +1989,7 @@ class NXobject(object):
     def path_exists(self):
         if self.is_external():
             if self.file_exists():
-                with NXFile(self.nxfilename) as f:
+                with self.nxfile as f:
                     return self.nxfilepath in f
             else:
                 return False
@@ -4431,15 +4432,18 @@ class NXlink(NXobject):
             return "NXlink('%s')" % (self._target)
 
     def __getattr__(self, name):
-        if not self.is_external():
+        if self.is_external():
+            if self.exists():
+                with self.nxfile as f:
+                    item = f.readpath(self.nxfilepath)
+                return getattr(item, name)
+            else:
+                raise NeXusError("Cannot read the external link to '%s'" % self._filename)
+        else:
             if self.nxlink:
                 return getattr(self.nxlink, name)
             else:
                 raise NeXusError("Cannot resolve the link to '%s'" % self._target)
-        elif not self.exists():
-            raise NeXusError("Cannot read the external link to '%s'" % self._filename)
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
 
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):
@@ -4450,22 +4454,19 @@ class NXlink(NXobject):
             self.nxlink.__setattr__(name, value)            
 
     def __deepcopy__(self, memo={}):
-        if self.is_external() or self.nxlink is None:
-            obj = self
-            dpcpy = obj.__class__()
-            memo[id(self)] = dpcpy
-            dpcpy._name = copy(self.nxname)
-            dpcpy._target = copy(obj._target)
-            if obj._filename:
-                dpcpy._filename = copy(obj.nxfilename)
-            else:
-                dpcpy._filename = None
-            dpcpy._abspath = copy(obj._abspath)
-            dpcpy._link = None
-            dpcpy._group = None
-            return dpcpy
-        elif self.nxlink:
-            return self.nxlink.__deepcopy__(memo)
+        obj = self
+        dpcpy = obj.__class__()
+        memo[id(self)] = dpcpy
+        dpcpy._name = copy(self.nxname)
+        dpcpy._target = copy(obj._target)
+        if obj._filename:
+            dpcpy._filename = copy(obj.nxfilename)
+        else:
+            dpcpy._filename = None
+        dpcpy._abspath = copy(obj._abspath)
+        dpcpy._link = None
+        dpcpy._group = None
+        return dpcpy
 
     def _str_name(self, indent=0):
         if self._filename:
@@ -4480,19 +4481,9 @@ class NXlink(NXobject):
     def update(self):
         root = self.nxroot
         filename, mode = root.nxfilename, root.nxfilemode
-        item = None
         if (filename is not None and os.path.exists(filename) and mode == 'rw'):
             with root.nxfile as f:
                 f.update(self)
-                if self._filename and self.nxfilename and os.path.exists(self.nxfilename):
-                    with NXFile(self._filename).lock:
-                        item = f.readpath(self.nxpath)
-                        if isinstance(item, NXfield):
-                            self.nxclass = NXlinkfield
-                            self.copy(item)
-                        elif isinstance(item, NXgroup):
-                            self.nxclass = _getclass(item.nxclass, link=True)
-                            self.copy(item)
         self.set_changed()
 
     @property
@@ -4504,14 +4495,21 @@ class NXlink(NXobject):
     def initialize_link(self):
         """Determine the link class from the target."""
         if self._link is None:
-            if self._filename is not None:
+            if self._filename is not None and os.path.exists(self.nxfilename):
+                with self.nxfile as f:
+                    item = f.readpath(self.nxfilepath)
                 self._link = self
             elif self._target in self.nxroot:
-                self._link = self.nxroot[self._target]
-            if self._class == 'NXlink' and isinstance(self._link, NXfield):
+                item = self.nxroot[self._target]
+                self._link = item
+            else:
+                self._link = None
+                return None
+            if isinstance(item, NXfield):
                 self._setclass(NXlinkfield)
-            elif self._class == 'NXlink' and isinstance(self._link, NXgroup):
-                self._setclass(_getclass(self._link.nxclass, link=True))
+            elif isinstance(item, NXgroup):
+                self._setclass(_getclass(item.nxclass, link=True))
+            self.copy(item)
         return self._link
 
     @property
@@ -4565,16 +4563,6 @@ class NXlinkfield(NXlink, NXfield):
             NXfield.__init__(self, name=name, **kwargs)
         self._class = "NXfield"
 
-    def __getattr__(self, name):
-        if not self.is_external():
-            return getattr(self.nxlink, name)
-        elif name in _npattrs:
-            return getattr(self.nxdata, name)
-        elif name in self.attrs:
-            return self.attrs[name]
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
-
     def __getitem__(self, key):
         if self.is_external():
             return super(NXlinkfield, self).__getitem__(key)
@@ -4595,6 +4583,7 @@ class NXlinkfield(NXlink, NXfield):
         self._h5opts = field._h5opts
         self._memfile = field._memfile
         self._uncopied_data = field._uncopied_data
+        self._attrs = field._attrs
 
     def plot(self, **kwargs):
         if self.is_external():
@@ -4618,16 +4607,6 @@ class NXlinkgroup(NXlink, NXgroup):
             self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
             self._class = 'NXlink'
-
-    def __getattr__(self, name):
-        if not self.is_external():
-            return getattr(self.nxlink, name)
-        elif name in self.entries:
-            return self.entries[name]
-        elif name in self.attrs:
-            return self.attrs[name]
-        else:
-            raise NeXusError("'"+name+"' not in "+self.nxpath)
 
     def __getitem__(self, key):
         if self.is_external():
@@ -4659,8 +4638,6 @@ class NXlinkgroup(NXlink, NXgroup):
         
     def copy(self, group):
         self._entries = group._entries
-        for entry in self._entries:
-            self._entries[entry]._group = self
         self._attrs = group._attrs
 
     @property

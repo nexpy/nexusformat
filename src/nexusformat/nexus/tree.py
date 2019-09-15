@@ -3669,8 +3669,13 @@ class NXgroup(NXobject):
     def __init__(self, *args, **kwargs):
         self._entries = {}
         if "name" in kwargs:
-            self._name = kwargs["name"]
-            del kwargs["name"]
+            self._name = kwargs.pop("name")
+        if "nxclass" in kwargs:
+            self._class = kwargs.pop("nxclass")
+        if "group" in kwargs:
+            self._group = kwargs.pop("group")
+        self._copyfile = kwargs.pop("nxcopy", None)
+        self._copypath = kwargs.pop("nxpath", None)
         if "entries" in kwargs:
             for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
@@ -3684,12 +3689,6 @@ class NXgroup(NXobject):
             del kwargs["attrs"]
         else:
             self._attrs = AttrDict(self)
-        if "nxclass" in kwargs:
-            self._class = kwargs["nxclass"]
-            del kwargs["nxclass"]
-        if "group" in kwargs:
-            self._group = kwargs["group"]
-            del kwargs["group"]
         for k,v in kwargs.items():
             try:
                 self[k] = v

@@ -1008,8 +1008,12 @@ class NXFile(object):
             elif isinstance(item, NXfield):
                 self._writedata(item)
             elif isinstance(item, NXgroup):
-                links = self._writegroup(item)
-                self._writelinks(links)
+                if isinstance(item._copyfile, NXFile):
+                    with item._copyfile as f:
+                        self.copy(f[item._copypath], item.nxpath, **item.attrs)
+                else:
+                    links = self._writegroup(item)
+                    self._writelinks(links)
             self.nxpath = item.nxpath
 
     def reload(self):
@@ -4078,9 +4082,17 @@ class NXgroup(NXobject):
         NXgroup
             Deep copy of current group or copied group if specified.
         """
+        if name is None:
+            name = self.nxname
         if group is None:
-            return deepcopy(self)
-        elif (isinstance(group, NXgroup) and self.nxfilename and group.nxfilename and
+            if self.nxfilemode:
+                return NXgroup(name=name, nxclass=self.nxclass, 
+                               nxcopy=self.nxfile, nxpath=self.nxpath, 
+                               attrs=kwargs)
+            else:
+                return deepcopy(self)
+        elif (isinstance(group, NXgroup) and 
+              self.nxfilename and group.nxfilename and
               self.nxfilename != group.nxfilename):
             with self.nxfile as f:
                 f.copy(self.nxpath, group, **kwargs)
@@ -4093,8 +4105,6 @@ class NXgroup(NXobject):
                     group = self.nxroot[group]
                 else:
                     raise NeXusError("'%s' not in tree")
-            if name is None:
-                name = self.nxname
             if name in group:
                 raise NeXusError("'%s' already in the destination group")
             group[name] = self

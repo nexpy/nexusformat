@@ -40,6 +40,7 @@ def test_linkfield_properties():
     assert root["g2/f1_link"].dtype == np.float32
 
     root["g1/f1"].attrs["a1"] = 1
+
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
 
@@ -107,3 +108,31 @@ def test_external_group_links(tmpdir):
     assert "f1" in root["entry/g2"]
     assert root["entry/g2/f1"][0] == external_root["entry/g1/f1"][0]
     assert "a" in root["entry/g2"].attrs
+
+
+def test_external_group_files(tmpdir):
+
+    nxsetlock(10)
+
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry())
+    root.save(filename, mode="w")
+
+    external_filename = os.path.join(tmpdir, "file2.nxs")
+    external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
+    external_root.save(external_filename, mode="w")
+
+    root["entry/g2"] = NXlink(target="entry/g1", file=external_filename)
+    with root.nxfile:
+
+        assert root.nxfile.locked
+        
+        with root["entry/g2"].nxfile:
+
+            assert root["entry/g2"].nxfile.filename == external_filename
+            assert root["entry/g2"].nxfile.locked
+
+        assert root.nxfile.locked
+        assert not root["entry/g2"].nxfile.locked
+
+    assert not root.nxfile.locked

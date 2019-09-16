@@ -10,8 +10,6 @@
 from setuptools import setup, find_packages, Extension
 
 import os, sys
-import pkg_resources
-pkg_resources.require('numpy')
 import numpy
 import versioneer
 

@@ -1,3 +1,4 @@
+import os
 import pytest
 from nexusformat.nexus import *
 
@@ -100,21 +101,52 @@ def test_group_move():
 
     assert group['g3/f3'].nxlink == field1
 
+
+def test_group_copy(tmpdir):
+
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry())
+    root.save(filename, mode="w")
+
+    external_filename = os.path.join(tmpdir, "file2.nxs")
+    external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
+    external_root.save(external_filename, mode="w")
+
+    root["entry/g2"] = NXlink(target="entry/g1", file=external_filename)
+
+    copied_filename = os.path.join(tmpdir, "file3.nxs")
+    copied_root = NXroot()
+    copied_root.save(copied_filename, mode="w")
+
+    copied_root["entry"] = root["entry"].copy(expand_external=True)
     
-def test_group_copy():
+    assert "entry" in copied_root
+    assert "g2" in copied_root["entry"]
+    assert "entry/g2/f1" in copied_root
+    assert not isinstance(copied_root["entry/g2"], NXlink)
+    assert copied_root["entry/g2/f1"][0] == 1
+    assert "a" in copied_root["entry/g2"].attrs
+    assert copied_root["entry/g2"].attrs["a"] == "b"
 
-    group = NXentry()
-    group['g1'] = NXgroup()
-    group['g1/g2'] = NXgroup()
-    group['g1/g2/f1'] = field1
 
-    new_group = group['g1/g2'].copy()
-    assert new_group.entries == group['g1/g2'].entries
-    assert id(new_group['f1']) != id(group['g1/g2/f1'])
+def test_field_copy(tmpdir):
 
-    group['g3'] = NXgroup()
-    group['g1/g2'].copy(group['g3'], name='g4')
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry(NXgroup(name="g1")))
+    root.save(filename, mode="w")
 
-    assert 'g3/g4/f1' in group
-    assert group['g1/g2/f1'] == group['g3/g4/f1']
+    external_filename = os.path.join(tmpdir, "file2.nxs")
+    external_root = NXroot(NXentry(NXgroup(field1, name="g2")))
+    external_root.save(external_filename, mode="w")
 
+    root["entry/g1/f1"] = NXlink(target="entry/g2/f1", file=external_filename)
+
+    copied_filename = os.path.join(tmpdir, "file3.nxs")
+    copied_root = NXroot(NXentry(NXgroup(name="g3")))
+    copied_root.save(copied_filename, mode="w")
+
+    copied_root["entry/g3/f1"] = root["entry/g1/f1"].copy()
+    
+    assert "entry/g3/f1" in copied_root
+    assert not isinstance(copied_root["entry/g3/f1"], NXlink)
+    assert copied_root["entry/g3/f1"][0] == 1

@@ -450,6 +450,8 @@ class NXFile(object):
             the same meaning as their h5py counterparts, apart from 'rw', 
             which is equivelent to 'r+'. After creating and/or opening the 
             file, the mode is set to 'r' or 'rw' for remaining operations.
+        **kwargs
+            Keyword arguments to be used when opening the h5py File object.
         """
         self.h5 = h5
         self.name = name
@@ -1008,12 +1010,19 @@ class NXFile(object):
             elif isinstance(item, NXfield):
                 self._writedata(item)
             elif isinstance(item, NXgroup):
+                links = self._writegroup(item)
+                self._writelinks(links)
+            elif isinstance(item, NXobject):
                 if isinstance(item._copyfile, NXFile):
                     with item._copyfile as f:
-                        self.copy(f[item._copypath], item.nxpath, **item.attrs)
-                else:
-                    links = self._writegroup(item)
-                    self._writelinks(links)
+                        self.copy(f[item._copypath], item.nxpath, **item._attrs)
+                    item = self.readpath(item.nxpath)
+                    if self.nxparent == '/':
+                        group = self._root
+                    else:
+                        group = self._root[self.nxparent]
+                    group._entries[item.nxname] = item
+                    group[item.nxname]._group = group
             self.nxpath = item.nxpath
 
     def reload(self):
@@ -1608,11 +1617,21 @@ class NXobject(object):
     _external = None
     _mode = None
     _value = None
+    _copyfile = None
+    _copypath = None
     _memfile = None
     _uncopied_data = None
     _changed = True
     _backup = None
     _file_modified = False
+
+    def __init__(self, *args, **kwargs):
+        self._name = kwargs.pop("name", None)
+        self._class = kwargs.pop("nxclass", NXobject)
+        self._group = kwargs.pop("group", None)
+        self._copyfile = kwargs.pop("nxfile", None)
+        self._copypath = kwargs.pop("nxpath", None)
+        self._attrs = kwargs             
 
     def __getstate__(self):
         result = self.__dict__.copy()
@@ -1803,6 +1822,32 @@ class NXobject(object):
             return root
         else:
             raise NeXusError("No output file specified")
+
+    def copy(self, name=None, **kwargs):
+        """Returns information allowing the object to be copied.
+        
+        If no group is specified and the current group is saved to a file, 
+        a skeleton group is created with information to be used by a h5py copy.
+        This is resolved when the skeleton group is assigned to a parent group. 
+        
+        Parameters
+        ----------
+        name : str, optional
+            Name of copied object if different from current object.
+        **kwargs
+            Keyword arguments to be transferred to the h5py copy function.
+        Returns
+        -------
+        NXobject
+            NeXus object containing information for subsequent copies.
+        """
+        if self.nxfilemode is None:
+            raise NeXusError("Can only copy from a NeXus file.")
+        if name is None:
+            name = self.nxname
+        return NXobject(name=name, nxclass=self.nxclass, 
+                        nxfile=self.nxfile, nxpath=self.nxfilepath, 
+                        **kwargs)
 
     def update(self):
         if self.nxfilemode == 'rw':
@@ -3678,8 +3723,6 @@ class NXgroup(NXobject):
             self._class = kwargs.pop("nxclass")
         if "group" in kwargs:
             self._group = kwargs.pop("group")
-        self._copyfile = kwargs.pop("nxcopy", None)
-        self._copypath = kwargs.pop("nxpath", None)
         if "entries" in kwargs:
             for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
@@ -4068,48 +4111,6 @@ class NXgroup(NXobject):
         group[name] = item
         del self[item.nxname]
 
-    def copy(self, group=None, name=None, **kwargs):
-        """Returns a copy of a group or copies the group to another group.
-        
-        Parameters
-        ----------
-        group : NXgroup or str, optional
-            Group to which the current group is copied, by default None.
-        name : str, optional
-            Name of copied group if different from current group.
-        Returns
-        -------
-        NXgroup
-            Deep copy of current group or copied group if specified.
-        """
-        if name is None:
-            name = self.nxname
-        if group is None:
-            if self.nxfilemode:
-                return NXgroup(name=name, nxclass=self.nxclass, 
-                               nxcopy=self.nxfile, nxpath=self.nxpath, 
-                               attrs=kwargs)
-            else:
-                return deepcopy(self)
-        elif (isinstance(group, NXgroup) and 
-              self.nxfilename and group.nxfilename and
-              self.nxfilename != group.nxfilename):
-            with self.nxfile as f:
-                f.copy(self.nxpath, group, **kwargs)
-            group.set_changed()  
-        else:
-            if is_text(group):
-                if group in self:
-                    group = self[group]
-                elif group in self.nxroot:
-                    group = self.nxroot[group]
-                else:
-                    raise NeXusError("'%s' not in tree")
-            if name in group:
-                raise NeXusError("'%s' already in the destination group")
-            group[name] = self
-        return group            
-
     def insert(self, value, name='unknown'):
         """
         Adds an attribute to the group.
@@ -4453,7 +4454,8 @@ class NXlink(NXobject):
             if self.nxlink:
                 return getattr(self.nxlink, name)
             else:
-                raise NeXusError("Cannot resolve the link to '%s'" % self._target)
+                raise NeXusError("Cannot resolve the link to '%s'" 
+                                  % self._target)
 
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):
@@ -4609,7 +4611,8 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, **kwargs):
+    def __init__(self, target=None, file=None, name=None, abspath=False, 
+                 **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if 'nxclass' in kwargs:
@@ -4684,7 +4687,8 @@ class NXroot(NXgroup):
                 f.reload()
             self.set_changed()
         else:
-            raise NeXusError("'%s' has no associated file to reload" % self.nxname)
+            raise NeXusError("'%s' has no associated file to reload" 
+                              % self.nxname)
 
     def is_modified(self):
         try:

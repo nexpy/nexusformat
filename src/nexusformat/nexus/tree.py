@@ -4518,7 +4518,7 @@ class NXlink(NXobject):
                 self._setclass(NXlinkfield)
             elif isinstance(item, NXgroup):
                 self._setclass(_getclass(item.nxclass, link=True))
-            self.copy(item)
+            self.copylink(item)
         return self._link
 
     @property
@@ -4584,7 +4584,7 @@ class NXlinkfield(NXlink, NXfield):
         else:
             self.nxlink.__setitem__(key, value)
 
-    def copy(self, field):
+    def copylink(self, field):
         self._value = field._value
         self._shape = field._shape
         self._dtype = field._dtype
@@ -4645,7 +4645,7 @@ class NXlinkgroup(NXlink, NXgroup):
         except Exception:
             return NXlink(self)._str_tree(self, indent=indent)
         
-    def copy(self, group):
+    def copylink(self, group):
         self._entries = group._entries
         self._attrs = group._attrs
 

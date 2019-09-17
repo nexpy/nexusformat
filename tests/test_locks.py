@@ -2,12 +2,12 @@ import os
 import pytest
 from nexusformat.nexus import *
 
-
 field1 = NXfield('a', name="f1")
 
 
 def test_lock_creation(tmpdir):
 
+    nxsetlock(0)
     filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry(field1))
     root.save(filename)
@@ -72,7 +72,7 @@ def test_lock_interactions(tmpdir):
     root = NXroot(NXentry(field1))
     root.save(filename)
 
-    assert not root.nxfile.isopen()
+    assert not root.nxfile.is_open()
 
     root1 = nxload(filename, mode="rw")
     root2 = nxload(filename, mode="r")
@@ -91,6 +91,7 @@ def test_lock_defaults(tmpdir):
     root.save(filename, "w")
 
     with root.nxfile as f:
+
         assert isinstance(root.nxfile.lock, NXLock)
         assert root.nxfile.lock.timeout == 20
         assert root.nxfile.locked
@@ -104,6 +105,7 @@ def test_lock_defaults(tmpdir):
     root.save(filename, "w")
 
     with root.nxfile as f:
+
         assert not root.nxfile.locked
         assert not root.nxfile.is_locked()
 

@@ -1,10 +1,9 @@
 import h5py as h5
 import numpy as np
 import pytest
-import six
 from nexusformat.nexus import *
 
-string_dtype = h5.special_dtype(vlen=six.text_type)
+string_dtype = h5.special_dtype(vlen=str)
 NX_ENCODING = nxgetencoding()
 
 arr1D = np.linspace(0.0, 100.0, 101, dtype=np.float64)
@@ -20,7 +19,7 @@ def test_string_field_creation(text):
     assert field.nxvalue == text
     assert field.dtype == string_dtype
     assert len(field) == 0
- 
+
 
 @pytest.mark.parametrize("text", ["a", "abc", "αβγ"])
 def test_byte_field_creation(text):
@@ -72,8 +71,5 @@ def test_field_index(arr, ind):
 
     field = NXfield(arr)
 
-    assert np.all(field[ind].nxvalue == arr[ind])
+    assert np.array_equal(field[ind].nxvalue, arr[ind])
     assert field[ind].shape == arr[ind].shape
-
-
-        

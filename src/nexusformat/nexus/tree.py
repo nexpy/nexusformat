@@ -450,6 +450,8 @@ class NXFile(object):
             the same meaning as their h5py counterparts, apart from 'rw', 
             which is equivelent to 'r+'. After creating and/or opening the 
             file, the mode is set to 'r' or 'rw' for remaining operations.
+        **kwargs
+            Keyword arguments to be used when opening the h5py File object.
         """
         self.h5 = h5
         self.name = name
@@ -470,7 +472,7 @@ class NXFile(object):
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
             except Exception as error:
-                raise NeXusError(str(error))
+                raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -482,7 +484,7 @@ class NXFile(object):
                 try:
                     self._file = self.h5.File(self._filename, mode, **kwargs)
                 except Exception as error:
-                    raise NeXusError(str(error))
+                    raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._file.close()
@@ -647,11 +649,8 @@ class NXFile(object):
     def get(self, *args, **kwargs):
         return self.file.get(*args, **kwargs)
 
-    def copy(self, *args, **kwargs):
-        self.file.copy(*args, **kwargs)
-
     def open(self, **kwargs):
-        if not self.isopen():
+        if not self.is_open():
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
@@ -659,12 +658,12 @@ class NXFile(object):
             self.nxpath = '/'
 
     def close(self):
-        if self.isopen():
+        if self.is_open():
             self._file.close()
         if self._root:
             self._root._mtime = self.mtime
 
-    def isopen(self):
+    def is_open(self):
         if self._file is not None:
             return self._file.id.valid
         else:
@@ -794,6 +793,8 @@ class NXFile(object):
                 _target = _link.path
             elif 'target' in self.attrs:
                 _target = text(self.attrs['target'])
+                if not _target.startswith('/'):
+                    _target = '/' + _target
                 if _target == self.nxpath:
                     _target = None
         return _target, _filename, _abspath
@@ -846,7 +847,7 @@ class NXFile(object):
                         return []
                 else:
                     self[self.nxparent].create_group(group.nxname)
-            if group.nxclass and group.nxclass != 'unknown':
+            if group.nxclass and group.nxclass != 'NXgroup':
                 self[self.nxpath].attrs['NX_class'] = group.nxclass
         links = []
         self._writeattrs(group.attrs)
@@ -890,19 +891,20 @@ class NXFile(object):
             _file, _path = data._uncopied_data
             if _file._filename != self._filename:
                 with _file as f:
-                    f.copy(_path, self[self.nxparent], self.nxpath)
+                    f.copy(_path, self[self.nxparent], name=self.nxpath)
             else:
-                self.file.copy(_path, self[self.nxparent], self.nxpath)
+                self.file.copy(_path, self[self.nxparent], name=self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
-            data._memfile.copy('data', self[self.nxparent], self.nxpath)
+            data._memfile.copy('data', self[self.nxparent], name=self.nxpath)
             data._memfile = None
         elif data.nxfile and data.nxfile.filename != self.filename:
             data.nxfile.copy(data.nxpath, self[self.nxparent])
         elif data.dtype is not None:
             if data.nxname not in self[self.nxparent]:
                 self[self.nxparent].create_dataset(data.nxname, 
-                                                   shape=data.shape, dtype=data.dtype,
+                                                   shape=data.shape, 
+                                                   dtype=data.dtype,
                                                    **data._h5opts)
             try:
                 if data._value is not None:
@@ -977,6 +979,12 @@ class NXFile(object):
     def writevalue(self, path, value, idx=()):
         self[path][idx] = value
 
+    def move(self, source, destination):
+        self.file.move(source, destination)
+
+    def copy(self, source, destination, **kwargs):
+        self.file.copy(source, destination, **kwargs)
+
     def copyfile(self, input_file, **kwargs):
         for entry in input_file['/']:
             input_file.copy(entry, self['/'], **kwargs) 
@@ -1007,6 +1015,17 @@ class NXFile(object):
             elif isinstance(item, NXgroup):
                 links = self._writegroup(item)
                 self._writelinks(links)
+            elif isinstance(item, NXobject):
+                if isinstance(item._copyfile, NXFile):
+                    with item._copyfile as f:
+                        self.copy(f[item._copypath], item.nxpath, **item._attrs)
+                    item = self.readpath(item.nxpath)
+                    if self.nxparent == '/':
+                        group = self._root
+                    else:
+                        group = self._root[self.nxparent]
+                    group._entries[item.nxname] = item
+                    group[item.nxname]._group = group
             self.nxpath = item.nxpath
 
     def reload(self):
@@ -1028,7 +1047,7 @@ class NXFile(object):
 
     @property
     def file(self):
-        if not self.isopen():
+        if not self.is_open():
             self.open()
         return self._file
 
@@ -1601,11 +1620,21 @@ class NXobject(object):
     _external = None
     _mode = None
     _value = None
+    _copyfile = None
+    _copypath = None
     _memfile = None
     _uncopied_data = None
     _changed = True
     _backup = None
     _file_modified = False
+
+    def __init__(self, *args, **kwargs):
+        self._name = kwargs.pop("name", None)
+        self._class = kwargs.pop("nxclass", NXobject)
+        self._group = kwargs.pop("group", None)
+        self._copyfile = kwargs.pop("nxfile", None)
+        self._copypath = kwargs.pop("nxpath", None)
+        self._attrs = kwargs             
 
     def __getstate__(self):
         result = self.__dict__.copy()
@@ -1796,6 +1825,32 @@ class NXobject(object):
             return root
         else:
             raise NeXusError("No output file specified")
+
+    def copy(self, name=None, **kwargs):
+        """Returns information allowing the object to be copied.
+        
+        If no group is specified and the current group is saved to a file, 
+        a skeleton group is created with information to be used by a h5py copy.
+        This is resolved when the skeleton group is assigned to a parent group. 
+        
+        Parameters
+        ----------
+        name : str, optional
+            Name of copied object if different from current object.
+        **kwargs
+            Keyword arguments to be transferred to the h5py copy function.
+        Returns
+        -------
+        NXobject
+            NeXus object containing information for subsequent copies.
+        """
+        if self.nxfilemode is None:
+            raise NeXusError("Can only copy objects saved to a NeXus file.")
+        if name is None:
+            name = self.nxname
+        return NXobject(name=name, nxclass=self.nxclass, 
+                        nxfile=self.nxfile, nxpath=self.nxfilepath, 
+                        **kwargs)
 
     def update(self):
         if self.nxfilemode == 'rw':
@@ -2114,10 +2169,11 @@ class NXfield(NXobject):
     2) Referencing a NeXus attribute
 
        If the name of the NeXus attribute is not the same as any of the Python
-       attributes listed above, or one of the methods listed below, or any of the
-       attributes defined for Numpy arrays, they can be referenced as if they were
-       a Python attribute of the NXfield. However, it is only possible to reference
-       attributes with one of the proscribed names using the 'attrs' dictionary.
+       attributes listed above, or one of the methods listed below, or any of
+       the attributes defined for Numpy arrays, they can be referenced as if
+       they were a Python attribute of the NXfield. However, it is only possible
+       to reference attributes with one of the proscribed names using the
+       'attrs' dictionary.
 
         >>> entry.sample.temperature.tree = 10.0
         >>> entry.sample.temperature.tree
@@ -2220,8 +2276,9 @@ class NXfield(NXobject):
                     value = slab.get([i,j,0],size)
 
     """
-    properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 'compression_opts',
-                  'fillvalue', 'fletcher32', 'maxshape', 'scaleoffset', 'shuffle']
+    properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 
+                  'compression_opts', 'fillvalue', 'fletcher32', 'maxshape', 
+                  'scaleoffset', 'shuffle']
 
     def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
                  group=None, attrs={}, **kwargs):
@@ -2231,16 +2288,21 @@ class NXfield(NXobject):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         _size = _getsize(self._shape)
         _h5opts = {}
-        _h5opts['chunks'] = kwargs.pop('chunks', True if _size>NX_MAXSIZE else None)
+        _h5opts['chunks'] = kwargs.pop('chunks', 
+                                       True if _size>NX_MAXSIZE else None)
         _h5opts['compression'] = kwargs.pop('compression', 
-                                            NX_COMPRESSION if _size>NX_MAXSIZE else None)
+                                            NX_COMPRESSION 
+                                            if _size>NX_MAXSIZE else None)
         _h5opts['compression_opts'] = kwargs.pop('compression_opts', None)
         _h5opts['fillvalue'] = kwargs.pop('fillvalue', None)
         _h5opts['fletcher32'] = kwargs.pop('fletcher32', None)
-        _h5opts['maxshape'] = _getmaxshape(kwargs.pop('maxshape', None), self._shape)
+        _h5opts['maxshape'] = _getmaxshape(kwargs.pop('maxshape', None), 
+                                           self._shape)
         _h5opts['scaleoffset'] = kwargs.pop('scaleoffset', None)
-        _h5opts['shuffle'] = kwargs.pop('shuffle', True if _size>NX_MAXSIZE else None)
-        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
+        _h5opts['shuffle'] = kwargs.pop('shuffle', 
+                                        True if _size>NX_MAXSIZE else None)
+        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() 
+                            if v is not None)
         attrs.update(kwargs)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None
@@ -2518,7 +2580,7 @@ class NXfield(NXobject):
                     f.copy(_path, self.nxpath)
                 else:
                     self._create_memfile()
-                    f.copy(_path, self._memfile, 'data')
+                    f.copy(_path, self._memfile, name='data')
                 self._uncopied_data = None
                 if (np.prod(self.shape) * np.dtype(self.dtype).itemsize 
                     <= NX_MEMORY*1000*1000):
@@ -3666,8 +3728,11 @@ class NXgroup(NXobject):
     def __init__(self, *args, **kwargs):
         self._entries = {}
         if "name" in kwargs:
-            self._name = kwargs["name"]
-            del kwargs["name"]
+            self._name = kwargs.pop("name")
+        if "nxclass" in kwargs:
+            self._class = kwargs.pop("nxclass")
+        if "group" in kwargs:
+            self._group = kwargs.pop("group")
         if "entries" in kwargs:
             for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
@@ -3681,12 +3746,6 @@ class NXgroup(NXobject):
             del kwargs["attrs"]
         else:
             self._attrs = AttrDict(self)
-        if "nxclass" in kwargs:
-            self._class = kwargs["nxclass"]
-            del kwargs["nxclass"]
-        if "group" in kwargs:
-            self._group = kwargs["group"]
-            del kwargs["group"]
         for k,v in kwargs.items():
             try:
                 self[k] = v
@@ -3818,6 +3877,9 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXobject):
+                if group.nxfilemode is None and value._copyfile is not None:
+                    raise NeXusError(
+                        "Can only copy objects to another NeXus file.")
                 if value._group:
                     value = deepcopy(value)
                 value._group = group
@@ -4005,12 +4067,6 @@ class NXgroup(NXobject):
         """
         return name in self.entries   
 
-    def copy(self):
-        """
-        Returns a copy of the group's entries
-        """
-        return deepcopy(self)
-
     def clear(self):
         raise NeXusError("This method is not implemented for NXgroups")
 
@@ -4032,6 +4088,41 @@ class NXgroup(NXobject):
         """
         return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
                 if self.entries[i].nxclass==nxclass]
+
+    def move(self, item, group, name=None):
+        """Move an item in the group to another group within the same tree.
+        
+        Parameters
+        ----------
+        item : NXobject or str
+            Item to be moved, defined either by the item itself or by its name.
+        group : NXgroup or str
+            New group to contain the item.
+        name : str, optional
+            Name of the item in the new group. By default, the name is unchanged.
+        """
+        if is_text(item):
+            if item in self:
+                item = self[item]
+            else:
+                raise NeXusError("'%s' not in group" % item)
+        if is_text(group):
+            if group in self:
+                group = self[group]
+            elif group in self.nxroot:
+                group = self.nxroot[group]
+            else:
+                raise NeXusError("'%s' not in tree" % group)
+            if not isinstance(group, NXgroup):
+                raise NeXusError("Destination must be a valid NeXus group")
+        if item.nxroot != group.nxroot:
+            raise NeXusError("The item can only be moved within the same tree")
+        if name is None:
+            name = item.nxname
+        if name in group:
+            raise NeXusError("'%s' already in the destination group")
+        group[name] = item
+        del self[item.nxname]
 
     def insert(self, value, name='unknown'):
         """
@@ -4354,6 +4445,8 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
+            if not self._target.startswith('/'):
+                self._target = '/' + self._target
         self._link = None
 
     def __repr__(self):
@@ -4365,17 +4458,19 @@ class NXlink(NXobject):
 
     def __getattr__(self, name):
         if self.is_external():
-            if self.exists():
+            try:
                 with self.nxfile as f:
                     item = f.readpath(self.nxfilepath)
                 return getattr(item, name)
-            else:
-                raise NeXusError("Cannot read the external link to '%s'" % self._filename)
+            except Exception:
+                raise NeXusError("Cannot read the external link to '%s'" 
+                                  % self._filename)
         else:
             if self.nxlink:
                 return getattr(self.nxlink, name)
             else:
-                raise NeXusError("Cannot resolve the link to '%s'" % self._target)
+                raise NeXusError("Cannot resolve the link to '%s'" 
+                                  % self._target)
 
     def __setattr__(self, name, value):
         if name.startswith('_')  or name.startswith('nx'):
@@ -4441,7 +4536,7 @@ class NXlink(NXobject):
                 self._setclass(NXlinkfield)
             elif isinstance(item, NXgroup):
                 self._setclass(_getclass(item.nxclass, link=True))
-            self.copy(item)
+            self.copylink(item)
         return self._link
 
     @property
@@ -4507,7 +4602,7 @@ class NXlinkfield(NXlink, NXfield):
         else:
             self.nxlink.__setitem__(key, value)
 
-    def copy(self, field):
+    def copylink(self, field):
         self._value = field._value
         self._shape = field._shape
         self._dtype = field._dtype
@@ -4531,7 +4626,8 @@ class NXlinkgroup(NXlink, NXgroup):
 
     The real group will be accessible by following the link attribute.
     """
-    def __init__(self, target=None, file=None, name=None, abspath=False, **kwargs):
+    def __init__(self, target=None, file=None, name=None, abspath=False, 
+                 **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         if 'nxclass' in kwargs:
@@ -4568,7 +4664,7 @@ class NXlinkgroup(NXlink, NXgroup):
         except Exception:
             return NXlink(self)._str_tree(self, indent=indent)
         
-    def copy(self, group):
+    def copylink(self, group):
         self._entries = group._entries
         self._attrs = group._attrs
 
@@ -4606,7 +4702,8 @@ class NXroot(NXgroup):
                 f.reload()
             self.set_changed()
         else:
-            raise NeXusError("'%s' has no associated file to reload" % self.nxname)
+            raise NeXusError("'%s' has no associated file to reload" 
+                              % self.nxname)
 
     def is_modified(self):
         try:

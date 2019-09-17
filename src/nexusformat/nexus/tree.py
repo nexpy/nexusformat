@@ -1845,7 +1845,7 @@ class NXobject(object):
             NeXus object containing information for subsequent copies.
         """
         if self.nxfilemode is None:
-            raise NeXusError("Can only copy from a NeXus file.")
+            raise NeXusError("Can only copy objects saved to a NeXus file.")
         if name is None:
             name = self.nxname
         return NXobject(name=name, nxclass=self.nxclass, 
@@ -3877,6 +3877,9 @@ class NXgroup(NXobject):
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
             elif isinstance(value, NXobject):
+                if group.nxfilemode is None and value._copyfile is not None:
+                    raise NeXusError(
+                        "Can only copy objects to another NeXus file.")
                 if value._group:
                     value = deepcopy(value)
                 value._group = group

@@ -2169,10 +2169,11 @@ class NXfield(NXobject):
     2) Referencing a NeXus attribute
 
        If the name of the NeXus attribute is not the same as any of the Python
-       attributes listed above, or one of the methods listed below, or any of the
-       attributes defined for Numpy arrays, they can be referenced as if they were
-       a Python attribute of the NXfield. However, it is only possible to reference
-       attributes with one of the proscribed names using the 'attrs' dictionary.
+       attributes listed above, or one of the methods listed below, or any of
+       the attributes defined for Numpy arrays, they can be referenced as if
+       they were a Python attribute of the NXfield. However, it is only possible
+       to reference attributes with one of the proscribed names using the
+       'attrs' dictionary.
 
         >>> entry.sample.temperature.tree = 10.0
         >>> entry.sample.temperature.tree
@@ -2275,8 +2276,9 @@ class NXfield(NXobject):
                     value = slab.get([i,j,0],size)
 
     """
-    properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 'compression_opts',
-                  'fillvalue', 'fletcher32', 'maxshape', 'scaleoffset', 'shuffle']
+    properties = ['mask', 'dtype', 'shape', 'chunks', 'compression', 
+                  'compression_opts', 'fillvalue', 'fletcher32', 'maxshape', 
+                  'scaleoffset', 'shuffle']
 
     def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
                  group=None, attrs={}, **kwargs):
@@ -2286,16 +2288,21 @@ class NXfield(NXobject):
         self._value, self._dtype, self._shape = _getvalue(value, dtype, shape)
         _size = _getsize(self._shape)
         _h5opts = {}
-        _h5opts['chunks'] = kwargs.pop('chunks', True if _size>NX_MAXSIZE else None)
+        _h5opts['chunks'] = kwargs.pop('chunks', 
+                                       True if _size>NX_MAXSIZE else None)
         _h5opts['compression'] = kwargs.pop('compression', 
-                                            NX_COMPRESSION if _size>NX_MAXSIZE else None)
+                                            NX_COMPRESSION 
+                                            if _size>NX_MAXSIZE else None)
         _h5opts['compression_opts'] = kwargs.pop('compression_opts', None)
         _h5opts['fillvalue'] = kwargs.pop('fillvalue', None)
         _h5opts['fletcher32'] = kwargs.pop('fletcher32', None)
-        _h5opts['maxshape'] = _getmaxshape(kwargs.pop('maxshape', None), self._shape)
+        _h5opts['maxshape'] = _getmaxshape(kwargs.pop('maxshape', None), 
+                                           self._shape)
         _h5opts['scaleoffset'] = kwargs.pop('scaleoffset', None)
-        _h5opts['shuffle'] = kwargs.pop('shuffle', True if _size>NX_MAXSIZE else None)
-        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() if v is not None)
+        _h5opts['shuffle'] = kwargs.pop('shuffle', 
+                                        True if _size>NX_MAXSIZE else None)
+        self._h5opts = dict((k, v) for (k, v) in _h5opts.items() 
+                            if v is not None)
         attrs.update(kwargs)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None

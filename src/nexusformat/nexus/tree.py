@@ -793,6 +793,8 @@ class NXFile(object):
                 _target = _link.path
             elif 'target' in self.attrs:
                 _target = text(self.attrs['target'])
+                if not _target.startswith('/'):
+                    _target = '/' + _target
                 if _target == self.nxpath:
                     _target = None
         return _target, _filename, _abspath
@@ -4433,6 +4435,8 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
+            if not self._target.startswith('/'):
+                self._target = '/' + self._target
         self._link = None
 
     def __repr__(self):

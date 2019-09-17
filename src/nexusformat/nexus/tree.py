@@ -845,7 +845,7 @@ class NXFile(object):
                         return []
                 else:
                     self[self.nxparent].create_group(group.nxname)
-            if group.nxclass and group.nxclass != 'unknown':
+            if group.nxclass and group.nxclass != 'NXgroup':
                 self[self.nxpath].attrs['NX_class'] = group.nxclass
         links = []
         self._writeattrs(group.attrs)
@@ -901,7 +901,8 @@ class NXFile(object):
         elif data.dtype is not None:
             if data.nxname not in self[self.nxparent]:
                 self[self.nxparent].create_dataset(data.nxname, 
-                                                   shape=data.shape, dtype=data.dtype,
+                                                   shape=data.shape, 
+                                                   dtype=data.dtype,
                                                    **data._h5opts)
             try:
                 if data._value is not None:

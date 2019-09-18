@@ -3619,7 +3619,6 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        print(key, value)
                         raise NeXusError("Invalid path")
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus group marked as readonly")

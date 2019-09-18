@@ -2506,17 +2506,13 @@ class NXfield(NXobject):
             self._memfile['mask'][idx] = value.mask
     
     def _create_memfile(self):
-        """
-        Creates an HDF5 memory-mapped file to store the data
-        """
+        """Create an HDF5 memory-mapped file to store the data"""
         import tempfile
         self._memfile = h5.File(tempfile.mkstemp(suffix='.nxs')[1],
                                 driver='core', backing_store=False).file
 
     def _create_memdata(self):
-        """
-        Creates an HDF5 memory-mapped dataset to store the data
-        """
+        """Create an HDF5 memory-mapped dataset to store the data"""
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
@@ -5899,7 +5895,25 @@ nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations
-def load(filename, mode='r'):
+def load(filename, mode='r', **kwargs):
+    """Open or create a NeXus file and load its tree.
+    
+    Note
+    ----
+    This is aliased to `nxload` to avoid name clashes with other packages,
+    such as Numpy. `nxload` is the version included in wild card imports.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file to be opened or created.
+    mode : {'r', 'rw', 'r+', 'w', 'a'}, optional
+        File mode, by default 'r'
+    
+    Returns
+    -------
+    NXroot
+        NXroot object containing the NeXus tree.
     """
     Reads a NeXus file returning a tree of objects.
 
@@ -5912,8 +5926,16 @@ def load(filename, mode='r'):
 nxload = load
 
 def save(filename, group, mode='w', **kwargs):
-    """
-    Writes a NeXus file from a tree of objects.
+    """Write a NeXus file from a tree of NeXus objects.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file to be saved.
+    group : NXgroup
+        Group containing the tree to be saved.
+    mode : {'w', 'w-', 'a'}, optional
+        Mode to be used opening the file, by default 'w'.
     """
     if group.nxclass == "NXroot":
         root = group
@@ -5928,14 +5950,29 @@ def save(filename, group, mode='w', **kwargs):
 nxsave = save
 
 def duplicate(input_file, output_file, mode='w-', **kwargs):
+    """Duplicate an existing NeXus file.
+    
+    Parameters
+    ----------
+    input_file : str
+        Name of file to be copied.
+    output_file : str
+        Name of the new file.
+    mode : {'w', 'w-', 'a'}, optional
+        Mode to be used in opening the new file, by default 'w-'.
+    """
     with NXFile(input_file, 'r') as input, NXFile(output_file, mode) as output:
         output.copyfile(input, **kwargs)
 
 nxduplicate = duplicate
 
 def directory(filename):
-    """
-    Outputs contents of the named NeXus file.
+    """Print the contents of the named NeXus file.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file to be read.
     """
     root = load(filename)
     print(root.tree)
@@ -5944,13 +5981,12 @@ nxdir = directory
 
 
 def demo(argv):
-    """
-    Processes a list of command line commands.
-
-    'argv' should contain program name, command, arguments, where command is one
-    of the following:
-        copy fromfile.nxs tofile.nxs
-        ls f1.nxs f2.nxs ...
+    """Process a list of command line commands.
+    
+    Parameters
+    ----------
+    argv : list of str
+        List of commands.
     """
     if len(argv) > 1:
         op = argv[1]

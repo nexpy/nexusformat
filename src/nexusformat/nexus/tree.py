@@ -5900,10 +5900,24 @@ nxsetmaxsize = setmaxsize
 
 # File level operations
 def load(filename, mode='r', **kwargs):
-    """
-    Reads a NeXus file returning a tree of objects.
-
-    This is aliased to 'nxload' because of potential name clashes with Numpy
+    """Read or create a NeXus file returning a tree of objects.
+    
+    Note
+    ----
+    This is aliased to `nxload` to avoid name clashes with other packages,
+    such as Numpy. `nxload` is the version included in wild card imports.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file to be opened or created.
+    mode : {'r', 'rw', 'r+', 'w', 'a'}, optional
+        File mode, by default 'r'
+    
+    Returns
+    -------
+    NXroot
+        NXroot object containing the NeXus tree.
     """
     with NXFile(filename, mode, **kwargs) as f:
         root = f.readfile()

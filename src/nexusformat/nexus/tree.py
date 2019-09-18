@@ -5899,13 +5899,13 @@ nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations
-def load(filename, mode='r'):
+def load(filename, mode='r', **kwargs):
     """
     Reads a NeXus file returning a tree of objects.
 
     This is aliased to 'nxload' because of potential name clashes with Numpy
     """
-    with NXFile(filename, mode) as f:
+    with NXFile(filename, mode, **kwargs) as f:
         root = f.readfile()
     return root
 

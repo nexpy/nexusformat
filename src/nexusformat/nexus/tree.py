@@ -5915,10 +5915,6 @@ def load(filename, mode='r', **kwargs):
     NXroot
         NXroot object containing the NeXus tree.
     """
-    Reads a NeXus file returning a tree of objects.
-
-    This is aliased to 'nxload' because of potential name clashes with Numpy
-    """
     with NXFile(filename, mode) as f:
         root = f.readfile()
     return root

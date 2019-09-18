@@ -1,7 +1,5 @@
-import h5py as h5
-import numpy as np
+import os
 import pytest
-import six
 from nexusformat.nexus import *
 
 
@@ -12,10 +10,12 @@ field3 = NXfield((5,6), name="f3")
 
 def test_group_creation():
 
-    group1 = NXgroup()
+    group1 = NXgroup(name="group")
 
     assert len(group1) == 0
-    
+    assert group1.nxname == "group"
+    assert group1.nxgroup is None
+
     group2 = NXgroup(field1)
 
     assert len(group2) == 1
@@ -35,11 +35,13 @@ def test_group_creation():
 
     assert "f3" in group1["g2"]
     assert "g2/f3" in group1
+    assert group1["g2/f3"].nxgroup == group1["g2"]
 
     group3 = NXgroup(g1=group1)
 
     assert "g1/g2/f1" in group3
-    
+    assert group3["g1"].nxgroup == group3    
+
 
 def test_group_insertion():
 
@@ -60,9 +62,91 @@ def test_entry_creation():
     assert isinstance(group, NXentry)
 
 
+def test_group_class():
+
+    group = NXgroup()
+    group.nxclass = NXentry
+    
+    assert group.nxclass == "NXentry"
+    assert isinstance(group, NXentry)
+
+
 def test_group_title():
 
     group = NXentry()
     group["title"] = "Group Title"
 
     assert group.nxtitle == "Group Title"
+
+
+def test_group_move():
+
+    group = NXentry()
+    group['g1'] = NXgroup()
+    group['g1/f1'] = field1
+    group['g2'] = NXgroup()
+    group['g1'].move('f1', 'g2', name='f2')
+
+    assert 'g1/f1' not in group
+    assert 'g2/f2' in group
+
+    group['g2'].move(group['g2/f2'], group['g1'], name='f1')
+
+    assert 'g2/f2' not in group
+    assert 'g1/f1' in group
+
+    group['g3'] = NXgroup()
+    group['g2/f2'] = NXlink(target='g1/f1')
+    group['g2'].move('f2', 'g3', name='f3')
+
+    assert group['g3/f3'].nxlink == field1
+
+
+def test_group_copy(tmpdir):
+
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry())
+    root.save(filename, mode="w")
+
+    external_filename = os.path.join(tmpdir, "file2.nxs")
+    external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
+    external_root.save(external_filename, mode="w")
+
+    root["entry/g2"] = NXlink(target="entry/g1", file=external_filename)
+
+    copied_filename = os.path.join(tmpdir, "file3.nxs")
+    copied_root = NXroot()
+    copied_root.save(copied_filename, mode="w")
+
+    copied_root["entry"] = root["entry"].copy(expand_external=True)
+    
+    assert "entry" in copied_root
+    assert "g2" in copied_root["entry"]
+    assert "entry/g2/f1" in copied_root
+    assert not isinstance(copied_root["entry/g2"], NXlink)
+    assert copied_root["entry/g2/f1"][0] == 1
+    assert "a" in copied_root["entry/g2"].attrs
+    assert copied_root["entry/g2"].attrs["a"] == "b"
+
+
+def test_field_copy(tmpdir):
+
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry(NXgroup(name="g1")))
+    root.save(filename, mode="w")
+
+    external_filename = os.path.join(tmpdir, "file2.nxs")
+    external_root = NXroot(NXentry(NXgroup(field1, name="g2")))
+    external_root.save(external_filename, mode="w")
+
+    root["entry/g1/f1"] = NXlink(target="entry/g2/f1", file=external_filename)
+
+    copied_filename = os.path.join(tmpdir, "file3.nxs")
+    copied_root = NXroot(NXentry(NXgroup(name="g3")))
+    copied_root.save(copied_filename, mode="w")
+
+    copied_root["entry/g3/f1"] = root["entry/g1/f1"].copy()
+    
+    assert "entry/g3/f1" in copied_root
+    assert not isinstance(copied_root["entry/g3/f1"], NXlink)
+    assert copied_root["entry/g3/f1"][0] == 1

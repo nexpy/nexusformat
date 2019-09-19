@@ -402,8 +402,7 @@ class NeXusError(Exception):
 
 
 class NXFile(object):
-    """
-    Structure-based interface to the NeXus file API.
+    """Interface for input/output to NeXus files using h5py.
 
     Usage::
 
@@ -414,7 +413,8 @@ class NXFile(object):
       file.writefile(root)
         - write a NeXus tree to the file.
 
-    Example::
+    Example
+    -------
 
       nx = NXFile('REF_L_1346.nxs','r')
       root = nx.readfile()

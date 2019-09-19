@@ -493,6 +493,10 @@ class NXFile(object):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
                                             self._mode)
 
+    def __getattr__(self, name):
+        """Return an h5py File attribute if not in NXFile"""
+        return getattr(self.file, name)
+
     def __getitem__(self, key):
         """Return an object from the NeXus file using its path."""
         return self.file.get(key)
@@ -501,9 +505,9 @@ class NXFile(object):
         """Set the value of an object defined by its path in the NeXus file."""
         self.file[key] = value
 
-    def __delitem__(self, name):
+    def __delitem__(self, key):
         """ Delete an object from the file. """
-        del self.file[name]
+        del self.file[key]
 
     def __contains__(self, key):
         """Implement 'k in d' test for entries in the file."""
@@ -665,7 +669,7 @@ class NXFile(object):
 
     def is_open(self):
         if self._file is not None:
-            return self._file.id.valid
+            return True if self._file.id.valid else False
         else:
             return False
 

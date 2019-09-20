@@ -402,8 +402,7 @@ class NeXusError(Exception):
 
 
 class NXFile(object):
-    """
-    Structure-based interface to the NeXus file API.
+    """Interface for input/output to NeXus files using h5py.
 
     Usage::
 
@@ -414,7 +413,8 @@ class NXFile(object):
       file.writefile(root)
         - write a NeXus tree to the file.
 
-    Example::
+    Example
+    -------
 
       nx = NXFile('REF_L_1346.nxs','r')
       root = nx.readfile()
@@ -493,6 +493,10 @@ class NXFile(object):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
                                             self._mode)
 
+    def __getattr__(self, name):
+        """Return an h5py File attribute if not in NXFile"""
+        return getattr(self.file, name)
+
     def __getitem__(self, key):
         """Return an object from the NeXus file using its path."""
         return self.file.get(key)
@@ -501,9 +505,9 @@ class NXFile(object):
         """Set the value of an object defined by its path in the NeXus file."""
         self.file[key] = value
 
-    def __delitem__(self, name):
+    def __delitem__(self, key):
         """ Delete an object from the file. """
-        del self.file[name]
+        del self.file[key]
 
     def __contains__(self, key):
         """Implement 'k in d' test for entries in the file."""
@@ -665,7 +669,7 @@ class NXFile(object):
 
     def is_open(self):
         if self._file is not None:
-            return self._file.id.valid
+            return True if self._file.id.valid else False
         else:
             return False
 
@@ -3857,7 +3861,6 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        print(key, value)
                         raise NeXusError("Invalid path")
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus group marked as readonly")
@@ -5900,13 +5903,27 @@ nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations
-def load(filename, mode='r'):
+def load(filename, mode='r', **kwargs):
+    """Read or create a NeXus file returning a tree of objects.
+    
+    Note
+    ----
+    This is aliased to `nxload` to avoid name clashes with other packages,
+    such as Numpy. `nxload` is the version included in wild card imports.
+    
+    Parameters
+    ----------
+    filename : str
+        Name of the file to be opened or created.
+    mode : {'r', 'rw', 'r+', 'w', 'a'}, optional
+        File mode, by default 'r'
+    
+    Returns
+    -------
+    NXroot
+        NXroot object containing the NeXus tree.
     """
-    Reads a NeXus file returning a tree of objects.
-
-    This is aliased to 'nxload' because of potential name clashes with Numpy
-    """
-    with NXFile(filename, mode) as f:
+    with NXFile(filename, mode, **kwargs) as f:
         root = f.readfile()
     return root
 

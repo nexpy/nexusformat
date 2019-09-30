@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import warnings
 from nexusformat.nexus import *
 
 x = NXfield(2 * np.linspace(0.0, 10.0, 11, dtype=np.float64), name="x")
@@ -141,3 +142,15 @@ def test_data_slabs():
 
     assert slab.plot_shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_axes == [y[1:-1], x[1:-1]]
+
+
+def test_data_smoothing():
+
+    warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+    data = NXdata(np.sin(x), (x))
+    smooth_data = data.smooth(n=100, xmin=x.min(), xmax=x.max())
+
+    assert smooth_data.nxsignal.shape == (100,)
+    assert smooth_data.nxaxes[0].shape == (100,)
+    assert smooth_data.nxsignal[0] == np.sin(x)[0]
+    assert smooth_data.nxsignal[-1] == np.sin(x)[-1]

@@ -1631,6 +1631,7 @@ class NXobject(object):
     _changed = True
     _backup = None
     _file_modified = False
+    _smoothing = None
 
     def __init__(self, *args, **kwargs):
         self._name = kwargs.pop("name", None)
@@ -4254,7 +4255,7 @@ class NXgroup(NXobject):
             raise NeXusError(
                 "Operation not allowed for groups of unknown class")
         y = signal / signal.sum()
-        x = centers(y, axes)[0]
+        x = centers(axes[0], y.shape[0])
         if center:
             c = center
         else:
@@ -5300,6 +5301,48 @@ class NXdata(NXgroup):
 
     __div__ = __truediv__
 
+    def prepare_smoothing(self):
+        """Create an interpolation function to use when smoothing 1D data."""
+        if self.nxsignal.ndim > 1:
+            raise NeXusError("Can only smooth 1D data")
+        from scipy.interpolate import interp1d
+        signal, axes = self.nxsignal, self.nxaxes
+        x, y = centers(axes[0], signal.shape[0]), signal
+        self._smoothing = interp1d(x, y, kind='cubic')
+
+    def smooth(self, n=1000, xmin=None, xmax=None):
+        """Return NXdata group containing smoothed data.
+        
+        Parameters
+        ----------
+        n : int, optional
+            Number of points in the smoothed data, by default 1000
+        xmin : float, optional
+            Minimum x-value for the smoothed data, by default None
+        xmax : float, optional
+            Maximum x-value for the smoothed data, by default None
+        
+        Returns
+        -------
+        NXdata
+            NeXus group containing the smoothed data
+        """
+        if self._smoothing is None:
+            self.prepare_smoothing()
+        signal, axis = self.nxsignal, self.nxaxes[0]
+        x = centers(axis, signal.shape[0])
+        if xmin is None:
+            xmin = x.min()
+        else:
+            xmin = max(xmin, x.min())
+        if xmax is None:
+            xmax = x.max()
+        else:
+            xmax = min(xmax, x.max())
+        xs = NXfield(np.linspace(xmin, xmax, n), name=axis.nxname)
+        ys = NXfield(self._smoothing(xs), name=signal.nxname)
+        return NXdata(ys, xs)      
+
     def project(self, axes, limits, summed=True):
         """
         Projects the data along a specified 1D axis or 2D axes summing over the
@@ -5789,19 +5832,24 @@ def convert_index(idx, axis):
         idx = axis.index(idx)
     return idx
 
-def centers(signal, axes):
-    """
-    Returns the centers of the axes.
+def centers(axis, dimlen):
+    """Return the centers of the axis bins.
 
-    This works regardless if the axes contain bin boundaries or centers.
+    This works regardless if the axis contains bin boundaries or 
+    centers.
+    
+    Parameters
+    ----------
+    dimlen : int
+        Size of the signal dimension. If this is one more than the axis 
+        size, it is assumed the axis contains bin boundaries.
     """
-    def findc(axis, dimlen):
-        if axis.shape[0] == dimlen+1:
-            return (axis.nxdata[:-1] + axis.nxdata[1:]) / 2
-        else:
-            assert axis.shape[0] == dimlen
-            return axis.nxdata
-    return [findc(a,signal.shape[i]) for i,a in enumerate(axes)]
+    ax = axis.astype(np.float32)
+    if ax.shape[0] == dimlen+1:
+        return (ax[:-1] + ax[1:])/2
+    else:
+        assert ax.shape[0] == dimlen
+        return ax
 
 def getlock():
     """Return the number of seconds before a lock acquisition times out.

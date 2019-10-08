@@ -11,27 +11,30 @@
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
 
-"""
-The `nexus.tree` modules are designed to accomplish two goals:
+"""Module to read, write, analyze, manipulate, and visualize NeXus data.
+
+This is designed to accomplish two goals:
 
     1. To provide convenient access to existing data contained in NeXus files.
     2. To enable new NeXus data to be created and manipulated interactively.
 
 These goals are achieved by mapping hierarchical NeXus data structures directly
-into python objects, which either represent NeXus groups or NeXus fields.
-Entries in a group are referenced much like fields in a class are referenced in
-python. The entire data hierarchy can be referenced at any time, whether the
-NeXus data has been loaded in from an existing NeXus file or created dynamically
-within the python session. This provides a natural scripting interface to NeXus 
-data.
+into Python objects, which represent NeXus groups, fields, or attributes.
+Entries in a group are referenced as a dictionary containing other groups or 
+fields. The entire data hierarchy can be referenced at any time, whether the
+NeXus data has been loaded from an existing NeXus file or created dynamically
+within the Python session. This provides a natural scripting interface for the 
+creation, manipulation, and visualization of NeXus data.
 
 Example 1: Loading a NeXus file
 -------------------------------
-The following commands loads NeXus data from a file, displays (some of) the
-contents as a tree, and then accesses individual data items
+The following commands loads NeXus data from a file, displays the contents as a 
+tree, and then accesses individual data items. Note that all the classes and 
+functions returned by the wildcard import in the example start with 'NX' or 
+'nx' so name clashes with other modules are unlikely. 
 
-    >>> from nexusformat import nexus as nx
-    >>> a=nx.load('sns/data/ARCS_7326.nxs')
+    >>> from nexusformat.nexus import *
+    >>> a=nxload('sns/data/ARCS_7326.nxs')
     >>> print a.tree
     root:NXroot
       @HDF5_Version = 1.8.2
@@ -58,19 +61,19 @@ contents as a tree, and then accesses individual data items
     .
     .
     .
-    >>> a.entry.run_number
+    >>> a['entry/run_number']
     NXfield(7326)
 
-So the tree returned from :func:`load()` has an entry for each group, field and
+The tree returned from :func:`nxload()` has an entry for each group, field and
 attribute.  You can traverse the hierarchy using the names of the groups.  For
-example, tree.entry.instrument.detector.distance is an example of a field
+example, tree['entry/instrument/detector/distance'] is an example of a field
 containing the distance to each pixel in the detector. Entries can also be
-referenced by NXclass name, such as ``tree.NXentry[0].instrument``. Since there may
-be multiple entries of the same NeXus class, the ``NXclass`` attribute returns a
-(possibly empty) list.
+referenced by NXclass name, such as ``tree.NXentry[0].instrument``. Since there 
+may be multiple entries of the same NeXus class, the ``NXclass`` attribute 
+returns a (possibly empty) list.
 
-The :func:`load()` and :func:`save()` functions are implemented using the class
-`nexus.tree.NXFile`, a subclass of :class:`h5py.File`.
+The :func:`nxload()` and :func:`nxsave()` functions are implemented using the 
+:class:`NXFile` class, a subclass of :class:`h5py.File`.
 
 Example 2: Creating a NeXus file dynamically
 --------------------------------------------
@@ -85,23 +88,29 @@ file. The data are first created as Numpy arrays
 Then, a NeXus data group is created and the data inserted to produce a
 NeXus-compliant structure that can be saved to a file
 
-    >>> root=nx.NXroot(NXentry())
+    >>> root=NXroot(NXentry())
     >>> print root.tree
     root:NXroot
       entry:NXentry
-    >>> root.entry.data=nx.NXdata(z,[x,y])
+    >>> root.entry.data=NXdata(z,[x,y])
+
+Note that in this example, we have used the alternative attribute form
+for accessing objects in the hierarchical structure, *i.e.*, 
+`root.entry.data` instead of `root['entry/data']`. The attribute form is
+faster to type interactively, but the dictionary form is safer for scripts
+when there is a chance of clashes with class attributes or methods.
 
 Additional metadata can be inserted before saving the data to a file.
 
-    >>> root.entry.sample=nx.NXsample()
+    >>> root.entry.sample=NXsample()
     >>> root.entry.sample.temperature = 40.0
     >>> root.entry.sample.temperature.units = 'K'
     >>> root.save('example.nxs')
 
-:class:`NXfield` objects have much of the functionality of Numpy arrays. They may be used
-in simple arithmetic expressions with other NXfields, Numpy arrays or scalar
-values and will be cast as ndarray objects if used as arguments in Numpy
-modules.
+:class:`NXfield` objects have much of the functionality of Numpy arrays. They 
+may be used in simple arithmetic expressions with other NXfields, Numpy 
+arrays or scalar values and will be cast as ndarray objects if used as 
+arguments in Numpy modules.
 
     >>> x=nx.NXfield(np.linspace(0,10.0,11))
     >>> x
@@ -113,8 +122,8 @@ modules.
         0.41211849, -0.54402111])
 
 If the arithmetic operation is assigned to a NeXus group attribute, it will be
-automatically cast as a valid :class:`NXfield` object with the type and shape determined
-by the Numpy array type and shape.
+automatically cast as a valid :class:`NXfield` object with the type and shape 
+determined by the Numpy array type and shape.
 
     >>> entry.data.result = np.sin(x)
     >>> entry.data.result
@@ -146,15 +155,17 @@ Fields (:class:`NXfield`) have attributes for accessing data:
     * dtype    data type
     * nxdata   data in the field
 
-Linked fields or groups (:class:`NXlink`) have attributes for accessing the link::
+Linked fields or groups (:class:`NXlink`) have attributes for accessing the 
+link:
     * nxlink   reference to the linked field or group
 
 NeXus attributes (:class:`NXattr`) have a type and a value only::
     * dtype    attribute type
     * nxdata   attribute data
 
-There is a subclass of :class:`NXgroup` for each group class defined by the NeXus standard,
-so it is possible to create an :class:`NXgroup` of NeXus :class:`NXsample` directly using:
+There is a subclass of :class:`NXgroup` for each group class defined by the 
+NeXus standard, so it is possible to create an :class:`NXgroup` of NeXus 
+:class:`NXsample` directly using:
 
     >>> sample = NXsample()
 
@@ -167,8 +178,8 @@ attribute name when it is assigned as a group attribute, e.g.,
     sample1
 
 You can traverse the tree by component class instead of component name. Since
-there may be multiple components of the same class in one group you will need to
-specify which one to use.  For example::
+there may be multiple components of the same class in one group you will need 
+to specify which one to use.  For example::
 
     tree.NXentry[0].NXinstrument[0].NXdetector[0].distance
 
@@ -177,24 +188,11 @@ Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 
 
-Unit Conversion
----------------
-Data can be stored in the NeXus file in a variety of units, depending on which
-facility is storing the file.  This makes life difficult for reduction and
-analysis programs which must know the units they are working with.  Our solution
-to this problem is to allow the reader to retrieve data from the file in
-particular units.  For example, if detector distance is stored in the file using
-millimeters you can retrieve them in meters using::
-
-    entry.instrument.detector.distance.convert('m')
-
-See `nexus.unit` for more details on the unit formats supported.
-
 Reading and Writing Slabs
 -------------------------
-If the size of the :class:`NXfield` array is too large to be loaded into memory (as 
-defined by NX_MEMORY), the data values should be read or written in as a series 
-of slabs represented by :class:`NXfield` slices::
+If the size of the :class:`NXfield` array is too large to be loaded into memory 
+(as defined by NX_MEMORY), the data values should be read or written in as a 
+series of slabs represented by :class:`NXfield` slices::
 
  >>> for i in range(Ni):
          for j in range(Nj):
@@ -204,27 +202,29 @@ of slabs represented by :class:`NXfield` slices::
 
 Plotting NeXus data
 -------------------
-There is a :meth:`plot()` method for groups that automatically looks for 'signal' and
-'axes' attributes within the group in order to determine what to plot. These are
-defined by the 'nxsignal' and 'nxaxes' properties of the group. This means that
-the method will determine whether the plot should be one- or two- dimensional.
-For higher than two dimensions, only the top slice is plotted by default.
+There is a :meth:`plot()` method for groups that automatically looks for
+'signal' and 'axes' attributes within the group in order to determine what to
+plot. These are defined by the 'nxsignal' and 'nxaxes' properties of the group.
+This means that the method will determine whether the plot should be one- or
+two- dimensional. For higher than two dimensions, only the top slice is plotted
+by default.
 
 The plot method accepts as arguments the standard matplotlib.pyplot.plot format 
 strings to customize one-dimensional plots, axis and scale limits, and will
 transmit keyword arguments to the matplotlib plotting methods.
 
-    >>> a=nx.load('chopper.nxs')
+    >>> a=nxload('chopper.nxs')
     >>> a.entry.monitor1.plot()
     >>> a.entry.monitor2.plot('r+', xmax=2600)
     
-It is possible to plot over the existing figure with the :meth:`oplot()` method and to
-plot with logarithmic intensity scales with the :meth:`logplot()` method. The x- and
-y-axes can also be rendered logarithmically using the `logx` and `logy` keywords.
+It is possible to plot over the existing figure with the :meth:`oplot()` method
+and to plot with logarithmic intensity scales with the :meth:`logplot()` method.
+The x- and y-axes can also be rendered logarithmically using the `logx` and
+`logy` keywords.
 
-Although the :meth:`plot()` method uses matplotlib by default to plot the data, you can replace
-this with your own plotter by setting `nexus.NXgroup._plotter` to your own plotter
-class.  The plotter class has one method::
+Although the :meth:`plot()` method uses matplotlib by default to plot the data,
+you can replace this with your own plotter by setting `nexus.NXgroup._plotter`
+to your own plotter class.  The plotter class has one method::
 
     plot(signal, axes, entry, title, format, **kwargs)
 
@@ -425,9 +425,7 @@ class NXFile(object):
 
     Note that the large datasets are not loaded immediately.  Instead, the
     when the data set is requested, the file is reopened, the data read, and
-    the file closed again.  open/close are available for when we want to
-    read/write slabs without the overhead of moving the file cursor each time.
-    The :class:`NXdata` objects in the returned tree hold the object values.
+    the file closed again. 
     """
 
     def __init__(self, name, mode='r', **kwargs):
@@ -514,6 +512,13 @@ class NXFile(object):
         return self.file.__contains__(key)
 
     def __enter__(self):
+        """Open and, optionally, lock a NeXus file for multiple operations.
+
+        Returns
+        -------
+        NXFile
+            Current NXFile instance.
+        """
         if self._with_count == 0:
             self.acquire_lock()
             self.open()
@@ -521,12 +526,14 @@ class NXFile(object):
         return self
 
     def __exit__(self, *args):
+        """Close the NeXus file and, if necessary, release the lock."""
         if self._with_count == 1:
             self.close()
             self.release_lock()
         self._with_count -= 1
 
     def __del__(self):
+        """Close the file, release any lock, and delete the NXFile instance."""
         self.close()
         self.release_lock()
 
@@ -550,6 +557,11 @@ class NXFile(object):
         be set to turn on file locking, either by setting it to a new
         timeout value or by setting it to `True`, in which case a default 
         timeout of 10 seconds is used.
+
+        Note
+        ----
+        The default value of `NX_LOCK` can be set using the `nxsetlock` 
+        function.
 
         Returns
         -------
@@ -651,9 +663,11 @@ class NXFile(object):
         return os.path.exists(self.lock_file)
 
     def get(self, *args, **kwargs):
+        """Return the value defined by the `h5py` object path."""
         return self.file.get(*args, **kwargs)
 
     def open(self, **kwargs):
+        """Open the NeXus file for input/output."""
         if not self.is_open():
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
@@ -662,23 +676,35 @@ class NXFile(object):
             self.nxpath = '/'
 
     def close(self):
+        """Close the NeXus file.
+        
+        Note
+        ----
+        The file modification time of the root object is updated.
+        """
         if self.is_open():
             self._file.close()
         if self._root:
             self._root._mtime = self.mtime
 
     def is_open(self):
+        """Return True if the file is open for input/output in h5py."""
         if self._file is not None:
             return True if self._file.id.valid else False
         else:
             return False
 
     def readfile(self):
-        """
-        Reads the NeXus file structure from the file and returns a tree of 
-        NXobjects.
+        """Read the NeXus file and return a tree of NeXus objects.
 
-        Large datasets are not read until they are needed.
+        The hierarchy is traversed using `nxpath` to record the current 
+        location within the file. It is initially set to the root object, 
+        *i.e.*, '/'.
+
+        Note
+        ----
+        This lazily loads all the file objects, *i.e.*, the values stored in
+        large dataset arrays are not read until they are needed.
         """
         _mode = self._mode
         self._mode = 'r'
@@ -693,6 +719,13 @@ class NXFile(object):
         return root
 
     def _readattrs(self):
+        """Read an object's attributes
+        
+        Returns
+        -------
+        dict
+            Dictionary of attribute values.
+        """
         item = self.get(self.nxpath)
         if item is not None:
             attrs = {}
@@ -706,6 +739,13 @@ class NXFile(object):
             return {}
 
     def _readchildren(self):
+        """Read the children of the group defined by the current path.
+        
+        Returns
+        -------
+        list of NXfield or NXgroup
+            The objects contained within the current group.
+        """
         children = {}
         items = self[self.nxpath].items()
         for name, value in items:
@@ -722,8 +762,17 @@ class NXFile(object):
         return children
 
     def _readgroup(self, name):
-        """
-        Reads the group with the current path and returns it as an NXgroup.
+        """Return the group at the current path.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the group.
+        
+        Returns
+        -------
+        NXgroup or NXlinkgroup
+            Group or link defined by the current path.
         """
         attrs = self._readattrs()
         nxclass = self._getclass(attrs.pop('NX_class', 'NXgroup'))
@@ -744,8 +793,17 @@ class NXFile(object):
         return group
 
     def _readdata(self, name):
-        """
-        Reads a data object and returns it as an NXfield or NXlink.
+        """Read a dataset and return the NXfield or NXlink at the current path.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the field or link.
+        
+        Returns
+        -------
+        NXfield or NXlinkfield
+            Field or link defined by the current path.
         """
         _target, _filename, _abspath = self._getlink()
         if _target is not None:
@@ -766,11 +824,20 @@ class NXFile(object):
                            attrs=attrs)
 
     def _readlink(self, name):
-        """
-        Reads an object that is an undefined link.
+        """Read an object that is an undefined link at the current path.
         
         This is usually an external link to a non-existent file. It can also be
-        a link to an unresolved external link.
+        a link to an external file that has not yet been resolved.
+        
+        Parameters
+        ----------
+        name : str
+            Name of the object link.
+        
+        Returns
+        -------
+        NXlink
+            Link defined by the current path.
         """
         _target, _filename, _abspath = self._getlink()
         if _target is not None:
@@ -780,6 +847,22 @@ class NXFile(object):
             return None
  
     def _getclass(self, nxclass):
+        """Return a valid NeXus class from the object attribute.
+
+        This function converts the `NX_class` attribute of an object in the
+        NeXus file and converts it to a valid string. If no attribute is 
+        found, the class is set to 'NXgroup'.
+        
+        Parameters
+        ----------
+        nxclass : str
+            Attribute defining the object class.
+        
+        Returns
+        -------
+        str
+            Valid NeXus class.
+        """
         nxclass = text(nxclass)
         if nxclass is None:
             return 'NXgroup'
@@ -787,6 +870,14 @@ class NXFile(object):
             return nxclass
 
     def _getlink(self):
+        """Return the link target path and filename.
+        
+        Returns
+        -------
+        str, str, bool
+            Link path, filename, and boolean that is True if an absolute file
+            path is given.
+        """
         _target, _filename, _abspath = None, None, False
         if self.nxpath != '/':
             _link = self.get(self.nxpath, getlink=True)
@@ -804,11 +895,14 @@ class NXFile(object):
         return _target, _filename, _abspath
 
     def writefile(self, root):
-        """
-        Writes the NeXus file structure to a file.
+        """Write the whole NeXus tree to the file.
 
-        The file is assumed to start empty. Updating individual objects can be
-        done using the h5py interface.
+        The file is assumed to start empty.
+        
+        Parameters
+        ----------
+        root : NXroot
+            Root group of the NeXus tree.
         """
         links = []
         self.nxpath = ""
@@ -822,10 +916,15 @@ class NXFile(object):
         self._rootattrs()
 
     def _writeattrs(self, attrs):
-        """
-        Writes the attributes for the group/data with the current path.
+        """Write the attributes for the group or field with the current path.
 
-        Null attributes are ignored.
+        The attributes are stored as NXattr entries in an AttrDict dictionary.
+        The attribute values are contained in the NXattr `nxdata` attribute.
+
+        Parameters
+        ----------
+        attrs : AttrDict
+            Dictionary of group or field attributes.
         """
         if self[self.nxpath] is not None:
             for name, value in attrs.items():
@@ -833,12 +932,21 @@ class NXFile(object):
                     self[self.nxpath].attrs[name] = value.nxdata
 
     def _writegroup(self, group):
-        """
-        Writes the given group structure, including the data.
+        """Write a group and its children to the NeXus file.
 
         Internal NXlinks cannot be written until the linked group is created, 
         so this routine returns the set of links that need to be written.
         Call writelinks on the list.
+        
+        Parameters
+        ----------
+        group : NXgroup
+            NeXus group to be written.
+        
+        Returns
+        -------
+        list
+            List of links.
         """
         if group.nxpath != '' and group.nxpath != '/':
             self.nxpath = self.nxpath + '/' + group.nxname
@@ -871,12 +979,21 @@ class NXFile(object):
         return links
 
     def _writedata(self, data):
-        """
-        Writes the given data to a file.
+        """Write the field to the NeXus file.
 
         NXlinks cannot be written until the linked group is created, so
         this routine returns the set of links that need to be written.
         Call writelinks on the list.
+        
+        Parameters
+        ----------
+        data : NXfield
+            NeXus field to be written to the file.
+        
+        Returns
+        -------
+        list
+            List of links.
         """
         self.nxpath = self.nxpath + '/' + data.nxname
         # If the data is linked then
@@ -920,6 +1037,18 @@ class NXFile(object):
         return []
 
     def _writeexternal(self, item):
+        """Create an external link.
+
+        Note
+        ----
+        The filename is converted to a path relative to the current NeXus
+        file, unless `item._abspath` is set to True.
+        
+        Parameters
+        ----------
+        item : NXlinkgroup or NXlinkfield
+            NeXus group or field containing the link target and filename.
+        """
         self.nxpath = self.nxpath + '/' + item.nxname
         if item._abspath:
             filename = item.nxfilename
@@ -932,10 +1061,14 @@ class NXFile(object):
         self.nxpath = self.nxparent
 
     def _writelinks(self, links):
-        """
-        Creates links within the NeXus file.
+        """Creates links within the NeXus file.
 
         These are defined by the set of pairs returned by _writegroup.
+        
+        Parameters
+        ----------
+        links : list ot tuples
+            List of tuples containing the paths to the links and their targets. 
         """
         # link sources to targets
         for path, target in links:
@@ -945,10 +1078,29 @@ class NXFile(object):
                 self[path] = self[target]
 
     def readpath(self, path):
+        """Read the object defined by the given path.
+        
+        Parameters
+        ----------
+        path : str
+            Path to the NeXus object.
+        
+        Returns
+        -------
+        NXgroup or NXfield
+            The group or field defined by the specified path.
+        """
         self.nxpath = path
         return self.readitem()
 
     def readitem(self):
+        """Read the object defined by the current path.
+        
+        Returns
+        -------
+        NXgroup or NXfield
+            The group or field defined by the current path.
+        """
         item = self.get(self.nxpath)
         if isinstance(item, self.h5.Group):
             return self._readgroup(self.nxname)
@@ -956,6 +1108,22 @@ class NXFile(object):
             return self._readdata(self.nxname)
 
     def readvalues(self, attrs=None):
+        """Read the values of the field at the current path.
+
+        Note
+        ----
+        The values are only read if the array size is less than 10000.
+        
+        Parameters
+        ----------
+        attrs : dict, optional
+            Attribute of the field, by default None
+        
+        Returns
+        -------
+        tuple
+            Value, shape, dtype, and attributes of the field 
+        """
         field = self.get(self.nxpath)
         if field is None:
             return None, None, None, {}
@@ -975,26 +1143,84 @@ class NXFile(object):
         return value, shape, dtype, attrs
 
     def readvalue(self, path, idx=()):
+        """Return the array stored in the NeXus file at the specified path.
+        
+        Parameters
+        ----------
+        path : str
+            Path to the NeXus field.
+        idx : tuple, optional
+            Slice of field to be returned, by default the whole field.
+        
+        Returns
+        -------
+        array-like or str
+            Array or string stored in the NeXus file at the current path.
+        """
         field = self.get(path)
         if field is not None:
             return field[idx]
         return None
 
     def writevalue(self, path, value, idx=()):
+        """Write a field value at the specified path in the file.
+        
+        Parameters
+        ----------
+        path : str
+            Specified path
+        value : NXfield or array-like
+            Value to be written at the specified path.
+        idx : tuple, optional
+            Slice to be written, by default the whole field.
+        """
         self[path][idx] = value
 
     def move(self, source, destination):
+        """Move an object defined by its path to another location.
+
+        This is an interface to the `h5py.Group` move function.
+        
+        Parameters
+        ----------
+        source : str
+            Path to the object to be moved.
+        destination : str
+            Path of the new destination.
+        """
         self.file.move(source, destination)
 
     def copy(self, source, destination, **kwargs):
+        """Copy an object defined by its path to another location.
+        
+        This is an interface to the `h5py.Group` copy function. All the
+        `h5py` keyword arguments can be used.
+        
+        Parameters
+        ----------
+        source : str
+            Path to the object to be copied.
+        destination : str
+            Path of the new copy.
+        """
         self.file.copy(source, destination, **kwargs)
 
     def copyfile(self, input_file, **kwargs):
+        """Copy an entire NeXus file to another file.
+
+        All the `h5py.Group.copy()` keyword arguments can be used.
+        
+        Parameters
+        ----------
+        input_file : NXFile
+            NeXus file to be copied.
+        """
         for entry in input_file['/']:
             input_file.copy(entry, self['/'], **kwargs) 
         self._rootattrs()
 
     def _rootattrs(self):
+        """Write root attributes to the NeXus file."""
         from datetime import datetime
         self.file.attrs['file_name'] = self.filename
         self.file.attrs['file_time'] = datetime.now().isoformat()
@@ -1004,6 +1230,19 @@ class NXFile(object):
         self.file.attrs['nexusformat_version'] = __version__
 
     def update(self, item):
+        """Update the specifed object in the NeXus file.
+
+        Note
+        ----
+        If the specified object is an NXobject, it is assumed to contain the
+        path, file, and keyword arguments to be used to copy it to the 
+        specified item path, using the `h5py.Group` copy function. 
+        
+        Parameters
+        ----------
+        item : NXgroup or NXfield or AttrDict
+            Group, field or attributes to be updated in the NeXus file.
+        """
         self.nxpath = item.nxpath
         if isinstance(item, AttrDict):
             self._writeattrs(item)
@@ -1033,6 +1272,10 @@ class NXFile(object):
             self.nxpath = item.nxpath
 
     def reload(self):
+        """Reload the entire NeXus file.
+
+        This may be necessary if another process has modified the file on disk.
+        """
         self.nxpath = '/'
         self._root._entries = self._readchildren()
         for entry in self._root._entries:
@@ -1041,22 +1284,33 @@ class NXFile(object):
         self._root._file_modified = False
 
     def rename(self, old_path, new_path):
+        """Rename an object defined by its path to a new path.
+        
+        Parameters
+        ----------
+        old_path : str
+            Old path to the NeXus object.
+        new_path : str
+            New path to the NeXus object.
+        """
         if old_path != new_path:
             self.file['/'].move(old_path, new_path)
 
     @property
     def filename(self):
-        """File name on disk"""
+        """The file name on disk."""
         return self.file.filename
 
     @property
     def file(self):
+        """The h5py File object, which is opened if necessary."""
         if not self.is_open():
             self.open()
         return self._file
 
     @property
     def mode(self):
+        """File mode of the NeXus file."""
         return self._mode
 
     @mode.setter
@@ -1069,10 +1323,12 @@ class NXFile(object):
 
     @property
     def attrs(self):
+        """Attributes of the object defined by the current path."""
         return self._readattrs()
 
     @property
     def nxpath(self):
+        """Current path in the NeXus file."""
         return self._path.replace('//','/')
 
     @nxpath.setter
@@ -1081,10 +1337,12 @@ class NXFile(object):
 
     @property
     def nxparent(self):
+        """Path to the parent of the current path."""
         return '/' + self.nxpath[:self.nxpath.rfind('/')].lstrip('/')
 
     @property
     def nxname(self):
+        """Name of the object at the current path"""
         return self.nxpath[self.nxpath.rfind('/')+1:]
 
 

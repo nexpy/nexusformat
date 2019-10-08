@@ -1743,11 +1743,11 @@ class NXattr(object):
 
     Attributes
     ----------
-    nxvalue : string, Numpy scalar, or Numpy ndarray
+    nxvalue : str, scalar, or array-like
         The value of the NeXus attribute modified as described below.
-    nxdata : string, Numpy scalar, or Numpy ndarray
+    nxdata : str, scalar, or array-like
         The unmodified value of the NeXus attribute.
-    dtype : string
+    dtype : str
         The data type of the NeXus attribute value.
     shape : tuple
         The shape of the NeXus attribute value.
@@ -1813,7 +1813,7 @@ class NXattr(object):
 
     @property
     def nxvalue(self):
-        """Returns the attribute value.
+        """The attribute value for use in Python scripts.
         
         This is the value stored in the NeXus file, with the following
         exceptions.
@@ -1842,15 +1842,17 @@ class NXattr(object):
 
     @property
     def nxdata(self):
-        """Returns the unmodified attribute value."""
+        """The attribute value as stored in the NeXus file."""
         return self._value
 
     @property
     def dtype(self):
+        """The attribute dtype"""
         return self._dtype
 
     @property
     def shape(self):
+        """The attribute shape."""
         try:
             return tuple([int(i) for i in self._shape])
         except (TypeError, ValueError):
@@ -1862,20 +1864,19 @@ _npattrs = list(filter(lambda x: not x.startswith('_'), np.ndarray.__dict__))
 
 class NXobject(object):
 
-    """
-    Abstract base class for elements in NeXus files.
+    """Abstract base class for elements in NeXus files.
 
     The object has a subclass of NXfield, NXgroup, or one of the NXgroup
     subclasses. Child nodes should be accessible directly as object attributes.
     Constructors for NXobject objects are defined by either the NXfield or
     NXgroup classes.
 
-    **Python Attributes**
-
-    nxclass : string
+    Attributes
+    ----------
+    nxclass : str
         The class of the NXobject. NXobjects can have class NXfield, NXgroup, or
         be one of the NXgroup subclasses.
-    nxname : string
+    nxname : str
         The name of the NXobject. Since it is possible to reference the same
         Python object multiple times, this is not necessarily the same as the
         object name. However, if the object is part of a NeXus tree, this will
@@ -1883,7 +1884,7 @@ class NXobject(object):
     nxgroup : NXgroup
         The parent group containing this object within a NeXus tree. If the
         object is not part of any NeXus tree, it will be set to None.
-    nxpath : string
+    nxpath : str
         The path to this object with respect to the root of the NeXus tree. For
         NeXus data read from a file, this will be a group of class NXroot, but
         if the NeXus tree was defined interactively, it can be any valid
@@ -1896,35 +1897,10 @@ class NXobject(object):
     nxfile : NXFile
         The file handle of the root object of the NeXus tree containing this
         object.
-    nxfilename : string
+    nxfilename : str
         The file name of NeXus object's tree file handle.
     attrs : dict
         A dictionary of the NeXus object's attributes.
-
-    **Methods**
-
-    dir(self, attrs=False, recursive=False):
-        Print the group directory.
-
-        The directory is a list of NeXus objects within this group, either NeXus
-        groups or NXfield data. If 'attrs' is True, NXfield attributes are
-        displayed. If 'recursive' is True, the contents of child groups are also
-        displayed.
-
-    tree:
-        Return the object's tree as a string.
-
-        It invokes the 'dir' method with both 'attrs' and 'recursive'
-        set to True. Note that this is defined as a property attribute and
-        does not require parentheses.
-
-    save(self, filename, format='w')
-        Save the NeXus group into a file
-
-        The object is wrapped in an NXroot group (with name 'root') and an
-        NXentry group (with name 'entry'), if necessary, in order to produce
-        a valid NeXus file.
-
     """
 
     _class = "unknown"
@@ -2011,8 +1987,21 @@ class NXobject(object):
         return "\n".join(result)
 
     def _str_tree(self, indent=0, attrs=False, recursive=False):
-        """
-        Prints the current object and children (if any).
+        """Return a string describing the current object and its children.
+        
+        Parameters
+        ----------
+        indent : int, optional
+            Number of spaces to indent the object description, by default 0.
+        attrs : bool, optional
+            Display attributes if True, by default False.
+        recursive : bool, optional
+            Display groups recursively if True, by default False.
+        
+        Returns
+        -------
+        str
+            String containing the object description for use in a printed tree.
         """
         result = [self._str_name(indent=indent)]
         if self.attrs and (attrs or indent==0):
@@ -2020,39 +2009,64 @@ class NXobject(object):
         return "\n".join(result)
 
     def dir(self, attrs=False, recursive=False):
-        """
-        Prints the object directory.
+        """Print the group directory.
 
-        The directory is a list of NeXus objects within this object, either
-        NeXus groups or NXfields. If 'attrs' is True, NXfield attributes are
-        displayed. If 'recursive' is True, the contents of child groups are
-        also displayed.
+        The directory is a list of NeXus objects within this group, either NeXus
+        groups or NXfield data. If 'attrs' is True, NXfield attributes are
+        displayed. If 'recursive' is True, the contents of child groups are also
+        displayed.
+
+        Parameters
+        ----------
+        attrs : bool, optional
+            Display attributes in the directory if True, by default False.
+        recursive : bool, optional
+            Display the directory contents recursively if True, by default 
+            False.
         """
         print(self._str_tree(attrs=attrs, recursive=recursive))
 
     @property
     def tree(self):
-        """
-        Returns the directory tree as a string.
-
+        """Return the directory tree as a string.
+        
         The tree contains all child objects of this object and their children.
         It invokes the 'dir' method with 'attrs' set to False and 'recursive'
         set to True.
+
+        Returns
+        -------
+        str
+            String containing the hierarchical structure of the tree.
         """
         return self._str_tree(attrs=True, recursive=True)
 
     @property
     def short_tree(self):
-        """
-        Returns the directory tree as a string.
-
+        """Return a shortened directory tree as a string.
+        
         The tree contains all child objects of this object and their children.
         It invokes the 'dir' method with 'attrs' set to False and 'recursive'
         set to True.
+
+        Returns
+        -------
+        str
+            String containing the hierarchical structure of the tree.
         """
         return self._str_tree(attrs=False, recursive=2)
 
     def rename(self, name):
+        """Rename the NeXus object.
+
+        This changes the signal or axes attributes to use the new name if 
+        necessary.
+        
+        Parameters
+        ----------
+        name : str
+            New name of the NeXus object.
+        """
         name = text(name)
         if name == self.nxname:
             return
@@ -2081,14 +2095,13 @@ class NXobject(object):
         self.set_changed()
 
     def save(self, filename=None, mode='w-', **kwargs):
-        """
-        Saves the NeXus object to a data file.
+        """Save the NeXus object to a data file.
         
         If the object is an NXroot group, this can be used to save the whole
         NeXus tree. If the tree was read from a file and the file was opened as
         read only, then a file name must be specified. Otherwise, the tree is
-        saved to the original file. 
-        
+        saved to the original file.
+
         An error is raised if the object is an NXroot group from an external 
         file that has been opened as readonly and no file name is specified.
 
@@ -2098,9 +2111,21 @@ class NXobject(object):
         a valid NeXus file. Only the children of the object will be saved. This 
         capability allows parts of a NeXus tree to be saved for later use, e.g., 
         to store an NXsample group to be added to another file at a later time. 
-        
-        **Example**
 
+        Parameters
+        ----------
+        filename : str
+            Name of the data file.
+        mode : str, optional
+            Mode for opening the file, by default 'w-'
+        
+        Returns
+        -------
+        NXroot
+            Tree containing all the NeXus fields and groups saved to the file.
+        
+        Example
+        -------
         >>> data = NXdata(sin(x), x)
         >>> data.save('file.nxs')
         >>> print data.nxroot.tree
@@ -2115,7 +2140,7 @@ class NXobject(object):
               signal = float64(101)
                 @axes = axis1
                 @signal = 1              
-        >>> root.entry.data.axis1.units = 'meV'
+        >>> root['entry/data/axis1'].units = 'meV'
         >>> root.save()
         """
         if filename:
@@ -2172,6 +2197,7 @@ class NXobject(object):
                         **kwargs)
 
     def update(self):
+        """Update the object values in its NeXus file if necessary."""
         if self.nxfilemode == 'rw':
             with self.nxfile as f:
                 f.update(self)
@@ -2179,8 +2205,7 @@ class NXobject(object):
 
     @property
     def changed(self):
-        """
-        Property: Returns True if the object has been changed.
+        """True if the object has been changed.
         
         This property is for use by external scripts that need to track
         which NeXus objects have been changed.
@@ -2188,17 +2213,13 @@ class NXobject(object):
         return self._changed
     
     def set_changed(self):
-        """
-        Sets an object's change status to changed.
-        """
+        """Set an object's change status to changed."""
         self._changed = True
         if self.nxgroup:
             self.nxgroup.set_changed()
             
     def set_unchanged(self, recursive=False):
-        """
-        Sets an object's change status to unchanged.
-        """
+        """Set an object's change status to unchanged."""
         if recursive:
             for node in self.walk():
                 node._changed = False
@@ -2206,6 +2227,13 @@ class NXobject(object):
             self._changed = False
 
     def _setclass(self, cls):
+        """Change the object class.
+
+        Parameters
+        ----------
+        cls : type
+            New object class.
+        """
         try:
             class_ = _getclass(cls)
             if issubclass(class_, NXobject):
@@ -2218,6 +2246,7 @@ class NXobject(object):
     
     @property
     def nxclass(self):
+        """NeXus object class."""
         return text(self._class)
 
     @nxclass.setter
@@ -2227,6 +2256,7 @@ class NXobject(object):
 
     @property
     def nxname(self):
+        """NeXus object name."""
         return text(self._name)
 
     @nxname.setter
@@ -2235,6 +2265,7 @@ class NXobject(object):
 
     @property
     def nxgroup(self):
+        """Parent group of NeXus object."""
         return self._group
 
     @nxgroup.setter
@@ -2246,6 +2277,7 @@ class NXobject(object):
 
     @property
     def nxpath(self):
+        """Path to the object in the NeXus tree."""
         group = self.nxgroup
         if self.nxclass == 'NXroot':
             return "/"
@@ -2258,6 +2290,7 @@ class NXobject(object):
 
     @property
     def nxroot(self):
+        """NXroot object of the NeXus tree."""
         if self._group is None or isinstance(self, NXroot):
             return self
         elif isinstance(self._group, NXroot):
@@ -2267,6 +2300,7 @@ class NXobject(object):
 
     @property
     def nxentry(self):
+        """Parent NXentry group of the NeXus object."""
         if self._group is None or isinstance(self, NXentry):
             return self
         elif isinstance(self._group, NXentry):
@@ -2276,6 +2310,7 @@ class NXobject(object):
 
     @property
     def nxfile(self):
+        """NXFile storing the NeXus data."""
         if self._file:
             return self._file
         elif not self.is_external() and self.nxroot._file:
@@ -2288,6 +2323,11 @@ class NXobject(object):
 
     @property
     def nxfilename(self):
+        """File name of the NeXus file containing the NeXus object.
+        
+        If the NeXus object is an external link, this is the filename 
+        containing the linked data.
+        """
         if self._filename is not None:
             if os.path.isabs(self._filename):
                 return self._filename
@@ -2304,6 +2344,11 @@ class NXobject(object):
 
     @property
     def nxfilepath(self):
+        """File path containing the NeXus object.
+
+        If the NeXus object is an external link, this is the path to the
+        object in the external file.
+        """
         if self.nxclass == 'NXroot':
             return "/"
         elif isinstance(self, NXlink):
@@ -2323,10 +2368,12 @@ class NXobject(object):
 
     @property
     def nxfullpath(self):
+        """String containing the file name and path of the NeXus object."""
         return self.nxfilename+"['"+self.nxfilepath+"']"
 
     @property
     def nxfilemode(self):
+        """Read/write mode of the NeXus file if saved to a file."""
         if self._mode is not None:
             return self._mode
         elif self._group is not None:
@@ -2336,28 +2383,34 @@ class NXobject(object):
 
     @property
     def nxtarget(self):
+        """Target path of an NXlink."""
         return self._target
 
     @property
     def attrs(self):
+        """Dictionary of object attributes."""
         if self._attrs is None:
             self._attrs = AttrDict()
         return self._attrs
 
     def is_plottable(self):
+        """True if the NeXus object is plottable."""
         return False
 
     def is_external(self):
+        """True if the NeXus object is an external link."""
         return (self.nxfilename is not None and 
                 self.nxfilename != self.nxroot.nxfilename)
 
     def file_exists(self):
+        """True if the file containing the NeXus object exists."""
         if self.nxfilename is not None:
             return os.path.exists(self.nxfilename)
         else:
             return True
 
     def path_exists(self):
+        """True if the path to the NeXus object exists."""
         if self.is_external():
             if self.file_exists():
                 with self.nxfile as f:
@@ -2368,6 +2421,7 @@ class NXobject(object):
             return True
 
     def exists(self):
+        """True if the NeXus object file and path is accessible."""
         return self.file_exists() and self.path_exists()
 
 

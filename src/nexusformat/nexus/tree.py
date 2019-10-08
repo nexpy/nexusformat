@@ -155,17 +155,15 @@ Fields (:class:`NXfield`) have attributes for accessing data:
     * dtype    data type
     * nxdata   data in the field
 
-Linked fields or groups (:class:`NXlink`) have attributes for accessing the 
-link:
+Linked fields or groups (:class:`NXlink`) have attributes for accessing the link::
     * nxlink   reference to the linked field or group
 
 NeXus attributes (:class:`NXattr`) have a type and a value only::
     * dtype    attribute type
     * nxdata   attribute data
 
-There is a subclass of :class:`NXgroup` for each group class defined by the 
-NeXus standard, so it is possible to create an :class:`NXgroup` of NeXus 
-:class:`NXsample` directly using:
+There is a subclass of :class:`NXgroup` for each group class defined by the NeXus standard,
+so it is possible to create an :class:`NXgroup` of NeXus :class:`NXsample` directly using:
 
     >>> sample = NXsample()
 
@@ -178,8 +176,8 @@ attribute name when it is assigned as a group attribute, e.g.,
     sample1
 
 You can traverse the tree by component class instead of component name. Since
-there may be multiple components of the same class in one group you will need 
-to specify which one to use.  For example::
+there may be multiple components of the same class in one group you will need to
+specify which one to use.  For example::
 
     tree.NXentry[0].NXinstrument[0].NXdetector[0].distance
 
@@ -188,11 +186,24 @@ Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 
 
+Unit Conversion
+---------------
+Data can be stored in the NeXus file in a variety of units, depending on which
+facility is storing the file.  This makes life difficult for reduction and
+analysis programs which must know the units they are working with.  Our solution
+to this problem is to allow the reader to retrieve data from the file in
+particular units.  For example, if detector distance is stored in the file using
+millimeters you can retrieve them in meters using::
+
+    entry.instrument.detector.distance.convert('m')
+
+See `nexus.unit` for more details on the unit formats supported.
+
 Reading and Writing Slabs
 -------------------------
-If the size of the :class:`NXfield` array is too large to be loaded into memory 
-(as defined by NX_MEMORY), the data values should be read or written in as a 
-series of slabs represented by :class:`NXfield` slices::
+If the size of the :class:`NXfield` array is too large to be loaded into memory (as 
+defined by NX_MEMORY), the data values should be read or written in as a series 
+of slabs represented by :class:`NXfield` slices::
 
  >>> for i in range(Ni):
          for j in range(Nj):
@@ -202,29 +213,27 @@ series of slabs represented by :class:`NXfield` slices::
 
 Plotting NeXus data
 -------------------
-There is a :meth:`plot()` method for groups that automatically looks for
-'signal' and 'axes' attributes within the group in order to determine what to
-plot. These are defined by the 'nxsignal' and 'nxaxes' properties of the group.
-This means that the method will determine whether the plot should be one- or
-two- dimensional. For higher than two dimensions, only the top slice is plotted
-by default.
+There is a :meth:`plot()` method for groups that automatically looks for 'signal' and
+'axes' attributes within the group in order to determine what to plot. These are
+defined by the 'nxsignal' and 'nxaxes' properties of the group. This means that
+the method will determine whether the plot should be one- or two- dimensional.
+For higher than two dimensions, only the top slice is plotted by default.
 
 The plot method accepts as arguments the standard matplotlib.pyplot.plot format 
 strings to customize one-dimensional plots, axis and scale limits, and will
 transmit keyword arguments to the matplotlib plotting methods.
 
-    >>> a=nxload('chopper.nxs')
+    >>> a=nx.load('chopper.nxs')
     >>> a.entry.monitor1.plot()
     >>> a.entry.monitor2.plot('r+', xmax=2600)
     
-It is possible to plot over the existing figure with the :meth:`oplot()` method
-and to plot with logarithmic intensity scales with the :meth:`logplot()` method.
-The x- and y-axes can also be rendered logarithmically using the `logx` and
-`logy` keywords.
+It is possible to plot over the existing figure with the :meth:`oplot()` method and to
+plot with logarithmic intensity scales with the :meth:`logplot()` method. The x- and
+y-axes can also be rendered logarithmically using the `logx` and `logy` keywords.
 
-Although the :meth:`plot()` method uses matplotlib by default to plot the data,
-you can replace this with your own plotter by setting `nexus.NXgroup._plotter`
-to your own plotter class.  The plotter class has one method::
+Although the :meth:`plot()` method uses matplotlib by default to plot the data, you can replace
+this with your own plotter by setting `nexus.NXgroup._plotter` to your own plotter
+class.  The plotter class has one method::
 
     plot(signal, axes, entry, title, format, **kwargs)
 
@@ -1347,6 +1356,18 @@ class NXFile(object):
 
 
 def _makeclass(cls, bases=None):
+    """Create a new subclass of the NXgroup class.
+    
+    Parameters
+    ----------
+    bases : tuple of classes, optional
+        Superclasses of the new class, by default :class:`NXgroup`.
+    
+    Returns
+    -------
+    type
+        New subclass.
+    """
     docstring = """
                 %s group. This is a subclass of the NXgroup class.
 
@@ -1358,6 +1379,18 @@ def _makeclass(cls, bases=None):
 
 
 def _getclass(cls, link=False):
+    """Return class based on the name or type.
+    
+    Parameters
+    ----------
+    link : bool, optional
+        True if the class is also a :class:`NXlink` subclass, by default False.
+    
+    Returns
+    -------
+    type
+        Class object.
+    """
     if isinstance(cls, type):
         cls = cls.__name__
     if not cls.startswith('NX'):
@@ -1380,17 +1413,28 @@ def _getclass(cls, link=False):
 
 
 def _getvalue(value, dtype=None, shape=None):
-    """
-    Returns a value, dtype and shape based on the input Python value. If the
-    value is a string, it is converted to unicode. Otherwise, the value is 
-    converted to a valid Numpy object.
-    
-    If the value is a masked array, the returned value is only returned as a 
-    masked array if some of the elements are masked.
+    """Return the value of a field or attribute based on a Python value.
 
     If 'dtype' and/or 'shape' are specified as input arguments, the value is 
     converted to the given dtype and/or reshaped to the given shape. Otherwise, 
     the dtype and shape are determined from the value.
+
+    If the value is a masked array, the returned value is only returned as a 
+    masked array if some of the elements are masked.
+   
+    Parameters
+    ----------
+    value
+        Input Python value
+    dtype : dtype or str, optional
+        Required dtype of value, by default None
+    shape : tuple, optional
+        Required shape of value, by default None
+    
+    Returns
+    -------
+    tuple
+        Value, dtype, and shape for creation of new field or attribute.
     """
     dtype, shape = _getdtype(dtype), _getshape(shape)
     if isinstance(value, NXfield) or isinstance(value, NXattr):
@@ -1603,10 +1647,21 @@ def _getsize(shape):
 
     
 def _readaxes(axes):
-    """
-    Returns a list of axis names stored in the 'axes' attribute.
+    """Return a list of axis names stored in the 'axes' attribute.
 
-    The delimiter separating each axis can be white space, a comma, or a colon.
+    If the input argument is a string, the names are assumed to be separated 
+    by a delimiter, which can be white space, a comma, or a colon. If it is
+    a list of strings, they are converted to Unicode strings.
+    
+    Parameters
+    ----------
+    axes : str or list of str
+        Value of 'axes' attribute defining the plotting axes.
+    
+    Returns
+    -------
+    list of str
+        Names of the axis fields.
     """
     if is_text(axes):
         return list(re.split(r'[,:; ]', 
@@ -1627,7 +1682,7 @@ class AttrDict(dict):
     
     Parameters
     ----------
-    parent : NXobject
+    parent : NXfield or NXgroup
         The field or group to which the attributes belong.
     attrs : dict
         A dictionary containing the first set of attributes.   
@@ -1680,6 +1735,7 @@ class AttrDict(dict):
 
     @property
     def nxpath(self):
+        """The path to the NeXus field or group containin the attributes."""
         return self._parent.nxpath
 
 class NXattr(object):
@@ -3708,8 +3764,7 @@ class NXfield(NXobject):
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              vmin=None, vmax=None, **kwargs):
-        """
-        Plot data if the signal attribute is defined.
+        """Plot data if the signal attribute is defined.
 
         The format argument is used to set the color and type of the
         markers or lines for one-dimensional plots, using the standard 

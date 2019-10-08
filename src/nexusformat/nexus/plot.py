@@ -11,8 +11,7 @@
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
 
-"""Module to provide standard Matplotlib plotting to the NeXus Python API.
-"""
+"""Module to provide standard Matplotlib plotting to the NeXus Python API."""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np

@@ -3892,6 +3892,10 @@ class NXfield(NXobject):
         else:
             return False
 
+    def is_image(self):
+        """True if the field is compatible with an RGB(A) image."""
+        return self.ndim == 3 and (self.shape[2] == 3 or self.shape[2] == 4) 
+
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              vmin=None, vmax=None, **kwargs):
         """Plot the NXfield.
@@ -5890,6 +5894,13 @@ class NXdata(NXgroup):
                 return self.nxaxes
         else:
             return None
+
+    def is_image(self):
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.is_image()
+        else:
+            return False
 
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              vmin=None, vmax=None, **kwargs):

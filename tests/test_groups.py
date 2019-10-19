@@ -12,12 +12,14 @@ def test_group_creation():
 
     group1 = NXgroup(name="group")
 
+    assert group1
     assert len(group1) == 0
     assert group1.nxname == "group"
     assert group1.nxgroup is None
 
     group2 = NXgroup(field1)
 
+    assert group2
     assert len(group2) == 1
     assert "f1" in group2
     
@@ -69,6 +71,17 @@ def test_group_class():
     
     assert group.nxclass == "NXentry"
     assert isinstance(group, NXentry)
+
+
+def test_group_components():
+
+    g1 = NXdata(name='g1')
+    g2 = NXdata(name='g2')
+    g3 = NXdata(name='g3')
+    group = NXentry(g1, g2, g3)
+
+    assert group.component('NXdata') == [group['g1'], group['g2'], group['g3']]
+    assert group.NXdata == [group['g1'], group['g2'], group['g3']]
 
 
 def test_group_title():

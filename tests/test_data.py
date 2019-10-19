@@ -8,6 +8,7 @@ y = NXfield(3 * np.linspace(0.0, 5.0, 6, dtype=np.float64), name="y")
 z = NXfield(4 * np.linspace(0.0, 2.0, 3, dtype=np.float64), name="z")
 v = NXfield(np.linspace(0, 10*5*2, num=10*5*2, dtype=np.float64), name="v")
 v.resize((2,5,10))
+im = NXfield(np.ones(shape=(10,10,4), dtype=np.float32), name='image')
 
 
 def test_data_creation():
@@ -154,3 +155,17 @@ def test_data_smoothing():
     assert smooth_data.nxaxes[0].shape == (100,)
     assert smooth_data.nxsignal[0] == np.sin(x)[0]
     assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+
+
+def test_image_data():
+
+    root = NXroot(NXentry(NXdata(im)))
+    root['entry'].attrs['default'] = 'data'
+    root['entry/other_data'] = NXdata(v, (z, y, x), title="Title")
+
+    assert root['entry/data/image'].is_image()
+    assert root['entry/data'].is_image()
+    assert root.plottable_data.is_image()
+    assert root['entry'].plottable_data.is_image()
+    assert not root['entry/other_data'].is_image()
+    

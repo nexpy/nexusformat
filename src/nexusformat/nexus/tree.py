@@ -5366,20 +5366,17 @@ class NXentry(NXgroup):
         """
         Adds two NXentry objects
         """
-        result = NXentry(entries=self.entries, attrs=self.attrs)
+        result = NXentry(attrs=self.attrs)
         try:
-            names = [group.nxname for group in self.component("NXdata")]
+            names = [name for name in self if isinstance(self[name], NXdata)]
             for name in names:
                 if isinstance(other[name], NXdata):
                     result[name] = self[name] + other[name]
                 else:
                     raise KeyError
-            names = [group.nxname for group in self.component("NXmonitor")]
-            for name in names:
-                if isinstance(other[name], NXmonitor):
-                    result[name] = self[name] + other[name]
-                else:
-                    raise KeyError
+            for name in [name for name in self 
+                         if not isinstance(self[name], NXdata)]:
+                result[name] = self[name]
             return result
         except KeyError:
             raise NeXusError("Inconsistency between two NXentry groups")
@@ -5388,20 +5385,17 @@ class NXentry(NXgroup):
         """
         Subtracts two NXentry objects
         """
-        result = NXentry(entries=self.entries, attrs=self.attrs)
+        result = NXentry(attrs=self.attrs)
         try:
-            names = [group.nxname for group in self.component("NXdata")]
+            names = [name for name in self if isinstance(self[name], NXdata)]
             for name in names:
                 if isinstance(other[name], NXdata):
                     result[name] = self[name] - other[name]
                 else:
                     raise KeyError
-            names = [group.nxname for group in self.component("NXmonitor")]
-            for name in names:
-                if isinstance(other[name], NXmonitor):
-                    result[name] = self[name] - other[name]
-                else:
-                    raise KeyError
+            for name in [name for name in self 
+                         if not isinstance(self[name], NXdata)]:
+                result[name] = self[name]
             return result
         except KeyError:
             raise NeXusError("Inconsistency between two NXentry groups")

@@ -4306,7 +4306,7 @@ class NXgroup(NXobject):
             elif isinstance(value, NXroot):
                 raise NeXusError(
                     "Cannot assign an NXroot group to another group")
-            elif key in group:
+            elif key in group and group.nxfilemode:
                 if isinstance(value, NXgroup):
                     raise NeXusError(
                         "Cannot assign an NXgroup to an existing group entry")

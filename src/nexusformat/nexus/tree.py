@@ -6124,17 +6124,20 @@ class NXdata(NXgroup):
         return result        
 
     def slab(self, idx):
-        """[summary]
+        """Return a tuple containing the signal slice and sliced axes.
+        
+        Real values in the slice objects are converted to array indices 
+        given by the axis values of the corresponding dimension.
         
         Parameters
         ----------
-        idx : [type]
-            [description]
+        idx : slice
+            Indices of the slab.
         
         Returns
         -------
-        [type]
-            [description]
+        tuple
+            Tuple containing the signal slice and a list of sliced axes.
         """
         if (isinstance(idx, numbers.Real) or isinstance(idx, numbers.Integral)
                 or isinstance(idx, slice)):

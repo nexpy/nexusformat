@@ -107,8 +107,8 @@ class PylabPlotter(object):
     with the same call signature for use outside NeXpy.
     """
 
-    def plot(self, data_group, fmt='', xmin=None, xmax=None, ymin=None, ymax=None, 
-             vmin=None, vmax=None, **kwargs):
+    def plot(self, data_group, fmt='', xmin=None, xmax=None, 
+             ymin=None, ymax=None, vmin=None, vmax=None, **kwargs):
         """Plot the NXdata group.
         
         Parameters
@@ -135,7 +135,8 @@ class PylabPlotter(object):
         try:
             import matplotlib.pyplot as plt
         except ImportError:
-            raise NeXusError("Default plotting package (matplotlib) not available.")
+            raise NeXusError(
+                "Default plotting package (matplotlib) not available.")
 
         over = kwargs.pop("over", False)
         image = kwargs.pop("image", False)

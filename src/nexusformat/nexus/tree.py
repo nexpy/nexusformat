@@ -3900,15 +3900,34 @@ class NXfield(NXobject):
     def plot(self, fmt='', xmin=None, xmax=None, ymin=None, ymax=None,
              vmin=None, vmax=None, **kwargs):
         """Plot the NXfield.
-
+        
         The format argument is used to set the color and type of the
         markers or lines for one-dimensional plots, using the standard 
-        Mtplotlib syntax. The default is set to blue circles. All 
+        Matplotlib syntax. The default is set to blue circles. All 
         keyword arguments accepted by matplotlib.pyplot.plot can be
         used to customize the plot.
         
-        In addition to the matplotlib keyword arguments, the following
-        are defined::
+        Parameters
+        ----------
+        fmt : str, optional
+            Matplotlib format string, by default ''
+        xmin : float, optional
+            Minimum x-value in plot, by default None
+        xmax : float, optional
+            Maximum x-value in plot, by default None
+        ymin : float, optional
+            Minimum y-value in plot, by default None
+        ymax : float, optional
+            Maximum y-value in plot, by default None
+        vmin : float, optional
+            Minimum signal value for 2D plots, by default None
+        vmax : float, optional
+            Maximum signal value for 2D plots, by default None
+
+        Notes
+        -----
+        In addition to the Matplotlib keyword arguments, the following
+        are defined ::
         
             log = True     - plot the intensity on a log scale
             logy = True    - plot the y-axis on a log scale

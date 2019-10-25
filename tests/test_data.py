@@ -168,4 +168,3 @@ def test_image_data():
     assert root.plottable_data.is_image()
     assert root['entry'].plottable_data.is_image()
     assert not root['entry/other_data'].is_image()
-    

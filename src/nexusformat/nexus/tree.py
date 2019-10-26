@@ -1992,6 +1992,13 @@ class NXobject(object):
             result.append(self._str_attrs(indent=indent+2))
         return "\n".join(result)
 
+    def _get_completion_list(self):
+        """Return the attributes and methods for use in autocompletion."""
+        return (dir(self) + 
+                [method for method in object.__dir__(self) 
+                 if callable(getattr(self, method)) 
+                 and not method.startswith('_')])
+
     def dir(self, attrs=False, recursive=False):
         """Print the group directory.
 

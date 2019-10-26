@@ -141,7 +141,7 @@ def nxattr_completer(shell, command):
     except Exception:
         return []
 
-    attrs = dir(obj)
+    attrs = obj._get_completion_list()
     try:
         attrs = generics.complete_object(obj, attrs)
     except TryNext:

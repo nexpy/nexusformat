@@ -5872,7 +5872,7 @@ class NXdata(NXgroup):
         NXdata
             NXdata group with the summed data.
         """
-        result = NXdata(entries=self.entries, attrs=self.attrs)
+        result = deepcopy(self)
         if isinstance(other, NXdata):
             if self.nxsignal and self.nxsignal.shape == other.nxsignal.shape:
                 result[self.nxsignal.nxname] = self.nxsignal + other.nxsignal
@@ -5909,7 +5909,7 @@ class NXdata(NXgroup):
         NXdata
             NXdata group containing the subtracted data.
         """
-        result = NXdata(entries=self.entries, attrs=self.attrs)
+        result = deepcopy(self)
         if isinstance(other, NXdata):
             if self.nxsignal and self.nxsignal.shape == other.nxsignal.shape:
                 result[self.nxsignal.nxname] = self.nxsignal - other.nxsignal
@@ -5946,7 +5946,7 @@ class NXdata(NXgroup):
         NXdata
             NXdata group with the multiplied data.
         """
-        result = NXdata(entries=self.entries, attrs=self.attrs)
+        result = deepcopy(self)
         if isinstance(other, NXdata):
             # error here signal not defined in this scope
             #if self.nxsignal and signal.shape == other.nxsignal.shape:
@@ -6005,7 +6005,7 @@ class NXdata(NXgroup):
         NXdata
             NXdata group with the multiplied data.
         """
-        result = NXdata(entries=self.entries, attrs=self.attrs)
+        result = deepcopy(self)
         if isinstance(other, NXdata):
             if self.nxsignal and self.nxsignal.shape == other.nxsignal.shape:
                 result[self.nxsignal.nxname] = self.nxsignal / other.nxsignal

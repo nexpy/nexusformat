@@ -6,9 +6,9 @@ from nexusformat.nexus import *
 x = NXfield(2 * np.linspace(0.0, 10.0, 11, dtype=np.float64), name="x")
 y = NXfield(3 * np.linspace(0.0, 5.0, 6, dtype=np.float64), name="y")
 z = NXfield(4 * np.linspace(0.0, 2.0, 3, dtype=np.float64), name="z")
-v = NXfield(np.linspace(0, 10*5*2, num=10*5*2, dtype=np.float64), name="v")
-v.resize((2,5,10))
-im = NXfield(np.ones(shape=(10,10,4), dtype=np.float32), name='image')
+v = NXfield(np.linspace(0, 99, num=100, dtype=np.float64), name="v")
+v.resize((2, 5, 10))
+im = NXfield(np.ones(shape=(10, 10, 4), dtype=np.float32), name='image')
 
 
 def test_data_creation():
@@ -143,6 +143,39 @@ def test_data_slabs():
 
     assert slab.plot_shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_axes == [y[1:-1], x[1:-1]]
+
+
+def test_data_projections():
+
+    d1 = NXdata(v[0], (y, x))
+
+    assert d1.nxaxes == [d1['y'], d1['x']]
+
+    p1 = d1.project((1, 0))
+    p2 = d1.project((0, 1), limits=((3., 9.), (4., 16.)))
+
+    assert p1.nxaxes == [p1['x'], p1['y']]
+    assert np.array_equal(p1['x'].nxvalue, d1['x'])
+    assert p2.nxaxes == [p2['y'], p2['x']]
+    assert np.array_equal(p2['x'].nxvalue, d1['x'][4.:16.])
+    assert np.array_equal(p2['x'].nxvalue, d1['x'][2:9])
+
+    d2 = NXdata(v, (z, y, x))
+
+    p3 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)))
+
+    assert p3.nxaxes == [p3['z'], p3['y']]
+    assert np.array_equal(p3['y'].nxvalue, d2['y'][3.:9.])
+    assert np.array_equal(p3['y'].nxvalue, d2['y'][1:4])
+    assert p3['x'] == 10.
+    assert p3['x'].attrs['minimum'] == 4.
+    assert p3['x'].attrs['maximum'] == 16.
+    assert p3['x'].attrs['summed_bins'] == 7
+    assert p3['v'].sum() == d2.v[:,1:3,2:8].sum()
+    
+    p4 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)), summed=False)
+
+    assert p4['v'].sum() == d2.v[:,1:3,2:8].sum() / p4['x'].attrs['summed_bins']
 
 
 def test_data_smoothing():

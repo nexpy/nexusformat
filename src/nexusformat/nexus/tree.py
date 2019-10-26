@@ -5511,14 +5511,15 @@ class NXentry(NXgroup):
         """
         result = NXentry(attrs=self.attrs)
         try:
-            names = [name for name in self if isinstance(self[name], NXdata)]
+            names = [name for name in self if 
+                     (isinstance(self[name], NXdata) or
+                      isinstance(self[name], NXmonitor))]
             for name in names:
                 if isinstance(other[name], NXdata):
                     result[name] = self[name] + other[name]
                 else:
                     raise KeyError
-            for name in [name for name in self 
-                         if not isinstance(self[name], NXdata)]:
+            for name in [name for name in self if name not in names]:
                 result[name] = self[name]
             return result
         except KeyError:

@@ -3104,10 +3104,6 @@ class NXfield(NXobject):
 
         The value is considered to be equal to an NXfield element's value if it
         differs by less than 1% of the step size to the neighboring element. 
-        
-        Raises
-        ------
-            NeXusError if the array is not one-dimensional.
         """
         if self.ndim != 1:
             raise NeXusError(
@@ -6073,7 +6069,7 @@ class NXdata(NXgroup):
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
         return NXdata(ys, xs)      
 
-    def project(self, axes, limits, summed=True):
+    def project(self, axes, limits=None, summed=True):
         """Return a projection of the data with specified axes and limits.
         
         This function is used to create two-dimensional projections of two- or
@@ -6087,7 +6083,9 @@ class NXdata(NXgroup):
         axes : tuple of ints
             Axes to be used in the two-dimensional projection.
         limits : tuple
-            A tuple of minimum and maximum values for each dimension.
+            A tuple of minimum and maximum values for each dimension. By
+            default, all values are set to None. For signals of greater than 
+            two dimensions, this sums all the data in the orthogonal dimensions.
         summed : bool, optional
             True if the data is summed over the limits, False if the data is 
             averaged, by default True. 
@@ -6096,10 +6094,18 @@ class NXdata(NXgroup):
         -------
         NXdata
             NXdata group containing the projection.
+
+        Notes
+        -----
+        Using the default `limits=None` should be used with caution, since it
+        requires reading the entire data set into memory.
         """
+        signal_rank = self.nxsignal.ndim
         if not is_iterable(axes):
             axes = [axes]
-        if len(limits) < len(self.nxsignal.shape):
+        if limits is None:
+            limits = [(None, None)] * signal_rank
+        elif len(limits) < signal_rank:
             raise NeXusError("Too few limits specified")
         elif len(axes) > 2:
             raise NeXusError(

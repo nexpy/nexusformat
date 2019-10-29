@@ -64,12 +64,29 @@ def test_field_methods(arr):
     assert field.sum() == np.sum(arr)
 
 
-@pytest.mark.parametrize("arr,ind", [(arr1D, np.s_[2:5]), 
+@pytest.mark.parametrize("arr,idx", [(arr1D, np.s_[2:5]), 
                                      (arr2D, np.s_[2:5,2:5]), 
                                      (arr3D, np.s_[2:5,2:5,2:5])])
-def test_field_index(arr, ind):
+def test_field_slice(arr, idx):
 
     field = NXfield(arr)
 
-    assert np.array_equal(field[ind].nxvalue, arr[ind])
-    assert field[ind].shape == arr[ind].shape
+    assert np.array_equal(field[idx].nxvalue, arr[idx])
+    assert field[idx].shape == arr[idx].shape
+
+def test_field_index():
+
+    field = NXfield(2*arr1D)
+
+    assert field.index(10.) == 5
+    assert field.index(11.) == 5
+    assert field.index(11., max=True) == 6
+    assert field.index(12., max=True) == 6
+
+    field = NXfield(2*arr1D[::-1])
+
+    assert field.index(10.) == 95
+    assert field.index(11.) == 94
+    assert field.index(11., max=True) == 95
+    assert field.index(12., max=True) == 94
+   

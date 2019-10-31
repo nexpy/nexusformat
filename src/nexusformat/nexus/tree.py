@@ -1940,10 +1940,8 @@ class NXobject(object):
 
     def _get_completion_list(self):
         """Return the attributes and methods for use in autocompletion."""
-        return (dir(self) + 
-                [method for method in object.__dir__(self) 
-                 if callable(getattr(self, method)) 
-                 and not method.startswith('_')])
+        return (dir(self) + [attr for attr in object.__dir__(self) 
+                             if not attr.startswith('_')])
 
     def dir(self, attrs=False, recursive=False):
         """Print the group directory.

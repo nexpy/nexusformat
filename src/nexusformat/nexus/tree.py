@@ -419,13 +419,15 @@ class NXFile(object):
         elif not os.path.exists(os.path.dirname(self._filename)):
             raise NeXusError("'%s/' does not exist"
                              % os.path.dirname(self._filename))
-        elif mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or mode == 'x':
+        elif (mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or 
+              mode == 'x'):
             if mode == 'w5':
                 mode = 'w'
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
             except Exception as error:
-                raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
+                raise NeXusError("'%s' cannot be opened by h5py" 
+                                 % self._filename)
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -437,7 +439,8 @@ class NXFile(object):
                 try:
                     self._file = self.h5.File(self._filename, mode, **kwargs)
                 except Exception as error:
-                    raise NeXusError("'%s' cannot be opened by h5py" % self._filename)
+                    raise NeXusError("'%s' cannot be opened by h5py" 
+                                     % self._filename)
             else:
                 raise NeXusError("'%s' does not exist" % name)
         self._file.close()
@@ -1540,7 +1543,8 @@ def _getmaxshape(maxshape, shape):
             if _checkshape(shape, maxshape):
                 return maxshape
             else:
-                raise NeXusError("Maximum shape must be larger than the field shape")
+                raise NeXusError(
+                    "Maximum shape must be larger than the field shape")
 
 
 def _checkshape(shape, maxshape):
@@ -2864,8 +2868,8 @@ class NXfield(NXobject):
         if self._shape is not None and self._dtype is not None:
             if self._memfile is None:
                 self._create_memfile()
-            self._memfile.create_dataset('data', shape=self._shape, dtype=self._dtype, 
-                                         **self._h5opts)
+            self._memfile.create_dataset('data', shape=self._shape, 
+                                         dtype=self._dtype, **self._h5opts)
         else:
             raise NeXusError(
                 "Cannot allocate to field before setting shape and dtype")       
@@ -2875,8 +2879,8 @@ class NXfield(NXobject):
         if self._shape is not None:
             if self._memfile is None:
                 self._create_memfile()
-            self._memfile.create_dataset('mask', shape=self._shape, dtype=np.bool,
-                                         **self._h5opts)
+            self._memfile.create_dataset('mask', shape=self._shape, 
+                                         dtype=np.bool, **self._h5opts)
         else:
             raise NeXusError("Cannot allocate mask before setting shape")       
 
@@ -3608,11 +3612,13 @@ class NXfield(NXobject):
         """
         if axis is not None:
             if not (axis >=0 and axis < self.ndim):
-                raise NeXusError("Invalid axis (0 to %s allowed)" % (self.ndim-1))
+                raise NeXusError("Invalid axis (0 to %s allowed)" 
+                                 % (self.ndim-1))
             try:
                 newlen = int(shape)
             except TypeError:
-                raise NeXusError("Argument must be a single integer if axis is specified")
+                raise NeXusError(
+                    "Argument must be a single integer if axis is specified")
             shape = list(self._shape)
             shape[axis] = newlen
         if self.checkshape(shape):
@@ -3876,8 +3882,8 @@ class NXfield(NXobject):
             image = True   - plot as an RGB(A) image
         """
         if not self.exists():
-            raise NeXusError("'%s' does not exist" % 
-                             os.path.abspath(self.nxfilename))
+            raise NeXusError("'%s' does not exist"
+                             % os.path.abspath(self.nxfilename))
 
         try:
             from __main__ import plotview
@@ -3985,10 +3991,10 @@ class NXgroup(NXobject):
     groups, represented by NXfield and NXgroup objects respectively. To
     distinguish them from regular Python attributes, all NeXus objects are
     stored in the 'entries' dictionary of the NXgroup. However, they can usually
-    be assigned or referenced as if they are Python attributes, *i.e.*, using the
-    dictionary name directly as the group attribute name, as long as this name
-    is not the same as one of the Python attributes defined above or as one of
-    the NXfield Python attributes.
+    be assigned or referenced as if they are Python attributes, *i.e.*, using 
+    the dictionary name directly as the group attribute name, as long as this 
+    name is not the same as one of the Python attributes defined above or as one 
+    of the NXfield Python attributes.
 
     1) Assigning a NeXus object to a NeXus group
 
@@ -4015,10 +4021,10 @@ class NXgroup(NXobject):
     2) Referencing a NeXus object in a NeXus group
 
         If the name of the NeXus object is not the same as any of the Python
-        attributes listed above, or the methods listed below, they can be referenced
-        as if they were a Python attribute of the NXgroup. However, it is only possible
-        to reference attributes with one of the proscribed names using the group
-        dictionary, i.e.,
+        attributes listed above, or the methods listed below, they can be 
+        referenced as if they were a Python attribute of the NXgroup. However, 
+        it is only possible to reference attributes with one of the proscribed 
+        names using the group dictionary, i.e.,
 
         >>> entry.sample.temperature = 100.0
         >>> print entry.sample.temperature
@@ -4027,8 +4033,8 @@ class NXgroup(NXobject):
         >>> entry.sample['temperature']
         NXfield(100.0)
 
-        For this reason, it is recommended to use the group dictionary to reference
-        all group objects within Python scripts.
+        For this reason, it is recommended to use the group dictionary to 
+        reference all group objects within Python scripts.
 
     Notes
     -----
@@ -5240,8 +5246,8 @@ class NXroot(NXgroup):
                 self._mode = self._file.mode = 'r'
                 self.set_changed()
             else:
-                raise NeXusError("'%s' does not exist" % 
-                                 os.path.abspath(self.nxfilename))
+                raise NeXusError("'%s' does not exist"
+                                 % os.path.abspath(self.nxfilename))
 
     def unlock(self):
         """Make the tree modifiable."""
@@ -5253,8 +5259,8 @@ class NXroot(NXgroup):
             else:
                 self._mode = None
                 self._file = None
-                raise NeXusError("'%s' does not exist" % 
-                                 os.path.abspath(self.nxfilename))
+                raise NeXusError("'%s' does not exist"
+                                 % os.path.abspath(self.nxfilename))
             self.set_changed()
 
     def backup(self, filename=None, dir=None):

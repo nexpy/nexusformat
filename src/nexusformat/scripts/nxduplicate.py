@@ -16,8 +16,10 @@ def main():
 
     parser = argparse.ArgumentParser(
         description="Copy a NeXus file to another file")
-    parser.add_argument('input', action='store', help="name of NeXus input file")
-    parser.add_argument('output', action='store', help="name of NeXus output file")
+    parser.add_argument('input', action='store', 
+                        help="name of NeXus input file")
+    parser.add_argument('output', action='store', 
+                        help="name of NeXus output file")
     parser.add_argument('-e', '--expand_external',action='store_true',
                         help="store external links within the new file")
     parser.add_argument('-o', '--overwrite',action='store_true',
@@ -31,7 +33,8 @@ def main():
         mode = 'w'
     else:
         mode = 'w-'
-    nxduplicate(args.input, args.output, mode=mode, expand_external=args.expand_external)
+    nxduplicate(args.input, args.output, mode=mode, 
+                expand_external=args.expand_external)
 
 
 if __name__ == "__main__":

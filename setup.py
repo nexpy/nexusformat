@@ -37,7 +37,8 @@ setup (name =  nexusformat.__package_name__, # NeXpy
             # create & install scripts in <python>/bin
             'console_scripts': 
                 ['nxstack=nexusformat.scripts.nxstack:main',                
-                 'nxduplicate=nexusformat.scripts.nxduplicate:main'],
+                 'nxduplicate=nexusformat.scripts.nxduplicate:main',
+                 'nxversion=nexusformat.scripts.nxversion:main'],
        },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',

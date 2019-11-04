@@ -111,4 +111,4 @@ def test_field_resize():
     field[:,:,9] = 1
 
     assert field.shape == (15,5,10)
-    assert field.sum() == 120
+    assert field[:,:,9].sum() == 75

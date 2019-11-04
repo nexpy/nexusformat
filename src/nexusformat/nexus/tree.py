@@ -2569,7 +2569,7 @@ class NXfield(NXobject):
                   'scaleoffset', 'shuffle']
 
     def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
-                 group=None, attrs={}, **kwargs):
+                 group=None, attrs=None, **kwargs):
         self._class = 'NXfield'
         self._name = name
         self._group = group
@@ -2591,6 +2591,8 @@ class NXfield(NXobject):
                                         True if _size>NX_MAXSIZE else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items() 
                             if v is not None)
+        if attrs is None:
+            attrs = {}
         attrs.update(kwargs)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None

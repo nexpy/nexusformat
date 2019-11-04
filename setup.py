@@ -38,7 +38,7 @@ setup (name =  nexusformat.__package_name__, # NeXpy
             'console_scripts': 
                 ['nxstack=nexusformat.scripts.nxstack:main',                
                  'nxduplicate=nexusformat.scripts.nxduplicate:main',
-                 'nxversion=nexusformat.scripts.nxversion:main'],
+                 'nexusformat=nexusformat.scripts.nexusformat:main'],
        },
        classifiers= ['Development Status :: 4 - Beta',
                      'Intended Audience :: Developers',

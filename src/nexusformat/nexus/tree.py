@@ -2719,6 +2719,8 @@ class NXfield(NXobject):
         """
         if self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
+        elif self.dtype is None:
+            raise NeXusError("Set the field dtype before assignment")
         idx = convert_index(idx, self)
         if value is np.ma.masked:
             self._mask_data(idx)

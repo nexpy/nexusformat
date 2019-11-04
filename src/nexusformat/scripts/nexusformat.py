@@ -9,7 +9,6 @@
 from __future__ import (division, print_function)
 
 import argparse
-from nexusformat.nexus import *
 from nexusformat import __version__
 
 def main():

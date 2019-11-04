@@ -1638,10 +1638,11 @@ class AttrDict(dict):
         A dictionary containing the first set of attributes.   
     """
 
-    def __init__(self, parent=None, attrs={}):
+    def __init__(self, parent=None, attrs=None):
         super(AttrDict, self).__init__()
         self._parent = parent
-        self._setattrs(attrs)
+        if attrs is not None:
+            self._setattrs(attrs)
 
     def _setattrs(self, attrs):
         for key, value in attrs.items():
@@ -2569,7 +2570,7 @@ class NXfield(NXobject):
                   'scaleoffset', 'shuffle']
 
     def __init__(self, value=None, name='unknown', shape=None, dtype=None, 
-                 group=None, attrs={}, **kwargs):
+                 group=None, attrs=None, **kwargs):
         self._class = 'NXfield'
         self._name = name
         self._group = group
@@ -2591,6 +2592,8 @@ class NXfield(NXobject):
                                         True if _size>NX_MAXSIZE else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items() 
                             if v is not None)
+        if attrs is None:
+            attrs = {}
         attrs.update(kwargs)
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None
@@ -2719,6 +2722,8 @@ class NXfield(NXobject):
         """
         if self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
+        elif self.dtype is None:
+            raise NeXusError("Set the field dtype before assignment")
         idx = convert_index(idx, self)
         if value is np.ma.masked:
             self._mask_data(idx)

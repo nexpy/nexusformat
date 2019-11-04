@@ -74,6 +74,7 @@ def test_field_slice(arr, idx):
     assert np.array_equal(field[idx].nxvalue, arr[idx])
     assert field[idx].shape == arr[idx].shape
 
+
 def test_field_index():
 
     field = NXfield(2*arr1D)
@@ -89,4 +90,25 @@ def test_field_index():
     assert field.index(11.) == 94
     assert field.index(11., max=True) == 95
     assert field.index(12., max=True) == 94
-   
+
+
+def test_field_resize():
+
+    field = NXfield(shape=(10,5,5), dtype=np.int16, maxshape=(20,10,10), 
+                    fillvalue=0)
+    field[9] = 1
+
+    assert field.shape == (10,5,5)
+    assert field.sum() == 25
+
+    field.resize((15,5,5))
+    field[14] = 1
+
+    assert field.shape == (15,5,5)
+    assert field.sum() == 50
+
+    field.resize((15,5,10))
+    field[:,:,9] = 1
+
+    assert field.shape == (15,5,10)
+    assert field[:,:,9].sum() == 75

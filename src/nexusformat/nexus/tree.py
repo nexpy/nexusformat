@@ -1638,10 +1638,11 @@ class AttrDict(dict):
         A dictionary containing the first set of attributes.   
     """
 
-    def __init__(self, parent=None, attrs={}):
+    def __init__(self, parent=None, attrs=None):
         super(AttrDict, self).__init__()
         self._parent = parent
-        self._setattrs(attrs)
+        if attrs is not None:
+            self._setattrs(attrs)
 
     def _setattrs(self, attrs):
         for key, value in attrs.items():

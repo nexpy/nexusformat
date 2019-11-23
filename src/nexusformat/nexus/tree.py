@@ -5188,17 +5188,6 @@ class NXlinkgroup(NXlink, NXgroup):
         self._entries = group._entries
         self._attrs = group._attrs
 
-    @property
-    def entries(self):
-        """Entries of the target group.
-        
-        Returns
-        -------
-        dict of NXfield or NXgroup
-            Target group entries
-        """
-        return self.nxlink._entries
-
     def plot(self, **kwargs):
         """Plot the target group."""
         if self.is_external():

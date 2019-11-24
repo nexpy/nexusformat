@@ -765,17 +765,15 @@ class NXFile(object):
         """
         _target, _filename, _abspath = self._getlink()
         if _target is not None:
-            if _filename is not None:
-                try:
-                    value, shape, dtype, attrs = self.readvalues()
-                    return NXlinkfield(
-                        target=_target, file=_filename, abspath=_abspath,
-                        name=name, value=value, dtype=dtype, shape=shape, 
-                        attrs=attrs)
-                except Exception:
-                    pass
-            return NXlinkfield(name=name, target=_target, file=_filename, 
-                               abspath=_abspath)
+            try:
+                value, shape, dtype, attrs = self.readvalues()
+                return NXlinkfield(
+                    target=_target, file=_filename, abspath=_abspath,
+                    name=name, value=value, dtype=dtype, shape=shape, 
+                    attrs=attrs)
+            except Exception:
+                return NXlinkfield(name=name, target=_target, file=_filename, 
+                                   abspath=_abspath)
         else:
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 

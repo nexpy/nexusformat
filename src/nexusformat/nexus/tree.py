@@ -1654,7 +1654,7 @@ class AttrDict(dict):
         """Creates a new entry in the dictionary."""
         if value is None:
             return
-        elif self._parent and self._parent.nxfilemode == 'w':
+        elif self._parent and self._parent.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(text(key), value)

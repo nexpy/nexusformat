@@ -765,17 +765,15 @@ class NXFile(object):
         """
         _target, _filename, _abspath = self._getlink()
         if _target is not None:
-            if _filename is not None:
-                try:
-                    value, shape, dtype, attrs = self.readvalues()
-                    return NXlinkfield(
-                        target=_target, file=_filename, abspath=_abspath,
-                        name=name, value=value, dtype=dtype, shape=shape, 
-                        attrs=attrs)
-                except Exception:
-                    pass
-            return NXlinkfield(name=name, target=_target, file=_filename, 
-                               abspath=_abspath)
+            try:
+                value, shape, dtype, attrs = self.readvalues()
+                return NXlinkfield(
+                    target=_target, file=_filename, abspath=_abspath,
+                    name=name, value=value, dtype=dtype, shape=shape, 
+                    attrs=attrs)
+            except Exception:
+                return NXlinkfield(name=name, target=_target, file=_filename, 
+                                   abspath=_abspath)
         else:
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
@@ -1656,7 +1654,7 @@ class AttrDict(dict):
         """Creates a new entry in the dictionary."""
         if value is None:
             return
-        elif self._parent and self._parent.nxfilemode == 'w':
+        elif self._parent and self._parent.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(text(key), value)
@@ -4880,6 +4878,7 @@ class NXlink(NXobject):
             if not self._target.startswith('/'):
                 self._target = '/' + self._target
         self._link = None
+        self._external_attrs = None
 
     def __repr__(self):
         if self._filename:
@@ -4902,12 +4901,10 @@ class NXlink(NXobject):
             except Exception:
                 raise NeXusError("Cannot read the external link to '%s'" 
                                   % self._filename)
+        elif self._link:
+            return getattr(self.nxlink, name)
         else:
-            if self.nxlink:
-                return getattr(self.nxlink, name)
-            else:
-                raise NeXusError("Cannot resolve the link to '%s'" 
-                                  % self._target)
+            raise NeXusError("Cannot resolve the link to '%s'" % self._target)
 
     def __setattr__(self, name, value):
         """Set an attribute of the link target.
@@ -4928,10 +4925,8 @@ class NXlink(NXobject):
         """
         if name.startswith('_')  or name.startswith('nx'):
             object.__setattr__(self, name, value)
-        elif self.is_external():
-            raise NeXusError("Cannot modify an externally linked file")
         else:
-            self.nxlink.__setattr__(name, value)            
+            raise NeXusError("Cannot modify a link directly")
 
     def __deepcopy__(self, memo={}):
         """Return a deep copy of the link containing the target information."""
@@ -4993,9 +4988,10 @@ class NXlink(NXobject):
                 with self.nxfile as f:
                     item = f.readpath(self.nxfilepath)
                 self._link = self
-            elif self._target in self.nxroot:
-                item = self.nxroot[self._target]
-                self._link = item
+                self._external = True
+            elif self._target in self.  nxroot:
+                self._link = item = self.nxroot[self._target]
+                self._external = False
             else:
                 self._link = None
                 return None
@@ -5003,6 +4999,7 @@ class NXlink(NXobject):
                 self._setclass(NXlinkfield)
             elif isinstance(item, NXgroup):
                 self._setclass(_getclass(item.nxclass, link=True))
+        if self.is_external():
             self.copylink(item)
         return self._link
 
@@ -5034,10 +5031,19 @@ class NXlink(NXobject):
             Dictionary of NeXus attributes.
         """
         try:
-            if not self.is_external():
-                return self.nxlink._attrs
+            if self.is_external() and self._external_attrs:
+                return self._external_attrs
+            elif self.is_external():
+                try:
+                    with self.nxfile as f:
+                        item = f.readpath(self.nxfilepath)
+                    self._external_attrs = item._attrs
+                    return item._attrs
+                except Exception:
+                    raise NeXusError("Cannot read the external link to '%s'" 
+                                      % self._filename)
             else:
-                return self._attrs
+                return self.nxlink._attrs
         except Exception as error:
             self._attrs = AttrDict(self)
         return self._attrs
@@ -5063,8 +5069,7 @@ class NXlinkfield(NXlink, NXfield):
                  **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
-        if self._filename is not None:
-            NXfield.__init__(self, name=name, **kwargs)
+        NXfield.__init__(self, name=name, **kwargs)
         self._class = "NXfield"
 
     def __getitem__(self, idx):
@@ -5118,13 +5123,6 @@ class NXlinkfield(NXlink, NXfield):
         self._memfile = field._memfile
         self._uncopied_data = field._uncopied_data
         self._attrs = field._attrs
-
-    def plot(self, **kwargs):
-        """Plot the target NXfield."""
-        if self.is_external():
-            super(NXlinkfield, self).plot(**kwargs)
-        else:
-            self.nxlink.plot(**kwargs)            
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -5186,25 +5184,9 @@ class NXlinkgroup(NXlink, NXgroup):
             Group to be copied.
         """
         self._entries = group._entries
+        for entry in self._entries:
+            self._entries[entry]._group = self
         self._attrs = group._attrs
-
-    @property
-    def entries(self):
-        """Entries of the target group.
-        
-        Returns
-        -------
-        dict of NXfield or NXgroup
-            Target group entries
-        """
-        return self.nxlink._entries
-
-    def plot(self, **kwargs):
-        """Plot the target group."""
-        if self.is_external():
-            super(NXlinkgroup, self).plot(**kwargs)
-        else:
-            self.nxlink.plot(**kwargs)        
 
 
 class NXroot(NXgroup):

@@ -1,5 +1,6 @@
 import os
 import pytest
+import time
 from nexusformat.nexus import *
 
 field1 = NXfield('a', name="f1")
@@ -58,6 +59,8 @@ def test_locked_assignments(tmpdir):
 
     assert isinstance(root.nxfile.lock, NXLock)
     assert root.nxfile.lock.timeout == 10
+
+    time.sleep(0.1)
 
     root["entry/f1"] = "c"
 

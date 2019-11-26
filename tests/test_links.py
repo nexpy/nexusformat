@@ -42,7 +42,7 @@ def test_saved_links(tmpdir, save):
     root["g2"].f1_link = NXlink(root["g1/f1"])
 
     if save:
-        root = nxload(filename)
+        root = nxload(filename, "rw")
 
     assert root["g2/f1_link"].shape == (2,)
     assert root["g2/f1_link"].dtype == np.float32
@@ -64,7 +64,6 @@ def test_linkfield_properties(tmpdir, save):
     if save:
         filename = os.path.join(tmpdir, "file1.nxs")
         root.save(filename, mode="w")
-        root = nxload(filename)
 
     assert root["g2/f1_link"].shape == (2,)
     assert root["g2/f1_link"].dtype == np.float32
@@ -91,7 +90,9 @@ def test_linkgroup_properties(tmpdir, save):
     assert "f1" in root["entry/g3"]
     assert len(root["entry/g3"]) == len(root["entry/g1/g2"])
     assert root["entry/g3"].nxtarget == "/entry/g1/g2"
+    assert root["entry/g1/g2/f1"].nxroot is root
     assert root["entry/g1/g2/f1"].nxgroup is root["entry/g1/g2"]
+    assert root["entry/g3"].nxroot is root
     assert root["entry/g3"].nxgroup is root["entry"]
     assert root["entry/g3"].nxlink is root["entry/g1/g2"]
 
@@ -112,6 +113,7 @@ def test_external_field_links(tmpdir):
     assert root["entry/f2"].nxfilepath == "/entry/f1"
     assert root["entry/f2"].nxfilename == external_filename
     assert root["entry/f2"].nxfilemode == "r"
+    assert root["entry/f2"].nxroot == root
     assert root["entry/f2"].nxgroup == root["entry"]
 
     assert root["entry/f2"].file_exists()
@@ -132,18 +134,25 @@ def test_external_group_links(tmpdir):
     external_root.save(external_filename, mode="w")
 
     root["entry/g2"] = NXlink(target="/entry/g1", file=external_filename)
-
+    
     assert root["entry/g2"].nxtarget == "/entry/g1"
     assert root["entry/g2"].nxfilepath == "/entry/g1"
     assert root["entry/g2"].nxfilename == external_filename
     assert root["entry/g2"].nxfilemode == "r"
+    assert root["entry/g2"].nxroot == root
     assert root["entry/g2"].nxgroup == root["entry"]
-
     assert root["entry/g2"].file_exists()
     assert root["entry/g2"].path_exists()
+
     assert "f1" in root["entry/g2"]
+    assert root["entry/g2/f1"].nxfilename == root["entry/g2"].nxfilename
+    assert root["entry/g2/f1"].nxfilepath == "/entry/g1/f1"
+    assert root["entry/g2/f1"].nxroot == root
+    assert root["entry/g2/f1"].nxgroup is root["entry/g2"]
     assert root["entry/g2/f1"][0] == external_root["entry/g1/f1"][0]
+
     assert "a" in root["entry/g2"].attrs
+    assert "units" in root["entry/g2/f1"].attrs
 
 
 def test_external_group_files(tmpdir):

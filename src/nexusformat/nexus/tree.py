@@ -5177,6 +5177,8 @@ class NXlinkgroup(NXlink, NXgroup):
             Group to be copied.
         """
         self._entries = group._entries
+        for entry in self._entries:
+            self._entries[entry]._group = self
         self._attrs = group._attrs
 
 

@@ -5117,13 +5117,6 @@ class NXlinkfield(NXlink, NXfield):
         self._uncopied_data = field._uncopied_data
         self._attrs = field._attrs
 
-    def plot(self, **kwargs):
-        """Plot the target NXfield."""
-        if self.is_external():
-            super(NXlinkfield, self).plot(**kwargs)
-        else:
-            self.nxlink.plot(**kwargs)            
-
 
 class NXlinkgroup(NXlink, NXgroup):
     """Class for NeXus linked groups."""
@@ -5185,13 +5178,6 @@ class NXlinkgroup(NXlink, NXgroup):
         """
         self._entries = group._entries
         self._attrs = group._attrs
-
-    def plot(self, **kwargs):
-        """Plot the target group."""
-        if self.is_external():
-            super(NXlinkgroup, self).plot(**kwargs)
-        else:
-            self.nxlink.plot(**kwargs)        
 
 
 class NXroot(NXgroup):

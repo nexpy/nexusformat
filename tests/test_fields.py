@@ -18,6 +18,7 @@ def test_string_field_creation(text):
 
     assert field.nxvalue == text
     assert field.dtype == string_dtype
+    assert field.is_string()
     assert len(field) == 0
 
 
@@ -29,6 +30,7 @@ def test_byte_field_creation(text):
     assert field.nxvalue == text
     assert field.nxdata.decode(NX_ENCODING) == text
     assert field.dtype != string_dtype
+    assert field.is_string()
     assert len(field) == 0
 
 
@@ -42,6 +44,7 @@ def test_array_field_creation(arr):
     assert field.shape == arr.shape
     assert field.dtype == arr.dtype
     assert field.size == arr.size
+    assert field.is_numeric()
     assert len(field) == len(arr)
     assert field.reshape((field.size)) == NXfield(arr.reshape((arr.size)))
 

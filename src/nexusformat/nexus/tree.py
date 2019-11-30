@@ -3835,6 +3835,14 @@ class NXfield(NXobject):
         """Rank of the NXfield when plotting."""
         return len(self.plot_shape)
 
+    def is_numeric(self):
+        """True if the NXfield contains numeric data."""
+        return not is_string_dtype(self.dtype)
+
+    def is_string(self):
+        """True if the NXfield contains strings."""
+        return is_string_dtype(self.dtype)
+
     def is_plottable(self):
         """True if the NXfield is plottable."""
         if self.plot_rank > 0:

@@ -13,5 +13,5 @@
 pkg_requirements = [
     'numpy',
     'scipy',
-    'h5py',
+    'h5py'
 ]

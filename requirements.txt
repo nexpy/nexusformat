@@ -1,4 +1,4 @@
 h5py
-ipython
 numpy
 scipy
+ipython

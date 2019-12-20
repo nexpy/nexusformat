@@ -5020,12 +5020,10 @@ class NXlink(NXobject):
         External links are always read-only.
         """
         try:
-            if self._mode is None:
-                if self.is_external():
-                    self._mode = 'r'
-                else:
-                    self._mode = self.nxlink.nxfilemode
-            return self._mode
+            if self.is_external():
+                return 'r'
+            else:
+                return self.nxlink.nxfilemode
         except Exception:
             return 'r'
 

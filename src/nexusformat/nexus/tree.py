@@ -5061,21 +5061,6 @@ class NXlinkfield(NXlink, NXfield):
                         abspath=abspath)
         self._class = "NXfield"
 
-    def __getitem__(self, idx):
-        """Return slice from the target NXfield.
-        
-        Parameters
-        ----------
-        idx : slice
-            Indices defining the slice.
-        
-        Returns
-        -------
-        NXfield
-            Field containing the slice values.
-        """
-        return self.nxlink.__getitem__(idx)
-
 
 class NXlinkgroup(NXlink, NXgroup):
     """Class for NeXus linked groups."""
@@ -5117,6 +5102,12 @@ class NXlinkgroup(NXlink, NXgroup):
         _entries = {}
         try:
             for entry in self.nxlink.entries:
+        _entries = self.nxlink.entries
+        if self.is_external():
+            for entry in _entries:
+                _entries[entry]._group = self
+        else:
+            for entry in _entries:
                 _entries[entry] = deepcopy(self.nxlink[entry])
                 _entries[entry]._group = self
         except Exception as error:

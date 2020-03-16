@@ -742,10 +742,10 @@ class NXFile(object):
             group = NXlinkgroup(nxclass=nxclass, name=name, target=_target,
                                 file=_filename, abspath=_abspath)
         else:
-            group = NXgroup(nxclass=nxclass, name=name, attrs=attrs,
-                            new_entries=children)
-        for obj in children.values():
-            obj._group = group
+            group = NXgroup(nxclass=nxclass, name=name, attrs=attrs)
+        for child in children:
+            group._entries[child] = children[child]
+            children[child]._group = group
         group._changed = True
         return group
 
@@ -4100,10 +4100,6 @@ class NXgroup(NXobject):
             for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
             del kwargs["entries"]
-        if "new_entries" in kwargs:
-            for k,v in kwargs["new_entries"].items():
-                self._entries[k] = v
-            del kwargs["new_entries"]            
         if "attrs" in kwargs:
             self._attrs = AttrDict(self, attrs=kwargs["attrs"])
             del kwargs["attrs"]

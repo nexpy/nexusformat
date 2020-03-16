@@ -5000,11 +5000,9 @@ class NXlink(NXobject):
                 with self.nxfile as f:
                     item = f.readpath(self.nxfilepath)
                 self._link = self.external_link
-                self._external = True
             elif self._target in self.nxroot:
                 item = self.nxroot[self._target]
                 self._link = self.internal_link
-                self._external = False
             else:
                 self._link = None
                 return None
@@ -5052,15 +5050,6 @@ class NXlink(NXobject):
     def abspath(self):
         """True if the filename is to be stored as an absolute path."""
         return self._abspath
-
-    def is_external(self):
-        """True if the linked object is in an external file."""
-        if self._external is None:
-            if self._filename is not None:
-                self._external = True
-            else:
-                self._external = super(NXlink, self).is_external()
-        return self._external
 
 
 class NXlinkfield(NXlink, NXfield):

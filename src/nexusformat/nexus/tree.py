@@ -4895,6 +4895,7 @@ class NXlink(NXobject):
             if not self._target.startswith('/'):
                 self._target = '/' + self._target
         self._link = None
+        self._initialized = False
 
     def __repr__(self):
         if self._filename:
@@ -4997,8 +4998,12 @@ class NXlink(NXobject):
         class (NXlinkfield or NXlinkgroup) and attributes if the target
         is accessible.
         """
+        self.initialize_link()
         if self._link is None:
-            self.initialize_link()
+            if self.is_external():
+                self._link = self.external_link
+            else:
+                self._link = self.internal_link
         return self._link
 
     def initialize_link(self):
@@ -5009,22 +5014,24 @@ class NXlink(NXobject):
         NXfield or NXgroup
             Target of link.
         """
-        if self._link is None:
-            if self._filename is not None and os.path.exists(self.nxfilename):
-                with self.nxfile as f:
-                    item = f.readpath(self.nxfilepath)
-                self._link = self.external_link
+        if not self._initialized:
+            if self.is_external():
+                if os.path.exists(self.nxfilename):
+                    with self.nxfile as f:
+                        item = f.readpath(self.nxfilepath)
+                else:
+                    return
             elif self._target in self.nxroot:
                 item = self.nxroot[self._target]
-                self._link = self.internal_link
             else:
-                self._link = None
-                return None
+                return
             if isinstance(item, NXfield):
                 self._setclass(NXlinkfield)
             elif isinstance(item, NXgroup):
                 self._setclass(_getclass(item.nxclass, link=True))
-        return self._link
+            else:
+                return
+            self._initialized = True
 
     @property
     def internal_link(self):
@@ -5036,7 +5043,7 @@ class NXlink(NXobject):
             with self.nxfile as f:
                 item = f.readpath(self.nxfilepath)
             return item
-        except Exception:
+        except Exception as error:
             raise NeXusError("Cannot read the external link to '%s'" 
                              % self._filename)
 
@@ -5074,6 +5081,7 @@ class NXlinkfield(NXlink, NXfield):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         self._class = "NXfield"
+        self._initialized = True
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -5085,8 +5093,11 @@ class NXlinkgroup(NXlink, NXgroup):
                         abspath=abspath)
         if 'nxclass' in kwargs:
             self._setclass(_getclass(kwargs['nxclass'], link=True))
+            self._initialized = True
         else:
             self._class = 'NXlink'
+        self._entries = {}
+
     def __getattr__(self, name):
         """Return attribute looking in the group entries and attributes.
 

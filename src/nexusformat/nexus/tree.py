@@ -5113,19 +5113,16 @@ class NXlinkgroup(NXlink, NXgroup):
         dict of NXfields and/or NXgroups
             Dictionary of group objects.
         """
+        _linked_entries = self.nxlink.entries
         _entries = {}
-        try:
-            for entry in self.nxlink.entries:
-        _entries = self.nxlink.entries
         if self.is_external():
-            for entry in _entries:
+            for entry in _linked_entries:
+                _entries[entry] = _linked_entries[entry]
                 _entries[entry]._group = self
-        else:
-            for entry in _entries:
-                _entries[entry] = deepcopy(self.nxlink[entry])
+        else:            
+            for entry in _linked_entries:
+                _entries[entry] = deepcopy(_linked_entries[entry])
                 _entries[entry]._group = self
-        except Exception as error:
-            pass
         return _entries
 
 

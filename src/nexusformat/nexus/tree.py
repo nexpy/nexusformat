@@ -4248,6 +4248,8 @@ class NXgroup(NXobject):
                         raise NeXusError("Invalid path")
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus group marked as readonly")
+            elif isinstance(group, NXlink):
+                raise NeXusError("Cannot modify an item in a linked group")
             elif isinstance(value, NXroot):
                 raise NeXusError(
                     "Cannot assign an NXroot group to another group")
@@ -4260,6 +4262,8 @@ class NXgroup(NXobject):
                         "Cannot assign an NXlink to an existing group entry")
                 elif isinstance(group.entries[key], NXlink):
                     raise NeXusError("Cannot assign values to an NXlink")
+                elif group.entries[key].is_linked():
+                    raise NeXusError("Cannot modify an item in linked group")
                 group.entries[key].nxdata = value
                 if isinstance(value, NXfield):
                     group.entries[key]._setattrs(value.attrs)
@@ -4322,6 +4326,8 @@ class NXgroup(NXobject):
                         raise NeXusError("Invalid path")
             if key not in group:
                 raise NeXusError("'"+key+"' not in "+group.nxpath)
+            elif group[key].is_linked():
+                raise NeXusError("Cannot delete an item in a linked group")
             if group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     if 'mask' in group.entries[key].attrs:

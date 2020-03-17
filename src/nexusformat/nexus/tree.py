@@ -5049,7 +5049,10 @@ class NXlink(NXobject):
 
     @property
     def attrs(self):
-        return self.nxlink.attrs
+        try:
+            return self.nxlink.attrs
+        except NeXusError:
+            return AttrDict()
 
     @property
     def nxfilemode(self):

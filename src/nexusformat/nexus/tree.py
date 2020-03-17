@@ -2327,6 +2327,13 @@ class NXobject(object):
         """True if the NeXus object is plottable."""
         return False
 
+    def is_modifiable(self):
+        _mode = self.nxfilemode
+        if _mode is None or _mode == 'rw' and not self.is_linked():
+            return True
+        else:
+            return False 
+
     def is_linked(self):
         """True if the NeXus object is embedded in a link."""
         if self._group is not None:

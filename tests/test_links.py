@@ -91,7 +91,7 @@ def test_linkgroup_properties(tmpdir, save):
     assert len(root["entry/g2_link"]) == len(root["entry/g1/g2"])
     assert root["entry/g2_link"].nxtarget == "/entry/g1/g2"
     assert root["entry/g1/g2/f1"].nxroot is root
-    assert root["entry/g1/g2/f1"].nxgroup is root["entry/g1/g2"]
+    assert root["entry/g1/g2/f1"].nxgroup is root["entry/g2_link"].nxlink
     assert root["entry/g2_link"].nxroot is root
     assert root["entry/g2_link"].nxgroup is root["entry"]
     assert root["entry/g2_link"].nxlink.entries == root["entry/g1/g2"].entries
@@ -109,18 +109,32 @@ def test_embedded_links(tmpdir, save):
     if save:
         filename = os.path.join(tmpdir, "file1.nxs")
         root.save(filename, mode="w")
-        root = nxload(filename)
+        root = nxload(filename, "rw")
 
     assert "f1" in root["entry/g2_link/g3"]
+    assert not root["entry/g2_link"].is_linked()
+    assert root["entry/g2_link/g3"].is_linked()
+    assert root["entry/g2_link/g3/f1"].is_linked()
     assert len(root["entry/g2_link/g3"]) == len(root["entry/g1/g2/g3"])
     assert root["entry/g2_link/g3/f1"].nxpath == "/entry/g2_link/g3/f1"
     assert root["entry/g2_link/g3/f1"].nxfilepath == "/entry/g1/g2/g3/f1"
     assert root["entry/g2_link/g3/f1"].nxroot is root
     assert root["entry/g2_link/g3/f1"].nxgroup.nxgroup is root["entry/g2_link"]
 
-    root["entry/g2_link/g3/f1"].attrs["a"] = 1
+    root["entry/g1/g2/g3/f1"] = [7, 8]
+    root["entry/g1/g2/g3/f1"].attrs["a"] = 1
 
-    assert "a" in root["entry/g1/g2/g3/f1"].attrs
+    assert root["entry/g2_link/g3/f1"][0] == 7
+    assert "a" in root["entry/g2_link/g3/f1"].attrs
+    assert root["entry/g2_link/g3/f1"].attrs["a"] == 1
+
+    root["entry/g1/g2/g3/f2"] = field2
+
+    assert "f2" in root["entry/g2_link/g3"]
+
+    del root["entry/g1/g2/g3/f2"]
+
+    assert "f2" not in root["entry/g2_link/g3"]
 
 
 def test_external_field_links(tmpdir):

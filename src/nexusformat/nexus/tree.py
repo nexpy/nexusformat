@@ -5087,6 +5087,13 @@ class NXlinkgroup(NXlink, NXgroup):
             self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
             self._class = 'NXlink'
+    def __getattr__(self, name):
+        """Return attribute looking in the group entries and attributes.
+
+        If the attribute is the name of a defined NeXus class, a list of group
+        entries of that class are returned.
+        """
+        return NXgroup(self).__getattr__(name)
 
     def _str_name(self, indent=0):
         if self._filename:

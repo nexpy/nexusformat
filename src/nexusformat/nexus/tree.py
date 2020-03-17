@@ -2329,10 +2329,11 @@ class NXobject(object):
 
     def is_linked(self):
         """True if the NeXus object is embedded in a link."""
-        if isinstance(self, NXlink):
-            return True
-        elif self._group is not None:
-            return self._group.is_linked()
+        if self._group is not None:
+            if isinstance(self._group, NXlink):
+                return True
+            else:
+                return self._group.is_linked()
         else:
             return False
 

@@ -1646,33 +1646,35 @@ class AttrDict(dict):
         """Creates a new entry in the dictionary."""
         if value is None:
             return
-        elif self._parent and self._parent.nxfilemode == 'r':
-            raise NeXusError("NeXus file opened as readonly")
+        elif isinstance(self._parent, NXobject):
+            if self._parent.nxfilemode == 'r':
+                raise NeXusError("NeXus file opened as readonly")
+            elif self._parent.is_linked():
+                raise NeXusError("Cannot modify an item in a linked group")
         if isinstance(value, NXattr):
             super(AttrDict, self).__setitem__(text(key), value)
         else:
             super(AttrDict, self).__setitem__(text(key), NXattr(value))
-        if self._parent and self._parent.nxfilemode == 'rw':
-            with self._parent.nxfile as f:
-                f.update(self)
+        if isinstance(self._parent, NXobject):
+            self._parent.set_changed()
+            if self._parent.nxfilemode == 'rw':
+                with self._parent.nxfile as f:
+                    f.update(self)
 
     def __delitem__(self, key):
         """Deletes an entry from the dictionary."""
+        if isinstance(self._parent, NXobject):
+            if self._parent.nxfilemode == 'r':
+                raise NeXusError("NeXus file opened as readonly")
+            elif self._parent.is_linked():
+                raise NeXusError("Cannot modify an item in a linked group")
         super(AttrDict, self).__delitem__(key)
-        try:
+        if isinstance(self._parent, NXobject):
+            self._parent.set_changed()
             if self._parent.nxfilemode == 'rw':
                 with self._parent.nxfile as f:
                     f.nxpath = self._parent.nxpath
                     del f[f.nxpath].attrs[key]
-        except Exception:
-            pass
-
-    def get(self, key, default=None):
-        """Retrieves the NXattr object stored in the dictionary."""
-        try:
-            return super(AttrDict, self).__getitem__(key)
-        except KeyError:
-            return default
 
     @property
     def nxpath(self):
@@ -2655,17 +2657,23 @@ class NXfield(NXobject):
         if (name.startswith('_') or name.startswith('nx') or 
             name in self.properties):
             object.__setattr__(self, name, value)
-        elif self.nxfilemode == 'r':
-            raise NeXusError("NeXus file opened as readonly")
-        else:
+        elif self.is_modifiable():
             self._attrs[name] = value
             self.set_changed()
+        elif self.is_linked():
+            raise NeXusError("Cannot modify an item in a linked group")
+        else:
+            raise NeXusError("NeXus file opened as readonly")
 
     def __delattr__(self, name):
         """Delete an attribute in the NXfield attributes dictionary."""
-        if name in self.attrs:
+        if self.is_modifiable() and name in self.attrs:
             del self.attrs[name]
-        self.set_changed()
+            self.set_changed()
+        elif self.is_linked():
+            raise NeXusError("Cannot modify an item in a linked group")
+        else:
+            raise NeXusError("NeXus file opened as readonly")
 
     def __getitem__(self, idx):
         """Return a slice from the NXfield.
@@ -2729,6 +2737,8 @@ class NXfield(NXobject):
         """
         if self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
+        elif self.is_linked():
+            raise NeXusError("Cannot modify an item in a linked group")
         elif self.dtype is None:
             raise NeXusError("Set the field dtype before assignment")
         idx = convert_index(idx, self)
@@ -3593,7 +3603,9 @@ class NXfield(NXobject):
     @mask.setter
     def mask(self, value):
         if self.nxfilemode == 'r':
-            raise NeXusError("NeXus file is locked")
+            raise NeXusError("NeXus file opened as readonly")
+        elif self.is_linked():
+            raise NeXusError("Cannot modify an item in a linked group")
         if 'mask' in self.attrs:
             if self.nxgroup:
                 mask_name = self.attrs['mask']
@@ -4184,6 +4196,8 @@ class NXgroup(NXobject):
         elif isinstance(value, NXattr):
             if self.nxfilemode == 'r':
                 raise NeXusError("NeXus file opened as readonly")
+            elif self.is_linked():
+                raise NeXusError("Cannot modify an item in a linked group")
             self._attrs[name] = value
         else:
             self[name] = value

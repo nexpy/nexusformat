@@ -4895,7 +4895,6 @@ class NXlink(NXobject):
             if not self._target.startswith('/'):
                 self._target = '/' + self._target
         self._link = None
-        self._initialized = False
 
     def __repr__(self):
         if self._filename:
@@ -5014,7 +5013,7 @@ class NXlink(NXobject):
         NXfield or NXgroup
             Target of link.
         """
-        if not self._initialized:
+        if self.nxclass == 'NXlink':
             if self.is_external():
                 if os.path.exists(self.nxfilename):
                     with self.nxfile as f:
@@ -5031,7 +5030,6 @@ class NXlink(NXobject):
                 self._setclass(_getclass(item.nxclass, link=True))
             else:
                 return
-            self._initialized = True
 
     @property
     def internal_link(self):
@@ -5084,7 +5082,6 @@ class NXlinkfield(NXlink, NXfield):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
         self._class = "NXfield"
-        self._initialized = True
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -5096,7 +5093,6 @@ class NXlinkgroup(NXlink, NXgroup):
                         abspath=abspath)
         if 'nxclass' in kwargs:
             self._setclass(_getclass(kwargs['nxclass'], link=True))
-            self._initialized = True
         else:
             self._class = 'NXlink'
         self._entries = {}

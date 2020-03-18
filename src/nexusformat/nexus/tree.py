@@ -2616,9 +2616,9 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            return "NXfield(%s, id=%s)" % (repr(self.nxvalue), id(self))
+            return "NXfield(%s)" % repr(self.nxvalue)
         else:
-            return "NXfield(shape=%s, dtype=%s, id=%s)" % (self.shape, self.dtype, id(self))
+            return "NXfield(shape=%s, dtype=%s)" % (self.shape, self.dtype)
 
     def __str__(self):
         if self._value is not None:
@@ -4152,7 +4152,7 @@ class NXgroup(NXobject):
                       key=natural_sort)
 
     def __repr__(self):
-        return "%s('%s' id=%s)" % (self.__class__.__name__, self.nxname, id(self))
+        return "%s('%s')" % (self.__class__.__name__, self.nxname)
 
     def __hash__(self):
         return id(self)
@@ -4912,9 +4912,8 @@ class NXlink(NXobject):
 
     def __repr__(self):
         if self._filename:
-            return "NXlink(target='%s', file='%s' id=%s)" % (self._target, 
-                                                             self._filename,
-                                                             id(self))
+            return "NXlink(target='%s', file='%s')" % (self._target, 
+                                                       self._filename)
         else:
             return "NXlink('%s')" % (self._target)
 

@@ -1894,6 +1894,12 @@ class NXobject(object):
     def __repr__(self):
         return "NXobject('%s')" % (self.nxname)
 
+    def __bool__(self):
+        """Return confirmation that the object exists."""
+        return True
+
+    __nonzero__ = __bool__
+
     def __contains__(self, key):
         return False
 
@@ -3024,16 +3030,13 @@ class NXfield(NXobject):
         except Exception:
             return 0
 
-    def __nonzero__(self):
+    def any(self):
         """Return False if all values are 0 or False, True otherwise."""
-        try:
-            if np.any(self.nxvalue):
-                return True
-            else:
-                return False
-        except NeXusError:
-            #This usually means that there are too many values to load
-            return True
+        return np.any(self.nxvalue)
+
+    def all(self):
+        """Return False if any values are 0 or False, True otherwise."""
+        return np.all(self.nxvalue)
 
     def index(self, value, max=False):
         """Return the index of a value in a one-dimensional NXfield.
@@ -4380,12 +4383,6 @@ class NXgroup(NXobject):
     def __len__(self):
         """Return the number of entries in the group."""
         return len(self.entries)
-
-    def __bool__(self):
-        """Return confirmation that the group exists."""
-        return True
-
-    __nonzero__ = __bool__
 
     def __deepcopy__(self, memo):
         """Return a deep copy of the group."""

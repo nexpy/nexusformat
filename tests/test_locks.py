@@ -80,6 +80,8 @@ def test_lock_interactions(tmpdir):
     root1 = nxload(filename, mode="rw")
     root2 = nxload(filename, mode="r")
 
+    time.sleep(0.1)
+
     root1.nxfile.lock = 10
     root1["entry/f1"] = "b"
 

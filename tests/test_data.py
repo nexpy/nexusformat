@@ -22,6 +22,8 @@ def test_data_creation():
     assert data.nxsignal.nxname == "v"
     assert data.nxsignal.ndim == 3
     assert data.nxsignal.shape == (2, 5, 10)
+    assert data.nxsignal.any()
+    assert not data.nxsignal.all()
     assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
     assert [axis.ndim for axis in data.nxaxes] == [1, 1, 1]
     assert [axis.shape for axis in data.nxaxes] == [(3,), (6,), (11,)]

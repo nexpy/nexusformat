@@ -18,15 +18,15 @@ def test_link_creation():
 
     assert "g1/f1" in root
     assert "g2/f1_link" in root
-    assert root["g2/f1_link"].nxlink is root["g1/f1"]
+    assert root["g2/f1_link"].nxlink == root["g1/f1"]
     assert root["g2/f1_link"].nxtarget == "/g1/f1"
 
     root["g2/f2_link"] = NXlink(target="/g1/f1")
 
-    assert root["g2/f2_link"].nxlink is root["g1/f1"]
+    assert root["g2/f2_link"].nxlink == root["g1/f1"]
 
     root["g2"].makelink(root["g1/f1"], name="f3_link")
-    assert root["g2/f3_link"].nxlink is root["g1/f1"]
+    assert root["g2/f3_link"].nxlink == root["g1/f1"]
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
@@ -80,21 +80,61 @@ def test_linkgroup_properties(tmpdir, save):
     root = NXroot(NXentry())    
     root["entry/g1"] = NXgroup()
     root["entry/g1/g2"] = NXgroup(field1)
-    root["entry/g3"] = NXlink("entry/g1/g2")
+    root["entry/g2_link"] = NXlink("entry/g1/g2")
 
     if save:
         filename = os.path.join(tmpdir, "file1.nxs")
         root.save(filename, mode="w")
         root = nxload(filename)
 
-    assert "f1" in root["entry/g3"]
-    assert len(root["entry/g3"]) == len(root["entry/g1/g2"])
-    assert root["entry/g3"].nxtarget == "/entry/g1/g2"
+    assert "f1" in root["entry/g2_link"]
+    assert len(root["entry/g2_link"]) == len(root["entry/g1/g2"])
+    assert root["entry/g2_link"].nxtarget == "/entry/g1/g2"
     assert root["entry/g1/g2/f1"].nxroot is root
-    assert root["entry/g1/g2/f1"].nxgroup is root["entry/g1/g2"]
-    assert root["entry/g3"].nxroot is root
-    assert root["entry/g3"].nxgroup is root["entry"]
-    assert root["entry/g3"].nxlink is root["entry/g1/g2"]
+    assert root["entry/g1/g2/f1"].nxgroup is root["entry/g2_link"].nxlink
+    assert root["entry/g2_link"].nxroot is root
+    assert root["entry/g2_link"].nxgroup is root["entry"]
+    assert root["entry/g2_link"].nxlink.entries == root["entry/g1/g2"].entries
+
+
+@pytest.mark.parametrize("save", ["False", "True"])
+def test_embedded_links(tmpdir, save):
+
+    root = NXroot(NXentry())    
+    root["entry/g1"] = NXgroup()
+    root["entry/g1/g2"] = NXgroup()
+    root["entry/g1/g2/g3"] = NXgroup(field1)
+    root["entry/g2_link"] = NXlink("entry/g1/g2")
+
+    if save:
+        filename = os.path.join(tmpdir, "file1.nxs")
+        root.save(filename, mode="w")
+        root = nxload(filename, "rw")
+
+    assert "f1" in root["entry/g2_link/g3"]
+    assert not root["entry/g2_link"].is_linked()
+    assert root["entry/g2_link/g3"].is_linked()
+    assert root["entry/g2_link/g3/f1"].is_linked()
+    assert len(root["entry/g2_link/g3"]) == len(root["entry/g1/g2/g3"])
+    assert root["entry/g2_link/g3/f1"].nxpath == "/entry/g2_link/g3/f1"
+    assert root["entry/g2_link/g3/f1"].nxfilepath == "/entry/g1/g2/g3/f1"
+    assert root["entry/g2_link/g3/f1"].nxroot is root
+    assert root["entry/g2_link/g3/f1"].nxgroup.nxgroup is root["entry/g2_link"]
+
+    root["entry/g1/g2/g3/f1"] = [7, 8]
+    root["entry/g1/g2/g3/f1"].attrs["a"] = 1
+
+    assert root["entry/g2_link/g3/f1"][0] == 7
+    assert "a" in root["entry/g2_link/g3/f1"].attrs
+    assert root["entry/g2_link/g3/f1"].attrs["a"] == 1
+
+    root["entry/g1/g2/g3/f2"] = field2
+
+    assert "f2" in root["entry/g2_link/g3"]
+
+    del root["entry/g1/g2/g3/f2"]
+
+    assert "f2" not in root["entry/g2_link/g3"]
 
 
 def test_external_field_links(tmpdir):
@@ -107,20 +147,20 @@ def test_external_field_links(tmpdir):
     external_root = NXroot(NXentry(field1))
     external_root.save(external_filename, mode="w")
 
-    root["entry/f2"] = NXlink(target="/entry/f1", file=external_filename)
+    root["entry/f1_link"] = NXlink(target="/entry/f1", file=external_filename)
 
-    assert root["entry/f2"].nxtarget == "/entry/f1"
-    assert root["entry/f2"].nxfilepath == "/entry/f1"
-    assert root["entry/f2"].nxfilename == external_filename
-    assert root["entry/f2"].nxfilemode == "r"
-    assert root["entry/f2"].nxroot == root
-    assert root["entry/f2"].nxgroup == root["entry"]
+    assert root["entry/f1_link"].nxtarget == "/entry/f1"
+    assert root["entry/f1_link"].nxfilepath == "/entry/f1"
+    assert root["entry/f1_link"].nxfilename == external_filename
+    assert root["entry/f1_link"].nxfilemode == "r"
+    assert root["entry/f1_link"].nxroot == root
+    assert root["entry/f1_link"].nxgroup == root["entry"]
 
-    assert root["entry/f2"].file_exists()
-    assert root["entry/f2"].path_exists()
-    assert root["entry/f2"].shape == external_root["entry/f1"].shape
-    assert root["entry/f2"][0] == external_root["entry/f1"][0]
-    assert "units" in root["entry/f2"].attrs
+    assert root["entry/f1_link"].file_exists()
+    assert root["entry/f1_link"].path_exists()
+    assert root["entry/f1_link"].shape == external_root["entry/f1"].shape
+    assert root["entry/f1_link"][0] == external_root["entry/f1"][0]
+    assert "units" in root["entry/f1_link"].attrs
 
 
 def test_external_group_links(tmpdir):
@@ -133,26 +173,26 @@ def test_external_group_links(tmpdir):
     external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
     external_root.save(external_filename, mode="w")
 
-    root["entry/g2"] = NXlink(target="/entry/g1", file=external_filename)
+    root["entry/g1_link"] = NXlink(target="/entry/g1", file=external_filename)
     
-    assert root["entry/g2"].nxtarget == "/entry/g1"
-    assert root["entry/g2"].nxfilepath == "/entry/g1"
-    assert root["entry/g2"].nxfilename == external_filename
-    assert root["entry/g2"].nxfilemode == "r"
-    assert root["entry/g2"].nxroot == root
-    assert root["entry/g2"].nxgroup == root["entry"]
-    assert root["entry/g2"].file_exists()
-    assert root["entry/g2"].path_exists()
+    assert root["entry/g1_link"].nxtarget == "/entry/g1"
+    assert root["entry/g1_link"].nxfilepath == "/entry/g1"
+    assert root["entry/g1_link"].nxfilename == external_filename
+    assert root["entry/g1_link"].nxfilemode == "r"
+    assert root["entry/g1_link"].nxroot == root
+    assert root["entry/g1_link"].nxgroup == root["entry"]
+    assert root["entry/g1_link"].file_exists()
+    assert root["entry/g1_link"].path_exists()
 
-    assert "f1" in root["entry/g2"]
-    assert root["entry/g2/f1"].nxfilename == root["entry/g2"].nxfilename
-    assert root["entry/g2/f1"].nxfilepath == "/entry/g1/f1"
-    assert root["entry/g2/f1"].nxroot == root
-    assert root["entry/g2/f1"].nxgroup is root["entry/g2"]
-    assert root["entry/g2/f1"][0] == external_root["entry/g1/f1"][0]
+    assert "f1" in root["entry/g1_link"]
+    assert root["entry/g1_link/f1"].nxfilename == root["entry/g1_link"].nxfilename
+    assert root["entry/g1_link/f1"].nxfilepath == "/entry/g1/f1"
+    assert root["entry/g1_link/f1"].nxroot == root
+    assert root["entry/g1_link/f1"].nxgroup is root["entry/g1_link"]
+    assert root["entry/g1_link/f1"][0] == external_root["entry/g1/f1"][0]
 
-    assert "a" in root["entry/g2"].attrs
-    assert "units" in root["entry/g2/f1"].attrs
+    assert "a" in root["entry/g1_link"].attrs
+    assert "units" in root["entry/g1_link/f1"].attrs
 
 
 def test_external_group_files(tmpdir):
@@ -167,18 +207,18 @@ def test_external_group_files(tmpdir):
     external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
     external_root.save(external_filename, mode="w")
 
-    root["entry/g2"] = NXlink(target="/entry/g1", file=external_filename)
+    root["entry/g1_link"] = NXlink(target="/entry/g1", file=external_filename)
     with root.nxfile:
 
         assert root.nxfile.filename == filename
         assert root.nxfile.locked
         
-        with root["entry/g2"].nxfile:
+        with root["entry/g1_link"].nxfile:
 
-            assert root["entry/g2"].nxfile.filename == external_filename
-            assert root["entry/g2"].nxfile.locked
+            assert root["entry/g1_link"].nxfile.filename == external_filename
+            assert root["entry/g1_link"].nxfile.locked
 
         assert root.nxfile.locked
-        assert not root["entry/g2"].nxfile.locked
+        assert not root["entry/g1_link"].nxfile.locked
 
     assert not root.nxfile.locked

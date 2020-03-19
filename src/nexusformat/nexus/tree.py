@@ -3032,11 +3032,17 @@ class NXfield(NXobject):
 
     def any(self):
         """Return False if all values are 0 or False, True otherwise."""
-        return np.any(self.nxvalue)
+        try:
+            return np.any(self.nxvalue)
+        except TypeError as error:
+            raise NeXusError("Invalid field type for numeric comparisons")
 
     def all(self):
         """Return False if any values are 0 or False, True otherwise."""
-        return np.all(self.nxvalue)
+        try:
+            return np.all(self.nxvalue)
+        except TypeError as error:
+            raise NeXusError("Invalid field type for numeric comparisons")
 
     def index(self, value, max=False):
         """Return the index of a value in a one-dimensional NXfield.

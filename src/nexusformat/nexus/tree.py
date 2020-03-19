@@ -2368,8 +2368,11 @@ class NXobject(object):
         """True if the path to the NeXus object exists."""
         if self.is_external():
             if self.file_exists():
-                with self.nxfile as f:
-                    return self.nxfilepath in f
+                try:
+                    with self.nxfile as f:
+                        return self.nxfilepath in f
+                except Exception as error:
+                    return False
             else:
                 return False
         else:

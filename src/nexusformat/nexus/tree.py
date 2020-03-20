@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013-2019, NeXpy Development Team.
+# Copyright (c) 2013-2020, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -187,8 +187,6 @@ references the first detector of the first instrument of the first entry.
 Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 """
-from __future__ import absolute_import, division, print_function
-
 import numbers
 import os
 import re
@@ -198,7 +196,6 @@ from copy import copy, deepcopy
 
 import h5py as h5
 import numpy as np
-import six
 
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
@@ -212,7 +209,7 @@ NX_MAXSIZE = 10000
 NX_LOCK = 0
 
 np.set_printoptions(threshold=5)
-string_dtype = h5.special_dtype(vlen=six.text_type)
+string_dtype = h5.special_dtype(vlen=str)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
@@ -237,14 +234,9 @@ nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
              'NXtransformations', 'NXtranslation', 'NXuser', 
              'NXvelocity_selector', 'NXxraylens']
 
-if six.PY2:
-    FileNotFoundError = IOError
-else:
-    unicode = str
-
 
 def text(value):
-    """Return a unicode string in both Python 2 and 3.
+    """Return a unicode string.
     
     Parameters
     ----------
@@ -274,10 +266,8 @@ def text(value):
                 text = value.decode('latin-1')
             else:
                 text = value.decode('utf-8')
-    elif six.PY3:
-        text = str(value)
     else:
-        text = unicode(value)
+        text = str(value)
     return text.replace('\x00','').rstrip()
 
 
@@ -294,7 +284,7 @@ def is_text(value):
     bool
         True if the value is a string or bytes array.
     """
-    if isinstance(value, bytes) or isinstance(value, six.string_types):
+    if isinstance(value, bytes) or isinstance(value, str):
         return True
     else:
         return False
@@ -1898,8 +1888,6 @@ class NXobject(object):
         """Return confirmation that the object exists."""
         return True
 
-    __nonzero__ = __bool__
-
     def __contains__(self, key):
         return False
 
@@ -3133,14 +3121,6 @@ class NXfield(NXobject):
 
     def __int__(self):
         """Cast a scalar field as an integer."""
-        return int(self.nxvalue)
-
-    def __long__(self):
-        """Cast a scalar field as a long integer.
-
-        The use of the `long` function is not valid in Python 3 and 
-        no longer useful in Python 2.
-        """
         return int(self.nxvalue)
 
     def __float__(self):

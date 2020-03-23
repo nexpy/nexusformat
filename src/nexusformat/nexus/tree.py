@@ -5647,9 +5647,13 @@ class NXdata(NXgroup):
                 errors = self.nxerrors[idx]
             else:
                 errors = None
+            if self.nxweights: 
+                weights = self.nxweights[idx]
+            else:
+                weights = None
             if 'axes' in signal.attrs:
                 del signal.attrs['axes']
-            result = NXdata(signal, axes, errors, *removed_axes)
+            result = NXdata(signal, axes, errors, weights, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
             if self.nxsignal.mask is not None:
@@ -6292,6 +6296,29 @@ class NXdata(NXgroup):
         else:
             name = 'errors'
         self[name] = errors
+        return self.entries[name]
+
+    @property
+    def nxweights(self):
+        """NXfield containing the signal weights."""
+        if self.nxsignal is not None: 
+            if ('weights' in self.nxsignal.attrs and
+                self.nxsignal.attrs['weights'] in self):
+                return self[self.nxsignal.attrs['weights']]
+            elif self.nxsignal.nxname+'_weights' in self:
+                return self[self.nxsignal.nxname+'_weights']
+        try:
+            return self['weights']
+        except KeyError:
+            return None
+
+    @nxerrors.setter
+    def nxweights(self, weights):
+        if self.nxsignal is not None:
+            name = self.nxsignal.nxname+'_weights'
+        else:
+            name = 'weights'
+        self[name] = weights
         return self.entries[name]
 
     @property

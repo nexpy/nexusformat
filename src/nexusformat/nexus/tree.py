@@ -5493,6 +5493,8 @@ class NXdata(NXgroup):
         A tuple of NXfields containing the plot axes
     nxerrors : NXfield
         The NXfield containing the standard deviations of the signal values.
+    nxweights : NXfield
+        The NXfield containing signal value weights.
 
     Examples
     --------
@@ -5549,7 +5551,8 @@ class NXdata(NXgroup):
              @signal = 1
     """
 
-    def __init__(self, signal=None, axes=None, errors=None, *args, **kwargs):
+    def __init__(self, signal=None, axes=None, errors=None, weights=None,
+                 *args, **kwargs):
         self._class = 'NXdata'
         NXgroup.__init__(self, *args, **kwargs)
         attrs = {}
@@ -5589,7 +5592,23 @@ class NXdata(NXgroup):
                 else:
                     errors_name = signal_name+'_errors'
                 self[errors_name] = errors
-                self[signal_name].attrs['uncertainties'] = errors_name
+                try:
+                    self[signal_name].attrs['uncertainties'] = errors_name
+                except NeXusError:
+                    pass
+            if weights is not None:
+                if isinstance(weights, NXfield) or isinstance(weights, NXlink):
+                    if weights.nxname == 'unknown' or weights.nxname in self:
+                        weights_name = signal_name+'_weights'
+                    else:
+                        weights_name = weights.nxname
+                else:
+                    weights_name = signal_name+'_errors'
+                self[weights_name] = weights
+                try:
+                    self[signal_name].attrs['weights'] = errors_name
+                except NeXusError:
+                    pass
         self.attrs._setattrs(attrs)
 
     def __setattr__(self, name, value):

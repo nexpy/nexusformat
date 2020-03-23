@@ -1383,8 +1383,6 @@ def _getvalue(value, dtype=None, shape=None):
                 raise NeXusError("The value is incompatible with the dtype")
         else:
             _value = text(value)
-            if _value == u'':
-                _value = u' '
             return _value, string_dtype, ()
     elif isinstance(value, np.ndarray):
         if isinstance(value, np.ma.MaskedArray):
@@ -1906,16 +1904,16 @@ class NXobject(object):
         names = sorted(self.attrs)
         result = []
         for k in names:
-            txt1 = u" " * indent
-            txt2 = u"@" + k + " = "
+            txt1 = " " * indent
+            txt2 = "@" + k + " = "
             txt3 = text(self.attrs[k])
             if len(txt3) > 50:
                 txt3 = txt3[:46] + '...'
             if is_text(self.attrs[k]):
-                txt3 =  u"'" + txt3 + "'"
+                txt3 =  "'" + txt3 + "'"
             else:
                 txt3 = txt3
-            txt = (txt1 + txt2 + txt3).replace("u'", "'")
+            txt = (txt1 + txt2 + txt3)
             try:
                 txt = txt[:txt.index('\n')]+'...'
             except ValueError:
@@ -2073,9 +2071,9 @@ class NXobject(object):
             if os.path.splitext(filename)[1] not in ['.nxs', '.nx5', '.h5',
                                                      '.hdf', '.hdf5', '.cxi']:
                 filename = filename + '.nxs'
-            if self.nxclass == "NXroot":
+            if self.nxclass == 'NXroot':
                 root = self
-            elif self.nxclass == "NXentry":
+            elif self.nxclass == 'NXentry':
                 root = NXroot(self)
             else:
                 root = NXroot(NXentry(self)) 
@@ -2621,11 +2619,6 @@ class NXfield(NXobject):
         if self._value is not None:
             return text(self.nxvalue)
         return ""
-
-    def __unicode__(self):
-        if self._value is not None:
-            return text(self.nxvalue)
-        return u""
 
     def __getattr__(self, name):
         """Return Numpy array attribute or NeXus attributes if not defined."""
@@ -3918,7 +3911,7 @@ class NXfield(NXobject):
 
         if self.is_plottable():
             data = NXdata(self, self.nxaxes, title=self.nxtitle)
-            if self.nxroot.nxclass == "NXroot":
+            if self.nxroot.nxclass == 'NXroot':
                 signal_path = self.nxroot.nxname + self.nxpath
             else:
                 signal_path = self.nxpath
@@ -4098,7 +4091,7 @@ class NXgroup(NXobject):
         >>> entry['sample/temperature'] = 40.0
         >>> entry['sample/temperature'].units='K'
     """
-    _class = "NXgroup"
+    _class = 'NXgroup'
 
     def __init__(self, *args, **kwargs):
         self._entries = {}
@@ -4155,7 +4148,7 @@ class NXgroup(NXobject):
         If the attribute is the name of a defined NeXus class, a list of group
         entries of that class are returned.
         """
-        if name.startswith(u'NX'):
+        if name.startswith('NX'):
             return self.component(name)
         elif name in self.entries:
             return self.entries[name]
@@ -4865,11 +4858,11 @@ class NXlink(NXobject):
         Target of link.
     """
 
-    _class = "NXlink"
+    _class = 'NXlink'
 
     def __init__(self, target=None, file=None, name=None, group=None, 
                  abspath=False):
-        self._class = "NXlink"
+        self._class = 'NXlink'
         self._name = name
         self._group = group
         self._abspath = abspath
@@ -5080,7 +5073,7 @@ class NXlinkfield(NXlink, NXfield):
                  **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath)
-        self._class = "NXfield"
+        self._class = 'NXfield'
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -5149,7 +5142,7 @@ class NXroot(NXgroup):
     """
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXroot"
+        self._class = 'NXroot'
         self._backup = None
         self._mtime = None
         self._file_modified = False
@@ -5338,7 +5331,7 @@ class NXentry(NXgroup):
     """NXentry group, a subclass of the NXgroup class."""
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXentry"
+        self._class = 'NXentry'
         NXgroup.__init__(self, *args, **kwargs)
 
     def __add__(self, other):
@@ -5435,7 +5428,7 @@ class NXsubentry(NXentry):
     """NXsubentry group, a subclass of the NXsubentry class."""
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXsubentry"
+        self._class = 'NXsubentry'
         NXgroup.__init__(self, *args, **kwargs)
 
 
@@ -6302,7 +6295,7 @@ class NXmonitor(NXdata):
 
     def __init__(self, signal=None, axes=None, *args, **kwargs):
         NXdata.__init__(self, signal=signal, axes=axes, *args, **kwargs)
-        self._class = "NXmonitor"
+        self._class = 'NXmonitor'
         if "name" not in kwargs:
             self._name = "monitor"
 
@@ -6311,7 +6304,7 @@ class NXlog(NXgroup):
     """NXlog group, a subclass of the NXgroup class."""
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXlog"
+        self._class = 'NXlog'
         NXgroup.__init__(self, *args, **kwargs)
 
     def plot(self, **kwargs):
@@ -6330,7 +6323,7 @@ class NXprocess(NXgroup):
     """NXprocess group, a subclass of the NXgroup class."""
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXprocess"
+        self._class = 'NXprocess'
         NXgroup.__init__(self, *args, **kwargs)
         if "date" not in self:
             from datetime import datetime as dt
@@ -6341,7 +6334,7 @@ class NXnote(NXgroup):
     """NXnote group, a subclass of the NXgroup class."""
 
     def __init__(self, *args, **kwargs):
-        self._class = "NXnote"
+        self._class = 'NXnote'
         NXgroup.__init__(self, **kwargs)
         for arg in args:
             if is_text(arg):
@@ -6586,9 +6579,9 @@ def save(filename, group, mode='w', **kwargs):
     mode : {'w', 'w-', 'a'}, optional
         Mode to be used opening the file, by default 'w'.
     """
-    if group.nxclass == "NXroot":
+    if group.nxclass == 'NXroot':
         root = group
-    elif group.nxclass == "NXentry":
+    elif group.nxclass == 'NXentry':
         root = NXroot(group)
     else:
         root = NXroot(NXentry(group))

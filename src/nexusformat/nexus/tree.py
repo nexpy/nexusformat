@@ -3027,7 +3027,10 @@ class NXfield(NXobject):
         return self.nxvalue.__contains__(key)
 
     def __len__(self):
-        """Return the length of the NXfield data."""
+        """Return the length of the first dimension of NXfield data.
+        
+        This is consistent with the NumPy definition of this function.
+        """
         try:
             return self.shape[0]
         except Exception:

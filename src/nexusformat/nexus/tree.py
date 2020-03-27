@@ -3249,8 +3249,6 @@ class NXfield(NXobject):
             return NXfield(value=self.nxdata/other, name=self.nxname,
                            attrs=self.safe_attrs)
 
-    __div__ = __truediv__
-
     def __rtruediv__(self, other):
         """Return the inverse of the NXfield divided by a NXfield or number."""
         if isinstance(other, NXfield):
@@ -3259,8 +3257,6 @@ class NXfield(NXobject):
         else:
             return NXfield(value=other/self.nxdata, name=self.nxname,
                            attrs=self.safe_attrs)
-
-    __rdiv__ = __rtruediv__
 
     def __pow__(self, power):
         """Return the NXfield raised to the specified power."""
@@ -5869,8 +5865,6 @@ class NXdata(NXgroup):
             if self.nxerrors: 
                 result.nxerrors = self.nxerrors / other
             return result
-
-    __div__ = __truediv__
 
     def prepare_smoothing(self):
         """Create a smooth interpolation function for one-dimensional data."""

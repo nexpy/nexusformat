@@ -4767,7 +4767,7 @@ class NXgroup(NXobject):
         else:
             return None
 
-    def set_default(self):
+    def set_default(self, over=False):
         """Set the current group as the default for plotting.
         
         This function is overridden by the NXentry and NXdata classes. For all
@@ -5306,6 +5306,16 @@ class NXroot(NXgroup):
         if self.nxfile:
             self.nxfile.close()
 
+    def set_default(self, over=False):
+        """Override function to set default for plotting.
+        
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
+        """
+        pass
+
     @property
     def plottable_data(self):
         """The default data group to be plotted in this tree.
@@ -5447,6 +5457,11 @@ class NXentry(NXgroup):
         
         This will set defaults for parents of the parent group unless they have
         been set previously.
+        
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
         """
         group = self.nxgroup
         if group is None:
@@ -5454,7 +5469,6 @@ class NXentry(NXgroup):
                 "The default cannot be defined without a parent group")
         elif isinstance(group, NXentry) or isinstance(group, NXroot):
             group.attrs['default'] = self.nxname
-            parent_group = group.nxgroup
             parent_group = group.nxgroup
             if parent_group:
                 if over or parent_group.get_default() is None:
@@ -6099,7 +6113,7 @@ class NXdata(NXgroup):
         Parameters
         ==========
         over : bool
-            True if previous defa
+            True if previous default should be overwritten
         """
         group = self.nxgroup
         if group is None:

@@ -31,6 +31,32 @@ def test_data_creation():
     assert data.nxtitle == "Title"
 
 
+def test_default_data():
+
+    data = NXdata(v, (z, y, x), title="Title")
+    root = NXroot(NXentry(data))
+    root["entry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry"].get_default() is root["entry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/data"]
+
+    root["entry/subentry"] = NXsubentry(data)
+    root["entry/subentry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry/subentry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/subentry"].plottable_data is root["entry/subentry/data"]
+
+    root["entry/subentry/data"].set_default(over=True)
+
+    assert root.get_default() is root["entry/subentry/data"]
+    assert root["entry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/subentry/data"]
+
+
 def test_plottable_data():
 
     data = NXdata(v, (z, y, x), title="Title")

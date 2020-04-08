@@ -19,6 +19,8 @@ def test_data_creation():
     assert "axes" in data.attrs
     assert len(data.attrs["axes"]) == 3
     
+    assert data.ndim == 3
+    assert data.shape == (2, 5, 10)
     assert data.nxsignal.nxname == "v"
     assert data.nxsignal.ndim == 3
     assert data.nxsignal.shape == (2, 5, 10)

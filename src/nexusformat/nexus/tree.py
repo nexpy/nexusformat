@@ -6271,6 +6271,24 @@ class NXdata(NXgroup):
             raise NeXusError("Invalid shape for RGB(A) image")
 
     @property
+    def ndim(self):
+        """Rank of the NXdata signal."""
+        _signal = self.nxsignal
+        if _signal is not None:
+            return _signal.ndim
+        else:
+            raise NeXusError("No signal defined for NXdata group")
+
+    @property
+    def shape(self):
+        """Shape of the NXdata signal."""
+        _signal = self.nxsignal
+        if _signal is not None:
+            return _signal.shape
+        else:
+            raise NeXusError("No signal defined for NXdata group")
+
+    @property
     def nxsignal(self):
         """NXfield containing the signal data."""
         if 'signal' in self.attrs and self.attrs['signal'] in self:

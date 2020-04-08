@@ -6019,7 +6019,7 @@ class NXdata(NXgroup):
         Using the default `limits=None` should be used with caution, since it
         requires reading the entire data set into memory.
         """
-        signal_rank = self.nxsignal.ndim
+        signal_rank = self.ndim
         if not is_iterable(axes):
             axes = [axes]
         if limits is None:
@@ -6273,18 +6273,18 @@ class NXdata(NXgroup):
     @property
     def ndim(self):
         """Rank of the NXdata signal."""
-        _signal = self.nxsignal
-        if _signal is not None:
-            return _signal.ndim
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.ndim
         else:
             raise NeXusError("No signal defined for NXdata group")
 
     @property
     def shape(self):
         """Shape of the NXdata signal."""
-        _signal = self.nxsignal
-        if _signal is not None:
-            return _signal.shape
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.shape
         else:
             raise NeXusError("No signal defined for NXdata group")
 

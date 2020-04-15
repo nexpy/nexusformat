@@ -19,6 +19,8 @@ def test_data_creation():
     assert "axes" in data.attrs
     assert len(data.attrs["axes"]) == 3
     
+    assert data.ndim == 3
+    assert data.shape == (2, 5, 10)
     assert data.nxsignal.nxname == "v"
     assert data.nxsignal.ndim == 3
     assert data.nxsignal.shape == (2, 5, 10)
@@ -29,6 +31,32 @@ def test_data_creation():
     assert [axis.shape for axis in data.nxaxes] == [(3,), (6,), (11,)]
 
     assert data.nxtitle == "Title"
+
+
+def test_default_data():
+
+    data = NXdata(v, (z, y, x), title="Title")
+    root = NXroot(NXentry(data))
+    root["entry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry"].get_default() is root["entry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/data"]
+
+    root["entry/subentry"] = NXsubentry(data)
+    root["entry/subentry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry/subentry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/subentry"].plottable_data is root["entry/subentry/data"]
+
+    root["entry/subentry/data"].set_default(over=True)
+
+    assert root.get_default() is root["entry/subentry/data"]
+    assert root["entry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/subentry/data"]
 
 
 def test_plottable_data():

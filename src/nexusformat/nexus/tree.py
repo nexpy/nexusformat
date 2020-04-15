@@ -4722,6 +4722,29 @@ class NXgroup(NXobject):
         """
         return np.sqrt(self.moment(2))
 
+    def get_default(self):
+        """Return the default data group if it is defined or None.
+        
+        Returns
+        -------
+        NXdata
+            Data group to be plotted.
+        """
+        if 'default' in self.attrs and self.attrs['default'] in self:
+            default = self[self.attrs['default']]
+            return default.get_default()
+        else:
+            return None
+
+    def set_default(self, over=False):
+        """Set the current group as the default for plotting.
+        
+        This function is overridden by the NXentry and NXdata classes. For all
+        other groups, it raises an error.
+        """
+        raise NeXusError(
+            "Can only set the default for NXentry and NXdata groups")
+
     def is_plottable(self):
         """Return True if the group contains plottable data."""
         plottable = False
@@ -5252,6 +5275,16 @@ class NXroot(NXgroup):
         if self.nxfile:
             self.nxfile.close()
 
+    def set_default(self, over=False):
+        """Override function to set default for plotting.
+        
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
+        """
+        pass
+
     @property
     def plottable_data(self):
         """The default data group to be plotted in this tree.
@@ -5265,15 +5298,10 @@ class NXroot(NXgroup):
         NXdata
             Data group to be plotted.
         """
-        if 'default' in self.attrs and self.attrs['default'] in self:
-            group = self[self.attrs['default']]
-            if isinstance(group, NXdata):
-                return group
-            elif isinstance(group, NXentry):
-                plottable_data = group.plottable_data
-                if isinstance(plottable_data, NXdata):
-                    return plottable_data
-        if self.NXdata:
+        default = self.get_default()
+        if default is not None:
+            return default
+        elif self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:
             return self.NXmonitor[0]
@@ -5393,6 +5421,31 @@ class NXentry(NXgroup):
         except KeyError:
             raise NeXusError("Inconsistency between two NXentry groups")
 
+    def set_default(self, over=False):
+        """Set group as the default for plotting.
+        
+        This will set defaults for parents of the parent group unless they have
+        been set previously.
+        
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
+        """
+        group = self.nxgroup
+        if group is None:
+            raise NeXusError(
+                "The default cannot be defined without a parent group")
+        elif isinstance(group, NXentry) or isinstance(group, NXroot):
+            group.attrs['default'] = self.nxname
+            parent_group = group.nxgroup
+            if parent_group:
+                if over or parent_group.get_default() is None:
+                    group.set_default(over=over)
+        else:
+            raise NeXusError(
+                "The default can only be defined in a NXentry or NXroot group")
+
     @property
     def plottable_data(self):
         """The default data group to be plotted in this entry.
@@ -5400,17 +5453,11 @@ class NXentry(NXgroup):
         This will return the default group if the `default` attribute has been
         set. Otherwise, the first NXdata, NXmonitor, or NXlog group will be 
         returned.
-        
-        Returns
-        -------
-        NXdata
-            Data group to be plotted.
         """
-        if 'default' in self.attrs and self.attrs['default'] in self:
-            plottable_data = self[self.attrs['default']]
-            if isinstance(plottable_data, NXdata):
-                return plottable_data
-        if self.NXdata:
+        default = self.get_default()
+        if default is not None:
+            return default
+        elif self.NXdata:
             return self.NXdata[0]
         elif self.NXmonitor:
             return self.NXmonitor[0]
@@ -5939,7 +5986,7 @@ class NXdata(NXgroup):
         Using the default `limits=None` should be used with caution, since it
         requires reading the entire data set into memory.
         """
-        signal_rank = self.nxsignal.ndim
+        signal_rank = self.ndim
         if not is_iterable(axes):
             axes = [axes]
         if limits is None:
@@ -6022,6 +6069,32 @@ class NXdata(NXgroup):
                     ind = slice(ind.start, ind.stop+1, ind.step)
                 axes[i] = axes[i][ind]
         return tuple(slices), axes
+
+    def get_default(self):
+        """Return this NXdata group as the default for plotting."""
+        return self
+
+    def set_default(self, over=False):
+        """Set group as the default for plotting.
+        
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
+        """
+        group = self.nxgroup
+        if group is None:
+            raise NeXusError(
+                "The default cannot be defined without a parent group")
+        elif isinstance(group, NXentry) or isinstance(group, NXroot):
+            group.attrs['default'] = self.nxname
+            parent_group = group.nxgroup
+            if parent_group:
+                if over or parent_group.get_default() is None:
+                    group.set_default(over=over)
+        else:
+            raise NeXusError(
+                "The default can only be defined in a NXentry or NXroot group")
 
     @property
     def plottable_data(self):
@@ -6163,6 +6236,24 @@ class NXdata(NXgroup):
                       vmin=vmin, vmax=vmax, **kwargs)
         else:
             raise NeXusError("Invalid shape for RGB(A) image")
+
+    @property
+    def ndim(self):
+        """Rank of the NXdata signal."""
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.ndim
+        else:
+            raise NeXusError("No signal defined for NXdata group")
+
+    @property
+    def shape(self):
+        """Shape of the NXdata signal."""
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.shape
+        else:
+            raise NeXusError("No signal defined for NXdata group")
 
     @property
     def nxsignal(self):

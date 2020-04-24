@@ -70,6 +70,15 @@ def test_plottable_data():
     assert data.plot_axes == data.nxaxes
     assert data.nxsignal.valid_axes(data.nxaxes)
 
+    v2 = v[0]
+    v2.resize((1, 5, 10))
+    data2 = NXdata(v2)
+
+    assert data2.shape == (1, 5, 10)
+    assert data2.plot_shape == (5, 10)
+    assert data2.plot_rank == 2
+    assert data2.plot_rank == data2.nxsignal.ndim - 1
+
 
 def test_signal_selection():
 

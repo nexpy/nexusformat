@@ -171,8 +171,15 @@ def test_data_slabs():
 
     slab = data[0, 3.5:11.5, 2.5:17.5]
 
+    assert slab.shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_axes == [y[1:-1], x[1:-1]]
+
+    slab1 = data[0:0, 3.5:11.5, 2.5:17.5]
+    slab2 = data[0:1, 3.5:11.5, 2.5:17.5]
+
+    assert slab1.shape == slab.shape
+    assert slab2.shape == slab.shape
 
 
 def test_data_projections():

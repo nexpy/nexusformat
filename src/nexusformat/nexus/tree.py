@@ -2705,7 +2705,8 @@ class NXfield(NXobject):
         NXfield
             Field containing the slice values.
         """
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if self._value is None:
             if self._uncopied_data:
                 result = self._get_uncopied_data(idx)
@@ -2750,7 +2751,8 @@ class NXfield(NXobject):
             raise NeXusError("Cannot modify an item in a linked group")
         elif self.dtype is None:
             raise NeXusError("Set the field dtype before assignment")
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if value is np.ma.masked:
             self._mask_data(idx)
         else:

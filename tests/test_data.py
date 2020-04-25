@@ -247,3 +247,27 @@ def test_image_data():
     assert root.plottable_data.is_image()
     assert root['entry'].plottable_data.is_image()
     assert not root['entry/other_data'].is_image()
+
+
+def test_smart_indices():
+
+    ind = [1,3,5]
+
+    assert all(x[ind].nxvalue == x.nxvalue[ind])
+    assert all(v[v>50].nxvalue == v.nxvalue[v.nxvalue>50])
+    assert all(v[1,0,ind].nxvalue == v.nxvalue[1,0,ind])
+
+    x[ind] = 0
+
+    assert x.any() and not x[ind].any()
+
+    ind = np.array([[3, 7],[4, 5]])
+
+    assert np.all(x[ind].nxvalue == x.nxvalue[ind])
+
+    row = np.array([0, 1, 2])
+    col = np.array([2, 1, 3])
+
+    assert all(v[0][row,col].nxvalue == v[0].nxvalue[row,col])
+    assert np.all(v[0][row[:,np.newaxis],col].nxvalue == 
+                  v[0].nxvalue[row[:,np.newaxis],col])

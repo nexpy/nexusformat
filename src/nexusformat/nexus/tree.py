@@ -2705,7 +2705,8 @@ class NXfield(NXobject):
         NXfield
             Field containing the slice values.
         """
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if self._value is None:
             if self._uncopied_data:
                 result = self._get_uncopied_data(idx)
@@ -2750,7 +2751,8 @@ class NXfield(NXobject):
             raise NeXusError("Cannot modify an item in a linked group")
         elif self.dtype is None:
             raise NeXusError("Set the field dtype before assignment")
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if value is np.ma.masked:
             self._mask_data(idx)
         else:
@@ -6481,29 +6483,19 @@ for cls in nxclasses:
 #-------------------------------------------------------------------------
 def is_real_slice(idx):
     """True if the slice contains real values."""
-    def is_not_real(i):
-        if ((isinstance(i.start, numbers.Integral) or i.start is None) and
-               (isinstance(i.stop, numbers.Integral) or i.stop is None)):
-            return True
-        else:
-            return False
-    if idx is None or isinstance(idx, numbers.Integral):
-        return False
-    elif isinstance(idx, numbers.Real):
-        return True
-    elif isinstance(idx, slice):
-        if is_not_real(idx):
-            return False
-        else:
-            return True
+
+    def is_real(x):
+        if isinstance(x, slice):
+            x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
+        x = np.array(x)
+        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == np.bool)
+
+    if isinstance(idx, slice):
+        return is_real(idx)
+    elif is_iterable(idx):
+        return any([is_real(i) for i in idx])
     else:
-        for ind in idx:
-            if isinstance(ind, slice):
-                if not is_not_real(ind):
-                    return True
-            elif ind is not None and not isinstance(ind, numbers.Integral):
-                return True
-        return False
+        return is_real(idx)
 
 def convert_index(idx, axis):
     """Convert floating point limits to a valid array index.

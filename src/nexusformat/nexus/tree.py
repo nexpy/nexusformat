@@ -2795,7 +2795,7 @@ class NXfield(NXobject):
                     s = s[:s.index('\n')]+'...'
                 except ValueError:
                     pass
-                if len(self) == 1:
+                if self.size == 1:
                     s = "'" + s + "'"
             elif len(self) > 3 or '\n' in s or s == "":
                 if self.shape is None:

@@ -2729,8 +2729,10 @@ class NXfield(NXobject):
             else:
                 raise NeXusError(
                     "Data not available either in file or in memory")
+        elif np.ma.is_masked(self._value):
+            result = np.ma.asarray(self._value[idx])
         else:
-            result = np.asarray(self.nxdata[idx])
+            result = np.asarray(self._value[idx])
         return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):

@@ -1,0 +1,47 @@
+import numpy as np
+import os
+import pytest
+from nexusformat.nexus import *
+
+arr1D = np.linspace(0.0, 100.0, 101, dtype=np.float64)
+
+
+def test_field_masks():
+    field = NXfield(arr1D)
+    field[10:20] = np.ma.masked
+
+    assert isinstance(field.nxvalue, np.ma.masked_array)
+    assert np.all(field[8:12].mask == np.array([False, False, True, True]))
+    assert np.all(field.mask[8:12] == np.array([False, False, True, True]))
+    assert np.ma.is_masked(field.nxvalue[10])
+
+    field.mask[10] = np.ma.nomask
+
+    assert np.all(field.mask[8:12] == np.array([False, False, False, True]))
+
+
+@pytest.mark.parametrize("save", ["False", "True"])
+def test_group_masks(tmpdir, save):
+    group = NXgroup(NXfield(arr1D, name='field'))
+    group['field'][10:20] = np.ma.masked
+
+    if save:
+        root = NXroot(group)
+        filename = os.path.join(tmpdir, "file1.nxs")
+        root.save(filename, mode="w")
+        root = nxload(filename, "rw")
+        group = root['group']
+
+    assert isinstance(group['field'].nxvalue, np.ma.masked_array)
+    assert np.all(group['field'].mask[9:11] == np.array([False, True]))
+    assert 'mask' in group['field'].attrs
+    assert group['field'].attrs['mask'] == 'field_mask'
+    assert 'field_mask' in group
+    assert group['field_mask'].dtype == np.bool
+    assert group['field'].mask == group['field_mask']
+
+    group['field'].mask[10] = np.ma.nomask
+
+    assert np.all(group['field'].mask[10:12] == np.array([False, True]))
+    assert np.all(group['field_mask'][10:12] == np.array([False, True]))
+

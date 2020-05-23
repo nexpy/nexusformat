@@ -1,7 +1,6 @@
 import pytest
 from nexusformat.nexus import *
 
-
 field1 = NXfield((1,2), name="f1")
 
 

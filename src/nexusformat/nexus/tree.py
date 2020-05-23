@@ -1429,7 +1429,7 @@ def _getvalue(value, dtype=None, shape=None):
             _value = _value.reshape(shape)
         except ValueError:
             raise NeXusError("The value is incompatible with the shape")
-    if _value.shape == ():
+    if _value.shape == () and not np.ma.is_masked(_value):
         return _value.item(), _value.dtype, _value.shape
     else:
         return _value, _value.dtype, _value.shape
@@ -2729,10 +2729,12 @@ class NXfield(NXobject):
             else:
                 raise NeXusError(
                     "Data not available either in file or in memory")
-        elif np.ma.is_masked(self._value):
-            result = np.ma.asarray(self._value[idx])
+            if self.mask is not None:
+                result = np.ma.MaskedArray.__getitem__(result, ())
+        elif self.mask is not None:
+            result = np.ma.MaskedArray.__getitem__(self.nxdata, idx)
         else:
-            result = np.asarray(self._value[idx])
+            result = np.asarray(self.nxdata[idx])
         return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
 
     def __setitem__(self, idx, value):

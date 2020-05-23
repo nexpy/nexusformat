@@ -13,11 +13,15 @@ def test_field_masks():
     assert isinstance(field.nxvalue, np.ma.masked_array)
     assert np.all(field[8:12].mask == np.array([False, False, True, True]))
     assert np.all(field.mask[8:12] == np.array([False, False, True, True]))
+    assert np.ma.is_masked(field[8:12].nxvalue)
     assert np.ma.is_masked(field.nxvalue[10])
+    assert np.ma.is_masked(field[10].nxvalue)
+    assert field[10].mask
 
     field.mask[10] = np.ma.nomask
 
     assert np.all(field.mask[8:12] == np.array([False, False, False, True]))
+    assert not field[10].mask
 
 
 @pytest.mark.parametrize("save", ["False", "True"])

@@ -211,7 +211,7 @@ NX_ENCODING = sys.getfilesystemencoding()
 NX_MAXSIZE = 10000
 NX_LOCK = 0
 
-np.set_printoptions(threshold=5)
+np.set_printoptions(threshold=5, precision=6)
 string_dtype = h5.special_dtype(vlen=six.text_type)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
@@ -268,17 +268,19 @@ def text(value):
         value = value[0]
     if isinstance(value, bytes):
         try:
-            text = value.decode(NX_ENCODING)
+            _text = value.decode(NX_ENCODING)
         except UnicodeDecodeError:
             if NX_ENCODING == 'utf-8':
-                text = value.decode('latin-1')
+                _text = value.decode('latin-1')
             else:
-                text = value.decode('utf-8')
+                _text = value.decode('utf-8')
+    elif isinstance(value, float):
+        _text = format_float(value)
     elif six.PY3:
-        text = str(value)
+        _text = str(value)
     else:
-        text = unicode(value)
-    return text.replace('\x00','').rstrip()
+        _text = unicode(value)
+    return _text.replace('\x00','').rstrip()
 
 
 def is_text(value):
@@ -330,6 +332,15 @@ def is_iterable(obj):
         True if the object is a list or a tuple.
     """
     return isinstance(obj, list) or isinstance(obj, tuple)
+
+
+def format_float(value, width=np.get_printoptions()['precision']):
+    """Return a float value with the specified width.
+    
+    This function results in a more compact scientific notation where relevant.
+    """
+    text = "{:.{width}g}".format(value, width=width)
+    return re.sub(r"e(-?)0*(\d+)", r"e\1\2", text.replace("e+", "e"))
 
 
 def natural_sort(key):

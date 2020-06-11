@@ -37,7 +37,7 @@ def centers(axis, dimlen):
     ndarray
         Array of bin centers with a size of dimlen.
     """
-    ax = axis.astype(np.float32)
+    ax = axis.astype(np.float64)
     if ax.shape[0] == dimlen+1:
         return (ax[:-1] + ax[1:])/2
     else:
@@ -63,7 +63,7 @@ def boundaries(axis, dimlen):
     ndarray
         Array of bin boundaries with a size of dimlen + 1.
     """
-    ax = axis.astype(np.float32)
+    ax = axis.astype(np.float64)
     if ax.shape[0] == dimlen:
         start = ax[0] - (ax[1] - ax[0])/2
         end = ax[-1] + (ax[-1] - ax[-2])/2

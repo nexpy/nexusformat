@@ -6579,7 +6579,7 @@ def centers(axis, dimlen):
         Size of the signal dimension. If this is one more than the axis 
         size, it is assumed the axis contains bin boundaries.
     """
-    ax = axis.astype(np.float32)
+    ax = axis.astype(np.float64)
     if ax.shape[0] == dimlen+1:
         return (ax[:-1] + ax[1:])/2
     else:

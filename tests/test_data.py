@@ -70,6 +70,15 @@ def test_plottable_data():
     assert data.plot_axes == data.nxaxes
     assert data.nxsignal.valid_axes(data.nxaxes)
 
+    v2 = v[0]
+    v2.resize((1, 5, 10))
+    data2 = NXdata(v2)
+
+    assert data2.shape == (1, 5, 10)
+    assert data2.plot_shape == (5, 10)
+    assert data2.plot_rank == 2
+    assert data2.plot_rank == data2.nxsignal.ndim - 1
+
 
 def test_signal_selection():
 
@@ -171,8 +180,15 @@ def test_data_slabs():
 
     slab = data[0, 3.5:11.5, 2.5:17.5]
 
+    assert slab.shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_axes == [y[1:-1], x[1:-1]]
+
+    slab1 = data[0:0, 3.5:11.5, 2.5:17.5]
+    slab2 = data[0:1, 3.5:11.5, 2.5:17.5]
+
+    assert slab1.shape == slab.shape
+    assert slab2.shape == slab.shape
 
 
 def test_data_projections():
@@ -231,3 +247,27 @@ def test_image_data():
     assert root.plottable_data.is_image()
     assert root['entry'].plottable_data.is_image()
     assert not root['entry/other_data'].is_image()
+
+
+def test_smart_indices():
+
+    ind = [1,3,5]
+
+    assert all(x[ind].nxvalue == x.nxvalue[ind])
+    assert all(v[v>50].nxvalue == v.nxvalue[v.nxvalue>50])
+    assert all(v[1,0,ind].nxvalue == v.nxvalue[1,0,ind])
+
+    x[ind] = 0
+
+    assert x.any() and not x[ind].any()
+
+    ind = np.array([[3, 7],[4, 5]])
+
+    assert np.all(x[ind].nxvalue == x.nxvalue[ind])
+
+    row = np.array([0, 1, 2])
+    col = np.array([2, 1, 3])
+
+    assert all(v[0][row,col].nxvalue == v[0].nxvalue[row,col])
+    assert np.all(v[0][row[:,np.newaxis],col].nxvalue == 
+                  v[0].nxvalue[row[:,np.newaxis],col])

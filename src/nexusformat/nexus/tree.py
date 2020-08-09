@@ -208,8 +208,8 @@ NX_ENCODING = sys.getfilesystemencoding()
 NX_MAXSIZE = 10000
 NX_LOCK = 0
 
-np.set_printoptions(threshold=5)
 string_dtype = h5.special_dtype(vlen=str)
+np.set_printoptions(threshold=5, precision=6)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
@@ -260,10 +260,10 @@ def text(value):
         value = value[0]
     if isinstance(value, bytes):
         try:
-            text = value.decode(NX_ENCODING)
+            _text = value.decode(NX_ENCODING)
         except UnicodeDecodeError:
             if NX_ENCODING == 'utf-8':
-                text = value.decode('latin-1')
+                _text = value.decode('latin-1')
             else:
                 text = value.decode('utf-8')
     else:
@@ -320,6 +320,15 @@ def is_iterable(obj):
         True if the object is a list or a tuple.
     """
     return isinstance(obj, list) or isinstance(obj, tuple)
+
+
+def format_float(value, width=np.get_printoptions()['precision']):
+    """Return a float value with the specified width.
+    
+    This function results in a more compact scientific notation where relevant.
+    """
+    text = "{:.{width}g}".format(value, width=width)
+    return re.sub(r"e(-?)0*(\d+)", r"e\1\2", text.replace("e+", "e"))
 
 
 def natural_sort(key):
@@ -1417,7 +1426,7 @@ def _getvalue(value, dtype=None, shape=None):
             _value = _value.reshape(shape)
         except ValueError:
             raise NeXusError("The value is incompatible with the shape")
-    if _value.shape == ():
+    if _value.shape == () and not np.ma.is_masked(_value):
         return _value.item(), _value.dtype, _value.shape
     else:
         return _value, _value.dtype, _value.shape
@@ -2686,7 +2695,8 @@ class NXfield(NXobject):
         NXfield
             Field containing the slice values.
         """
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if self._value is None:
             if self._uncopied_data:
                 result = self._get_uncopied_data(idx)
@@ -2709,6 +2719,10 @@ class NXfield(NXobject):
             else:
                 raise NeXusError(
                     "Data not available either in file or in memory")
+            if self.mask is not None:
+                result = np.ma.MaskedArray.__getitem__(result, ())
+        elif self.mask is not None:
+            result = np.ma.MaskedArray.__getitem__(self.nxdata, idx)
         else:
             result = np.asarray(self.nxdata[idx])
         return NXfield(result, name=self.nxname, attrs=self.safe_attrs)
@@ -2731,7 +2745,8 @@ class NXfield(NXobject):
             raise NeXusError("Cannot modify an item in a linked group")
         elif self.dtype is None:
             raise NeXusError("Set the field dtype before assignment")
-        idx = convert_index(idx, self)
+        if is_real_slice(idx):
+            idx = convert_index(idx, self)
         if value is np.ma.masked:
             self._mask_data(idx)
         else:
@@ -2770,7 +2785,7 @@ class NXfield(NXobject):
                     s = s[:s.index('\n')]+'...'
                 except ValueError:
                     pass
-                if len(self) == 1:
+                if self.size == 1:
                     s = "'" + s + "'"
             elif len(self) > 3 or '\n' in s or s == "":
                 if self.shape is None:
@@ -6448,29 +6463,19 @@ for cls in nxclasses:
 #-------------------------------------------------------------------------
 def is_real_slice(idx):
     """True if the slice contains real values."""
-    def is_not_real(i):
-        if ((isinstance(i.start, numbers.Integral) or i.start is None) and
-               (isinstance(i.stop, numbers.Integral) or i.stop is None)):
-            return True
-        else:
-            return False
-    if idx is None or isinstance(idx, numbers.Integral):
-        return False
-    elif isinstance(idx, numbers.Real):
-        return True
-    elif isinstance(idx, slice):
-        if is_not_real(idx):
-            return False
-        else:
-            return True
+
+    def is_real(x):
+        if isinstance(x, slice):
+            x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
+        x = np.array(x)
+        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == np.bool)
+
+    if isinstance(idx, slice):
+        return is_real(idx)
+    elif is_iterable(idx):
+        return any([is_real(i) for i in idx])
     else:
-        for ind in idx:
-            if isinstance(ind, slice):
-                if not is_not_real(ind):
-                    return True
-            elif ind is not None and not isinstance(ind, numbers.Integral):
-                return True
-        return False
+        return is_real(idx)
 
 def convert_index(idx, axis):
     """Convert floating point limits to a valid array index.
@@ -6539,7 +6544,7 @@ def centers(axis, dimlen):
         Size of the signal dimension. If this is one more than the axis 
         size, it is assumed the axis contains bin boundaries.
     """
-    ax = axis.astype(np.float32)
+    ax = axis.astype(np.float64)
     if ax.shape[0] == dimlen+1:
         return (ax[:-1] + ax[1:])/2
     else:

@@ -28,7 +28,10 @@ Autocompletion works on each component of the following commands::
 
 """
 import re
-import readline
+try:
+    import readline
+except ImportError:
+    readline = None
 from string import punctuation
 
 import posixpath
@@ -88,7 +91,6 @@ def nxitem_completer(shell, command):
     list of str
         List of possible completions.
     """
-
     base, item = re_item_match.split(command)[1:4:2]
 
     try:
@@ -130,7 +132,6 @@ def nxattr_completer(shell, command):
     list of str
         List of possible completions.
     """
-
     base, attr = re_attr_match.split(command)[1:3]
     base = base.strip()
 
@@ -178,6 +179,9 @@ def nxcompleter(shell, event):
     TryNext
         If no completions are found.
     """
+    if readline is None:
+        raise NeXusError("Install the readline module to enable tab completion")
+        
     command = re.split('[ !#$%&()*+,:;<=>?@^~]', event.line)[-1].lstrip(punctuation)
     try:
         base = re_object_match.split(command)[1]
@@ -212,6 +216,8 @@ def load_ipython_extension(ip=None):
     ip : InteractiveShell, optional
         IPython shell to be modified. By default, it is set by get_ipython().
     """
+    if readline is None:
+        raise NeXusError("Install the readline module to enable tab completion")
     if ip is None:
         ip = get_ipython()
     ip.Completer.use_jedi = False

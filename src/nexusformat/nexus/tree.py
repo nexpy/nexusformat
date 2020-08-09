@@ -265,10 +265,10 @@ def text(value):
             if NX_ENCODING == 'utf-8':
                 _text = value.decode('latin-1')
             else:
-                text = value.decode('utf-8')
+                _text = value.decode('utf-8')
     else:
-        text = str(value)
-    return text.replace('\x00','').rstrip()
+        _text = str(value)
+    return _text.replace('\x00','').rstrip()
 
 
 def is_text(value):

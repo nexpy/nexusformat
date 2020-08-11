@@ -78,7 +78,7 @@ The :func:`nxload()` and :func:`nxsave()` functions are implemented using the
 Example 2: Creating a NeXus file dynamically
 --------------------------------------------
 The second example shows how to create NeXus data dynamically and saves it to a
-file. The data are first created as Numpy arrays
+file. The data are first created as NumPy arrays
 
     >>> import numpy as np
     >>> x=y=np.linspace(0,2*np.pi,101)
@@ -107,10 +107,10 @@ Additional metadata can be inserted before saving the data to a file.
     >>> root.entry.sample.temperature.units = 'K'
     >>> root.save('example.nxs')
 
-:class:`NXfield` objects have much of the functionality of Numpy arrays. They 
-may be used in simple arithmetic expressions with other NXfields, Numpy 
+:class:`NXfield` objects have much of the functionality of NumPy arrays. They 
+may be used in simple arithmetic expressions with other NXfields, NumPy 
 arrays or scalar values and will be cast as ndarray objects if used as 
-arguments in Numpy modules.
+arguments in NumPy modules.
 
     >>> x=nx.NXfield(np.linspace(0,10.0,11))
     >>> x
@@ -123,7 +123,7 @@ arguments in Numpy modules.
 
 If the arithmetic operation is assigned to a NeXus group attribute, it will be
 automatically cast as a valid :class:`NXfield` object with the type and shape 
-determined by the Numpy array type and shape.
+determined by the NumPy array type and shape.
 
     >>> entry.data.result = np.sin(x)
     >>> entry.data.result
@@ -296,7 +296,7 @@ def is_string_dtype(dtype):
     Parameters
     ----------
     dtype : np.dtype
-        Numpy data type to be tested.
+        NumPy data type to be tested.
     
     Returns
     -------
@@ -1436,7 +1436,7 @@ def _getdtype(dtype):
     """Return a valid h5py dtype.
 
     This converts string dtypes to the special HDF5 dtype for variable length 
-    strings. Other values are checked against valid Numpy dtypes.
+    strings. Other values are checked against valid NumPy dtypes.
     
     Parameters
     ----------
@@ -2384,10 +2384,10 @@ class NXfield(NXobject):
 
     NXfields usually consist of arrays of numeric data with associated
     meta-data, the NeXus attributes. The exception is when they contain
-    character strings. This makes them similar to Numpy arrays, and this module
-    allows the use of NXfields in numerical operations in the same way as Numpy
+    character strings. This makes them similar to NumPy arrays, and this module
+    allows the use of NXfields in numerical operations in the same way as NumPy
     arrays. NXfields are technically not a sub-class of the ndarray class, but
-    most Numpy operations work on NXfields, returning either another NXfield or,
+    most NumPy operations work on NXfields, returning either another NXfield or,
     in some cases, an `ndarray` that can easily be converted to an NXfield.
 
     Parameters
@@ -2399,7 +2399,7 @@ class NXfield(NXobject):
         Name of the NXfield. 
     dtype : np.dtype or str
         Data type of the NXfield value. Valid dtypes correspond to standard
-        Numpy data types, using names defined by the NeXus API, *i.e.*,
+        NumPy data types, using names defined by the NeXus API, *i.e.*,
         'float32' 'float64'
         'int8' 'int16' 'int32' 'int64'
         'uint8' 'uint16' 'uint32' 'uint64'
@@ -2408,7 +2408,7 @@ class NXfield(NXobject):
         by the data type of the 'value'.
     shape : list of ints
         Shape of the NXfield data. This corresponds to the shape of the 
-        Numpy array. Scalars (numeric or string) are stored as zero-rank 
+        NumPy array. Scalars (numeric or string) are stored as zero-rank 
         arrays, for which `shape=()`.
     group : NXgroup
         Parent group of NeXus field.
@@ -2431,20 +2431,20 @@ class NXfield(NXobject):
     nxgroup : NXgroup
         The parent group containing this field within a NeXus tree. If the
         field is not part of any NeXus tree, it will be set to None.
-    dtype : string or Numpy dtype
+    dtype : string or NumPy dtype
         The data type of the NXfield value. If the NXfield has been initialized
         but the data values have not been read in or defined, this is a string.
-        Otherwise, it is set to the equivalent Numpy dtype.
+        Otherwise, it is set to the equivalent NumPy dtype.
     shape : list or tuple of ints
         The dimensions of the NXfield data. If the NXfield has been initialized
         but the data values have not been read in or defined, this is a list of
-        ints. Otherwise, it is set to the equivalent Numpy shape, which is a
-        tuple. Scalars (numeric or string) are stored as Numpy zero-rank arrays,
+        ints. Otherwise, it is set to the equivalent NumPy shape, which is a
+        tuple. Scalars (numeric or string) are stored as NumPy zero-rank arrays,
         for which shape=().
     attrs : dict
         A dictionary of all the NeXus attributes associated with the field.
         These are objects with class NXattr.
-    nxdata : scalar, Numpy array or string
+    nxdata : scalar, NumPy array or string
         The data value of the NXfield. This is normally initialized using the
         'value' parameter (see above). If the NeXus data is contained
         in a file and the size of the NXfield array is too large to be stored
@@ -2488,7 +2488,7 @@ class NXfield(NXobject):
 
        If the name of the NeXus attribute is not the same as any of the Python
        attributes listed above, or one of the methods listed below, or any of
-       the attributes defined for Numpy arrays, they can be referenced as if
+       the attributes defined for NumPy arrays, they can be referenced as if
        they were a Python attribute of the NXfield. However, it is only possible
        to reference attributes with one of the proscribed names using the
        `attrs` dictionary.
@@ -2503,7 +2503,7 @@ class NXfield(NXobject):
 
     Examples
     --------
-    The following examples show how fields can usually be treated like Numpy 
+    The following examples show how fields can usually be treated like NumPy 
     arrays.
 
         >>> x=NXfield((1.0,2.0,3.0,4.0))
@@ -2550,8 +2550,8 @@ class NXfield(NXobject):
         >>> x[20.:50.]
         NXfield([ 20.  30.  40.  50.])
 
-    The standard Numpy ndarray attributes and methods will also work with
-    NXfields, but will return scalars or Numpy arrays.
+    The standard NumPy ndarray attributes and methods will also work with
+    NXfields, but will return scalars or NumPy arrays.
 
         >>> x.size
         4
@@ -2630,7 +2630,7 @@ class NXfield(NXobject):
         return ""
 
     def __getattr__(self, name):
-        """Return Numpy array attribute or NeXus attributes if not defined."""
+        """Return NumPy array attribute or NeXus attributes if not defined."""
         if name in _npattrs:
             return getattr(self.nxdata, name)
         elif name in self.attrs:
@@ -3120,7 +3120,7 @@ class NXfield(NXobject):
         return int(np.clip(idx, 0, len(self.nxdata)-1))
 
     def __array__(self):
-        """Cast the NXfield as a Numpy array."""
+        """Cast the NXfield as a NumPy array."""
         return np.asarray(self.nxdata)
 
     def __array_wrap__(self, value):
@@ -4229,7 +4229,7 @@ class NXgroup(NXobject):
         """Add or modify entries to the group dictionary.
         
         All dictionary entries must be valid NeXus fields or groups. If the 
-        value is a string or a Numpy array, a NeXus field of matching type is
+        value is a string or a NumPy array, a NeXus field of matching type is
         created. If the name refers to a NXfield that already exists in the 
         group, the field values are modified, provided that the new values are
         compatible with the field shape and dtype. 
@@ -4582,7 +4582,7 @@ class NXgroup(NXobject):
         """Return a sum of the signal in the group.
         
         This function should only be used on NXdata groups. The sum is over a 
-        single axis or a tuple of axes using the Numpy sum method.
+        single axis or a tuple of axes using the NumPy sum method.
         
         Parameters
         ----------
@@ -4651,7 +4651,7 @@ class NXgroup(NXobject):
         """Return the average of the signal of the group.
         
         This function should only be used on NXdata groups. The sum is over a 
-        single axis or a tuple of axes using the Numpy sum method. The result 
+        single axis or a tuple of axes using the NumPy sum method. The result 
         is then divided by the number of summed bins to produce an average.
 
         Parameters
@@ -5496,13 +5496,13 @@ class NXdata(NXgroup):
     The constructor assumes that the first argument contains the signal and
     the second contains either the axis, for one-dimensional data, or a list
     of axes, for multidimensional data. These arguments can either be NXfield
-    objects or Numpy arrays, which are converted to NXfield objects with default
+    objects or NumPy arrays, which are converted to NXfield objects with default
     names. Alternatively, the signal and axes NXfields can be defined using the
     'nxsignal' and 'nxaxes' properties. See the examples below.
     
     Various arithmetic operations (addition, subtraction, multiplication,
     and division) have been defined for combining NXdata groups with other
-    NXdata groups, Numpy arrays, or constants, raising a NeXusError if the
+    NXdata groups, NumPy arrays, or constants, raising a NeXusError if the
     shapes don't match. Data errors are propagated in quadrature if
     they are defined, i.e., if the 'nexerrors' attribute is not None,
 
@@ -5530,7 +5530,7 @@ class NXdata(NXgroup):
     There are three methods of creating valid NXdata groups with the
     signal and axes NXfields defined according to the NeXus standard.
     
-    1) Create the NXdata group with Numpy arrays that will be assigned
+    1) Create the NXdata group with NumPy arrays that will be assigned
        default names.
        
        >>> x = np.linspace(0, 2*np.pi, 101)
@@ -5701,7 +5701,7 @@ class NXdata(NXgroup):
             Index of values to be assigned the value.
         value : array-like
             The values to be assigned. Their shape should match the index or 
-            be compatible with the usual Numpy broadcasting rules.
+            be compatible with the usual NumPy broadcasting rules.
 
         Notes
         -----
@@ -6637,7 +6637,7 @@ def load(filename, mode='r', **kwargs):
     Notes
     -----
     This is aliased to `nxload` to avoid name clashes with other packages,
-    such as Numpy. `nxload` is the version included in wild card imports.
+    such as NumPy. `nxload` is the version included in wild card imports.
     
     Parameters
     ----------

@@ -1,12 +1,22 @@
+#!/usr/bin/env python 
+# -*- coding: utf-8 -*-
+
+#-----------------------------------------------------------------------------
+# Copyright (c) 2019-2020, NeXpy Development Team.
+#
+# Author: Paul Kienzle, Ray Osborn
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file COPYING, distributed with this software.
+#-----------------------------------------------------------------------------
+
+"""Module to provide a file locking mechanism to prevent data corruption."""
+
 import errno
 import os
 import time
 import timeit
-
-import six
-
-if six.PY2:
-    FileNotFoundError = IOError
 
 
 class NXLockException(Exception):

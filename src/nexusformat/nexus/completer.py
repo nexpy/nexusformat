@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2019, NeXpy Development Team.
+# Copyright (c) 2019-2020, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -27,8 +27,6 @@ Autocompletion works on each component of the following commands::
 >>> data = NXdata(root[entry/data/signal])
 
 """
-from __future__ import absolute_import
-
 import re
 try:
     import readline

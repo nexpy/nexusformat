@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013-2019, NeXpy Development Team.
+# Copyright (c) 2013-2020, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -12,8 +12,6 @@
 #-----------------------------------------------------------------------------
 
 """Module to provide standard Matplotlib plotting to the NeXus Python API."""
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from . import NeXusError, NXfield

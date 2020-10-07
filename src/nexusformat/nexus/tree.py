@@ -2001,30 +2001,37 @@ class NXobject(object):
             New name of the NeXus object.
         """
         name = text(name)
-        if name == self.nxname:
+        old_name = self.nxname
+        if name == old_name:
             return
+        else:
+            old_path = self.nxpath
         group = self.nxgroup
         if group is not None:
+            signal = axis = False
             if group.nxfilemode == 'r':
                 raise NeXusError("NeXus parent group is readonly")
+            elif self is group.nxsignal:
+                signal = True
             else:
-                signal = group.nxsignal
                 axes = group.nxaxes
+                axis_names = [axis.nxname for axis in axes]
+                if self.nxname in axis_names:
+                    axis = axis_names.index(self.nxname)
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
-        old_path = self.nxpath
+        self._name = name
         if group is not None:
             new_path = group.nxpath + '/' + name
             if not isinstance(self, NXroot) and group.nxfilemode == 'rw':
                 with group.nxfile as f:
                     f.rename(old_path, new_path)
-            group.entries[name] = group.entries.pop(self._name)
-            if self is signal:
+            group.entries[name] = group.entries.pop(old_name)
+            if signal:
                 group.nxsignal = self
-            elif axes is not None:
-                if [x for x in axes if x is self]:
-                    group.nxaxes = axes
-        self._name = name
+            elif axis is not False:
+                axes[axis] = self
+                group.nxaxes = axes
         self.set_changed()
 
     def save(self, filename=None, mode='w-', **kwargs):

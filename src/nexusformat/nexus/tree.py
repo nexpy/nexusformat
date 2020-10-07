@@ -1175,6 +1175,7 @@ class NXFile(object):
         self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
+        self._root._setattrs(self.file.attrs)
 
     def update(self, item):
         """Update the specifed object in the NeXus file.

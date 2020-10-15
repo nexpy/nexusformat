@@ -2047,9 +2047,10 @@ class NXobject(object):
                 signal = True
             else:
                 axes = group.nxaxes
-                axis_names = [axis.nxname for axis in axes]
-                if self.nxname in axis_names:
-                    axis = axis_names.index(self.nxname)
+                if axes is not None:
+                    axis_names = [axis.nxname for axis in axes]
+                    if self.nxname in axis_names:
+                        axis = axis_names.index(self.nxname)
         elif self.nxfilemode == 'r':
             raise NeXusError("NeXus file opened as readonly")
         self._name = name

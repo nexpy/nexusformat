@@ -5180,7 +5180,6 @@ class NXlinkgroup(NXlink, NXgroup):
             self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
             self._class = 'NXlink'
-        self._entries = {}
 
     def __getattr__(self, name):
         """Return attribute looking in the group entries and attributes.

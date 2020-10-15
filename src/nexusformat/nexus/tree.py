@@ -1246,7 +1246,7 @@ class NXFile(object):
                         group = self._root
                     else:
                         group = self._root[self.nxparent]
-                    group._entries[item.nxname] = item
+                    group.entries[item.nxname] = item
                     group[item.nxname]._group = group
             self.nxpath = item.nxpath
 

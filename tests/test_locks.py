@@ -2,8 +2,9 @@ import os
 import pytest
 import time
 from nexusformat.nexus import *
+from nexusformat.nexus.tree import text
 
-field1 = NXfield('a', name="f1")
+field1 = NXfield("a", name="f1")
 
 
 def test_lock_creation(tmpdir):
@@ -131,13 +132,13 @@ def test_nested_locks(tmpdir):
 
         root["entry/f1"] = "b"
 
-        assert root.nxfile["entry/f1"][()] == "b"
+        assert text(root.nxfile["entry/f1"][()]) == "b"
 
         with root.nxfile:
 
             root["entry/f1"] = "c"
 
-            assert root.nxfile["entry/f1"][()] == "c"
+            assert text(root.nxfile["entry/f1"][()]) == "c"
             assert root.nxfile.locked
             assert root.nxfile.is_locked()
 

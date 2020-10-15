@@ -55,6 +55,18 @@ def test_group_insertion():
     assert len(group1) == 1
 
 
+def test_rename():
+
+    group = NXgroup(field1)
+
+    assert "f1" in group
+
+    group["f1"].rename("f2")
+
+    assert "f1" not in group
+    assert "f2" in group
+
+
 def test_entry_creation():
 
     group = NXentry()

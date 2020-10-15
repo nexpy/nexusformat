@@ -38,3 +38,30 @@ def test_file_save(tmpdir):
     assert 'entry/data/f2' in w2
     assert 'signal' in w2['entry/data'].attrs
     assert 'axes' in w2['entry/data'].attrs
+
+
+@pytest.mark.parametrize("recursive", ["True", "False"])
+def test_file_recursion(tmpdir, recursive):
+
+    filename = os.path.join(tmpdir, 'file.nxs')
+    w1 = NXroot(NXentry())
+    w1.entry.data = NXdata(field1, field2)
+    w1.save(filename)
+
+    w2 = nxload(filename, recursive=recursive)
+
+    if not recursive:
+        assert w2['entry']._entries is None
+        assert 'entry/data' in w2
+        assert w2['entry']._entries is not None
+        assert w2['entry/data']._entries is None
+        assert 'entry/data/f1' in w2
+        assert w2['entry/data']._entries is not None
+        assert w2['entry/data/f2'] == field2
+
+    assert 'entry/data/f1' in w2
+    assert 'entry/data/f2' in w2
+    assert 'signal' in w2['entry/data'].attrs
+    assert 'axes' in w2['entry/data'].attrs
+        
+

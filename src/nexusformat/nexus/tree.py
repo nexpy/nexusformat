@@ -382,7 +382,7 @@ class NXFile(object):
     the file closed again. 
     """
 
-    def __init__(self, name, mode='r', **kwargs):
+    def __init__(self, name, mode='r', recursive=True, **kwargs):
         """Open an HDF5 file for reading and writing NeXus files.
 
         This creates a h5py File instance that is used for all subsequent
@@ -397,11 +397,15 @@ class NXFile(object):
         ----------
         name : str
             Name of the HDF5 file.
-        mode : {'r', 'rw', 'r+', 'w', 'w-', 'a'}
+        mode : {'r', 'rw', 'r+', 'w', 'w-', 'a'}, optional
             Read/write mode of the HDF5 file, by default 'r'. These all have 
             the same meaning as their h5py counterparts, apart from 'rw', 
             which is equivelent to 'r+'. After creating and/or opening the 
             file, the mode is set to 'r' or 'rw' for remaining operations.
+        recursive : bool, optional
+            If True, the file tree is loaded recursively, by default True. 
+            If False, only the entries in the root group are read. Other group 
+            entries will be read automatically when they are referenced.
         **kwargs
             Keyword arguments to be used when opening the h5py File object.
         """
@@ -413,6 +417,7 @@ class NXFile(object):
         self._path = '/'
         self._root = None
         self._with_count = 0
+        self.recursive = recursive
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif not os.path.exists(os.path.dirname(self._filename)):
@@ -708,7 +713,7 @@ class NXFile(object):
         for name, value in items:
             self.nxpath = self.nxpath + '/' + name
             if isinstance(value, self.h5.Group):
-                children[name] = self._readgroup(name)
+                children[name] = self._readgroup(name, recursive=self.recursive)
             elif isinstance(value, self.h5.Dataset):
                 children[name] = self._readdata(name)
             else:
@@ -718,13 +723,16 @@ class NXFile(object):
             self.nxpath = self.nxparent
         return children
 
-    def _readgroup(self, name):
+    def _readgroup(self, name, recursive=True):
         """Return the group at the current path.
         
         Parameters
         ----------
         name : str
             Name of the group.
+        recursive : bool, optional
+            If True, the group children will be loaded into the group 
+            dictionary, by default True.
         
         Returns
         -------
@@ -735,16 +743,18 @@ class NXFile(object):
         nxclass = self._getclass(attrs.pop('NX_class', 'NXgroup'))
         if nxclass == 'NXgroup' and self.nxpath == '/':
             nxclass = 'NXroot'
-        children = self._readchildren()
         _target, _filename, _abspath = self._getlink()
         if _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, target=_target,
                                 file=_filename, abspath=_abspath)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs)
-        for child in children:
-            group._entries[child] = children[child]
-            children[child]._group = group
+        if recursive:
+            children = self._readchildren()
+            group._entries = {}
+            for child in children:
+                group._entries[child] = children[child]
+                children[child]._group = group
         group._changed = True
         return group
 
@@ -1053,6 +1063,27 @@ class NXFile(object):
             return self._readgroup(self.nxname)
         else:
             return self._readdata(self.nxname)
+
+    def readentries(self, group):
+        """Return the group entries from the file.
+        
+        Parameters
+        ----------
+        group : NXgroup
+            The group whose entries are to be loaded.
+        
+        Returns
+        -------
+        dict
+            A dictionary of all the group entries.
+        """
+        self.nxpath = group.nxpath
+        children = self._readchildren()
+        _entries = {}
+        for child in children:
+            _entries[child] = children[child]
+            _entries[child]._group = group
+        return _entries
 
     def readvalues(self, attrs=None):
         """Read the values of the field at the current path.
@@ -4113,7 +4144,6 @@ class NXgroup(NXobject):
     _class = 'NXgroup'
 
     def __init__(self, *args, **kwargs):
-        self._entries = {}
         if "name" in kwargs:
             self._name = kwargs.pop("name")
         if "nxclass" in kwargs:
@@ -4121,9 +4151,12 @@ class NXgroup(NXobject):
         if "group" in kwargs:
             self._group = kwargs.pop("group")
         if "entries" in kwargs:
+            self._entries = {}
             for k,v in kwargs["entries"].items():
                 self._entries[k] = deepcopy(v)
             del kwargs["entries"]
+        else:
+            self._entries = None
         if "attrs" in kwargs:
             self._attrs = AttrDict(self, attrs=kwargs["attrs"])
             del kwargs["attrs"]
@@ -4874,13 +4907,30 @@ class NXgroup(NXobject):
     def entries(self):
         """Dictionary of NeXus objects in the group.
         
+        If the NeXus data is stored in a file that was loaded with the 
+        'recursive' keyword set to False, only the root entries will have been
+        read. This property automatically reads any missing entries as they are
+        referenced.
+        
         Returns
         -------
         dict of NXfields and/or NXgroups
             Dictionary of group objects.
         """
+        if self._entries is None:
+            if self.nxfile:
+                with self.nxfile as f:
+                    self._entries = f.readentries(self)
+            else:
+                self._entries = {}
+            self.set_changed()
         return self._entries
 
+    @property
+    def entries_loaded(self):
+        """True if the NXgroup entriees have been initialized."""
+        return self._entries is not None
+    
     nxsignal = None
     nxaxes = None
     nxerrors = None
@@ -6639,7 +6689,7 @@ nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
 # File level operations
-def load(filename, mode='r', **kwargs):
+def load(filename, mode='r', recursive=True, **kwargs):
     """Open or create a NeXus file and load its tree.
     
     Notes
@@ -6653,13 +6703,17 @@ def load(filename, mode='r', **kwargs):
         Name of the file to be opened or created.
     mode : {'r', 'rw', 'r+', 'w', 'a'}, optional
         File mode, by default 'r'
+    recursive : bool, optional
+        If True, the file tree is loaded recursively, by default True. 
+        If False, only the entries in the root group are read. Other group 
+        entries will be read automatically when they are referenced.
     
     Returns
     -------
     NXroot
         NXroot object containing the NeXus tree.
     """
-    with NXFile(filename, mode, **kwargs) as f:
+    with NXFile(filename, mode, recursive=recursive, **kwargs) as f:
         root = f.readfile()
     return root
 

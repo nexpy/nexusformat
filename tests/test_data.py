@@ -90,6 +90,20 @@ def test_signal_selection():
     assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
 
 
+def test_rename():
+
+    data = NXdata()
+    data.nxsignal = v
+    data.nxaxes = (z, y, x)
+
+    data["x"].rename("xx")
+    data["y"].rename("yy")
+    data["z"].rename("zz")
+    data["v"].rename("vv")
+    assert data.nxsignal.nxname == "vv"
+    assert [axis.nxname for axis in data.nxaxes] == ["zz", "yy", "xx"]
+
+
 def test_size_one_axis():
 
     y1 = np.array((1), dtype=np.float64)
@@ -195,33 +209,33 @@ def test_data_projections():
 
     d1 = NXdata(v[0], (y, x))
 
-    assert d1.nxaxes == [d1['y'], d1['x']]
+    assert d1.nxaxes == [d1["y"], d1["x"]]
 
     p1 = d1.project((1, 0))
     p2 = d1.project((0, 1), limits=((3., 9.), (4., 16.)))
 
-    assert p1.nxaxes == [p1['x'], p1['y']]
-    assert np.array_equal(p1['x'].nxvalue, d1['x'])
-    assert p2.nxaxes == [p2['y'], p2['x']]
-    assert np.array_equal(p2['x'].nxvalue, d1['x'][4.:16.])
-    assert np.array_equal(p2['x'].nxvalue, d1['x'][2:9])
+    assert p1.nxaxes == [p1["x"], p1["y"]]
+    assert np.array_equal(p1["x"].nxvalue, d1["x"])
+    assert p2.nxaxes == [p2["y"], p2["x"]]
+    assert np.array_equal(p2["x"].nxvalue, d1["x"][4.:16.])
+    assert np.array_equal(p2["x"].nxvalue, d1["x"][2:9])
 
     d2 = NXdata(v, (z, y, x))
 
     p3 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)))
 
-    assert p3.nxaxes == [p3['z'], p3['y']]
-    assert np.array_equal(p3['y'].nxvalue, d2['y'][3.:9.])
-    assert np.array_equal(p3['y'].nxvalue, d2['y'][1:4])
-    assert p3['x'] == 10.
-    assert p3['x'].attrs['minimum'] == 4.
-    assert p3['x'].attrs['maximum'] == 16.
-    assert p3['x'].attrs['summed_bins'] == 7
-    assert p3['v'].sum() == d2.v[:,1:3,2:8].sum()
+    assert p3.nxaxes == [p3["z"], p3["y"]]
+    assert np.array_equal(p3["y"].nxvalue, d2["y"][3.:9.])
+    assert np.array_equal(p3["y"].nxvalue, d2["y"][1:4])
+    assert p3["x"] == 10.
+    assert p3["x"].attrs["minimum"] == 4.
+    assert p3["x"].attrs["maximum"] == 16.
+    assert p3["x"].attrs["summed_bins"] == 7
+    assert p3["v"].sum() == d2.v[:,1:3,2:8].sum()
     
     p4 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)), summed=False)
 
-    assert p4['v'].sum() == d2.v[:,1:3,2:8].sum() / p4['x'].attrs['summed_bins']
+    assert p4["v"].sum() == d2.v[:,1:3,2:8].sum() / p4["x"].attrs["summed_bins"]
 
 
 def test_data_smoothing():
@@ -239,14 +253,14 @@ def test_data_smoothing():
 def test_image_data():
 
     root = NXroot(NXentry(NXdata(im)))
-    root['entry'].attrs['default'] = 'data'
-    root['entry/other_data'] = NXdata(v, (z, y, x), title="Title")
+    root["entry"].attrs["default"] = "data"
+    root["entry/other_data"] = NXdata(v, (z, y, x), title="Title")
 
-    assert root['entry/data/image'].is_image()
-    assert root['entry/data'].is_image()
+    assert root["entry/data/image"].is_image()
+    assert root["entry/data"].is_image()
     assert root.plottable_data.is_image()
-    assert root['entry'].plottable_data.is_image()
-    assert not root['entry/other_data'].is_image()
+    assert root["entry"].plottable_data.is_image()
+    assert not root["entry/other_data"].is_image()
 
 
 def test_smart_indices():

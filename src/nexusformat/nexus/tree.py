@@ -4958,6 +4958,7 @@ class NXlink(NXobject):
         self._name = name
         self._group = group
         self._abspath = abspath
+        self._entries = None
         if file is not None:
             self._filename = file
             self._mode = 'r'
@@ -5224,6 +5225,9 @@ class NXlinkgroup(NXlink, NXgroup):
             for entry in _linked_entries:
                 _entries[entry] = deepcopy(_linked_entries[entry])
                 _entries[entry]._group = self
+        if _entries != self._entries:
+            self._entries = _entries
+            self.set_changed()
         return _entries
 
 

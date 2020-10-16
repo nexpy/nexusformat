@@ -4808,6 +4808,7 @@ class NXgroup(NXobject):
         for entry in self:
             if self[entry].is_plottable():
                 plottable = True
+                break
         return plottable        
 
     @property

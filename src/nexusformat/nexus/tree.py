@@ -204,7 +204,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
-NX_ENCODING = sys.getfilesystemencoding()
+NX_ENCODING = 'utf-8'
 NX_MAXSIZE = 10000
 NX_LOCK = 0
 

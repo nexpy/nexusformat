@@ -6294,6 +6294,10 @@ class NXdata(NXgroup):
             if axes is not None and not self.nxsignal.valid_axes(axes):
                 raise NeXusError("Defined axes not compatible with the signal")
 
+        if ('interpretation' in signal.attrs and 
+            'rgb' in signal.attrs['interpretation'] and signal.is_image()):
+                kwargs['image'] = True
+
         # Plot with the available plotter
         try:
             from __main__ import plotview

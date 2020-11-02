@@ -5271,17 +5271,15 @@ class NXroot(NXgroup):
 
     def is_modified(self):
         """True if the NeXus file has been modified by an external process."""
-        try:
-            _mtime = self.nxfile.mtime
+        if self._file is None:
+            self._file.modified = False
+        else:
+            _mtime = self._file.mtime
             if self._mtime and _mtime > self._mtime:
                 self._file_modified = True
-                return True
             else:
                 self._file_modified = False
-                return False
-        except (AttributeError, TypeError, FileNotFoundError):
-            self._file_modified = False
-            return False
+        return self._file_modified
 
     def lock(self):
         """Make the tree readonly."""

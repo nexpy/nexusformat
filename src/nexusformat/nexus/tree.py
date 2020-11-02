@@ -635,6 +635,8 @@ class NXFile(object):
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
                 self._file = self.h5.File(self._filename, self._mode, **kwargs)
+            if self._root:
+                self._root._mtime = self.mtime
             self.nxpath = '/'
 
     def close(self):

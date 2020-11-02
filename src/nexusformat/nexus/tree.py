@@ -204,7 +204,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
-NX_ENCODING = sys.getfilesystemencoding()
+NX_ENCODING = 'utf-8'
 NX_MAXSIZE = 10000
 NX_LOCK = 0
 
@@ -635,6 +635,8 @@ class NXFile(object):
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
                 self._file = self.h5.File(self._filename, self._mode, **kwargs)
+            if self._root:
+                self._root._mtime = self.mtime
             self.nxpath = '/'
 
     def close(self):
@@ -743,10 +745,10 @@ class NXFile(object):
         nxclass = self._getclass(attrs.pop('NX_class', 'NXgroup'))
         if nxclass == 'NXgroup' and self.nxpath == '/':
             nxclass = 'NXroot'
-        _target, _filename, _abspath = self._getlink()
+        _target, _filename, _abspath, _soft = self._getlink()
         if _target is not None:
             group = NXlinkgroup(nxclass=nxclass, name=name, target=_target,
-                                file=_filename, abspath=_abspath)
+                                file=_filename, abspath=_abspath, soft=_soft)
         else:
             group = NXgroup(nxclass=nxclass, name=name, attrs=attrs)
         if recursive:
@@ -771,10 +773,10 @@ class NXFile(object):
         NXfield or NXlinkfield
             Field or link defined by the current path.
         """
-        _target, _filename, _abspath = self._getlink()
+        _target, _filename, _abspath, _soft = self._getlink()
         if _target is not None:
             return NXlinkfield(name=name, target=_target, file=_filename, 
-                               abspath=_abspath)
+                               abspath=_abspath, soft=_soft)
         else:
             value, shape, dtype, attrs = self.readvalues()
             return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
@@ -796,10 +798,10 @@ class NXFile(object):
         NXlink
             Link defined by the current path.
         """
-        _target, _filename, _abspath = self._getlink()
+        _target, _filename, _abspath, _soft = self._getlink()
         if _target is not None:
             return NXlink(name=name, target=_target, file=_filename, 
-                          abspath=_abspath)
+                          abspath=_abspath, soft=_soft)
         else:
             return None
  
@@ -835,7 +837,7 @@ class NXFile(object):
             Link path, filename, and boolean that is True if an absolute file
             path is given.
         """
-        _target, _filename, _abspath = None, None, False
+        _target, _filename, _abspath, _soft = None, None, False, False
         if self.nxpath != '/':
             _link = self.get(self.nxpath, getlink=True)
             if isinstance(_link, h5.ExternalLink):
@@ -843,13 +845,14 @@ class NXFile(object):
                 _abspath = os.path.isabs(_filename)
             elif isinstance(_link, h5.SoftLink):
                 _target = _link.path
+                _soft = True
             elif 'target' in self.attrs:
                 _target = text(self.attrs['target'])
                 if not _target.startswith('/'):
                     _target = '/' + _target
                 if _target == self.nxpath:
                     _target = None
-        return _target, _filename, _abspath
+        return _target, _filename, _abspath, _soft
 
     def writefile(self, root):
         """Write the whole NeXus tree to the file.
@@ -921,13 +924,14 @@ class NXFile(object):
         links = []
         self._writeattrs(group.attrs)
         if group._target is not None:
-            links += [(self.nxpath, group._target)]
+            links += [(self.nxpath, group._target, group._soft)]
         for child in group.values():
             if isinstance(child, NXlink):
                 if child._filename is not None:
                     self._writeexternal(child)
                 else:
-                    links += [(self.nxpath+"/"+child.nxname, child._target)]
+                    links += [(self.nxpath+"/"+child.nxname, child._target,
+                               child._soft)]
             elif isinstance(child, NXfield):
                 links += self._writedata(child)
             else:
@@ -962,7 +966,7 @@ class NXFile(object):
             else:
                 path = self.nxpath
                 self.nxpath = self.nxparent
-                return [(path, data._target)]
+                return [(path, data._target, data._soft)]
         if data._uncopied_data:
             if self.nxpath in self:
                 del self[self.nxpath]
@@ -1020,19 +1024,24 @@ class NXFile(object):
     def _writelinks(self, links):
         """Creates links within the NeXus file.
 
-        These are defined by the set of pairs returned by _writegroup.
+        These are defined by the set of tuples returned by _writegroup and 
+        _writedata, which define the path to the link, the link target, and a
+        boolean that determines whether the link is hard or soft.
         
         Parameters
         ----------
         links : list ot tuples
-            List of tuples containing the paths to the links and their targets. 
+            List of tuples containing the link path, target, and type. 
         """
         # link sources to targets
-        for path, target in links:
+        for path, target, soft in links:
             if path != target and path not in self['/'] and target in self['/']:
-                if 'target' not in self[target].attrs:
-                    self[target].attrs['target'] = target
-                self[path] = self[target]
+                if soft:
+                    self[path] = h5.SoftLink(target)
+                else:
+                    if 'target' not in self[target].attrs:
+                        self[target].attrs['target'] = target
+                    self[path] = self[target]
 
     def readpath(self, path):
         """Read the object defined by the given path.
@@ -1229,7 +1238,7 @@ class NXFile(object):
             self.nxpath = self.nxparent
             if isinstance(item, NXlink):
                 if item._filename is None:
-                    self._writelinks([(item.nxpath, item._target)])
+                    self._writelinks([(item.nxpath, item._target, item._soft)])
                 else:
                     self._writeexternal(item)
             elif isinstance(item, NXfield):
@@ -3962,11 +3971,15 @@ class NXfield(NXobject):
 
         if self.is_plottable():
             data = NXdata(self, self.nxaxes, title=self.nxtitle)
+            if ('interpretation' in self.attrs and 
+                'rgb' in self.attrs['interpretation'] and
+                self.is_image()):
+                kwargs['image'] = True
             if self.nxroot.nxclass == 'NXroot':
                 signal_path = self.nxroot.nxname + self.nxpath
             else:
                 signal_path = self.nxpath
-            data.nxsignal.attrs['signal_path'] = signal_path
+            data.attrs['signal_path'] = signal_path
             plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
                           vmin=None, vmax=None, **kwargs)
         else:
@@ -4955,11 +4968,12 @@ class NXlink(NXobject):
     _class = 'NXlink'
 
     def __init__(self, target=None, file=None, name=None, group=None, 
-                 abspath=False):
+                 abspath=False, soft=False):
         self._class = 'NXlink'
         self._name = name
         self._group = group
         self._abspath = abspath
+        self._soft = soft
         self._entries = None
         if file is not None:
             self._filename = file
@@ -5165,9 +5179,9 @@ class NXlinkfield(NXlink, NXfield):
     """Class for NeXus linked fields."""
 
     def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **kwargs):
+                 soft=False, **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
-                        abspath=abspath)
+                        abspath=abspath, soft=soft)
         self._class = 'NXfield'
 
 
@@ -5175,9 +5189,9 @@ class NXlinkgroup(NXlink, NXgroup):
     """Class for NeXus linked groups."""
 
     def __init__(self, target=None, file=None, name=None, abspath=False, 
-                 **kwargs):
+                 soft=False, **kwargs):
         NXlink.__init__(self, target=target, file=file, name=name, 
-                        abspath=abspath)
+                        abspath=abspath, soft=soft)
         if 'nxclass' in kwargs:
             self._setclass(_getclass(kwargs['nxclass'], link=True))
         else:
@@ -5257,17 +5271,15 @@ class NXroot(NXgroup):
 
     def is_modified(self):
         """True if the NeXus file has been modified by an external process."""
-        try:
-            _mtime = self.nxfile.mtime
+        if self._file is None:
+            self._file.modified = False
+        else:
+            _mtime = self._file.mtime
             if self._mtime and _mtime > self._mtime:
                 self._file_modified = True
-                return True
             else:
                 self._file_modified = False
-                return False
-        except (AttributeError, TypeError, FileNotFoundError):
-            self._file_modified = False
-            return False
+        return self._file_modified
 
     def lock(self):
         """Make the tree readonly."""
@@ -6281,6 +6293,10 @@ class NXdata(NXgroup):
             axes = self.plot_axes
             if axes is not None and not self.nxsignal.valid_axes(axes):
                 raise NeXusError("Defined axes not compatible with the signal")
+
+        if ('interpretation' in signal.attrs and 
+            'rgb' in signal.attrs['interpretation'] and signal.is_image()):
+                kwargs['image'] = True
 
         # Plot with the available plotter
         try:

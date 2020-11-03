@@ -6654,7 +6654,10 @@ def setlock(value=10):
         If the value is set to 0, file locking is disabled.
     """
     global NX_LOCK
-    NX_LOCK = int(value)
+    try:
+        NX_LOCK = int(value)
+    except ValueError:
+        raise NeXusError("Invalid value for file lock time")
 
 nxgetlock = getlock
 nxsetlock = setlock
@@ -6666,7 +6669,10 @@ def getmemory():
 def setmemory(value):
     """Set the memory limit for data arrays (in MB)."""
     global NX_MEMORY
-    NX_MEMORY = value
+    try:
+        NX_MEMORY = int(value)
+    except ValueError:
+        raise NeXusError("Invalid value for memory limit")
 
 nxgetmemory = getmemory
 nxsetmemory = setmemory
@@ -6704,7 +6710,10 @@ def getmaxsize():
 def setmaxsize(value):
     """Set the default maximum size for arrays without using core memory."""
     global NX_MAXSIZE
-    NX_MAXSIZE = value
+    try:
+        NX_MAXSIZE = int(value)
+    except ValueError:
+        raise NeXusError("Invalid value for maximum array size")    
 
 nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize

@@ -202,20 +202,22 @@ from .lock import NXLock, NXLockException
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-NX_MEMORY = 2000 #Memory in MB
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
-NX_MAXSIZE = 10000
 NX_LOCK = 0
+NX_MAXSIZE = 10000
+NX_MEMORY = 2000 #Memory in MB
+NX_RECURSIVE = True
 
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
 
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
            'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'nxgetlock', 'nxsetlock', 'nxgetmemory', 'nxsetmemory', 
            'nxgetcompression', 'nxsetcompression', 
-           'nxgetencoding', 'nxsetencoding', 'nxgetmaxsize', 'nxsetmaxsize',
+           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock', 
+           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',  
+           'nxgetrecursive', 'nxsetrecursive',            
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
 
@@ -382,7 +384,7 @@ class NXFile(object):
     the file closed again. 
     """
 
-    def __init__(self, name, mode='r', recursive=True, **kwargs):
+    def __init__(self, name, mode='r', recursive=None, **kwargs):
         """Open an HDF5 file for reading and writing NeXus files.
 
         This creates a h5py File instance that is used for all subsequent
@@ -417,7 +419,10 @@ class NXFile(object):
         self._path = '/'
         self._root = None
         self._with_count = 0
-        self.recursive = recursive
+        if recursive is None:
+            self.recursive = NX_RECURSIVE
+        else:
+            self.recursive = recursive
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif not os.path.exists(os.path.dirname(self._filename)):
@@ -6630,6 +6635,32 @@ def centers(axis, dimlen):
         assert ax.shape[0] == dimlen
         return ax
 
+def getcompression():
+    """Return default compression filter."""
+    return NX_COMPRESSION
+
+def setcompression(value):
+    """Set default compression filter."""
+    global NX_COMPRESSION
+    if value == 'None':
+        value = None
+    NX_COMPRESSION = value
+
+nxgetcompression = getcompression
+nxsetcompression = setcompression
+
+def getencoding():
+    """Return the default encoding for input strings (usually 'utf-8')."""
+    return NX_ENCODING
+
+def setencoding(value):
+    """Set the default encoding for input strings (usually 'utf-8')."""
+    global NX_ENCODING
+    NX_ENCODING = value
+
+nxgetencoding = getencoding
+nxsetencoding = setencoding
+
 def getlock():
     """Return the number of seconds before a lock acquisition times out.
 
@@ -6662,47 +6693,6 @@ def setlock(value=10):
 nxgetlock = getlock
 nxsetlock = setlock
 
-def getmemory():
-    """Return the memory limit for data arrays (in MB)."""
-    return NX_MEMORY
-
-def setmemory(value):
-    """Set the memory limit for data arrays (in MB)."""
-    global NX_MEMORY
-    try:
-        NX_MEMORY = int(value)
-    except ValueError:
-        raise NeXusError("Invalid value for memory limit")
-
-nxgetmemory = getmemory
-nxsetmemory = setmemory
-
-def getcompression():
-    """Return default compression filter."""
-    return NX_COMPRESSION
-
-def setcompression(value):
-    """Set default compression filter."""
-    global NX_COMPRESSION
-    if value == 'None':
-        value = None
-    NX_COMPRESSION = value
-
-nxgetcompression = getcompression
-nxsetcompression = setcompression
-
-def getencoding():
-    """Return the default encoding for input strings (usually 'utf-8')."""
-    return NX_ENCODING
-
-def setencoding(value):
-    """Set the default encoding for input strings (usually 'utf-8')."""
-    global NX_ENCODING
-    NX_ENCODING = value
-
-nxgetencoding = getencoding
-nxsetencoding = setencoding
-
 def getmaxsize():
     """Return the default maximum size for arrays without using core memory."""
     return NX_MAXSIZE
@@ -6718,8 +6708,57 @@ def setmaxsize(value):
 nxgetmaxsize = getmaxsize
 nxsetmaxsize = setmaxsize
 
+def getmemory():
+    """Return the memory limit for data arrays (in MB)."""
+    return NX_MEMORY
+
+def setmemory(value):
+    """Set the memory limit for data arrays (in MB)."""
+    global NX_MEMORY
+    try:
+        NX_MEMORY = int(value)
+    except ValueError:
+        raise NeXusError("Invalid value for memory limit")
+
+nxgetmemory = getmemory
+nxsetmemory = setmemory
+
+def getrecursive():
+    """Return True if files are opened recursively by default.
+    
+    Returns
+    -------
+    bool
+        True if files are to be opened recursively.
+    """
+    return bool(NX_RECURSIVE)
+    
+def setrecursive(value):
+    """Set whether files are opened recursively by default.
+
+    The default can be overridden by setting the 'recursive' keyword when 
+    opening a file.
+    
+    Parameters
+    ----------
+    value : bool
+        True if files are to be opened recursively by default.
+    """
+    global NX_RECURSIVE
+    if value in [True, 'True', 'true', 'Yes', 'yes', 'Y', 'y', 1]:
+        value = True
+    else:
+        value = False
+    try:
+        NX_RECURSIVE = value
+    except ValueError:
+        raise NeXusError("Invalid value for setting default recursion.")
+
+nxgetrecursive = getrecursive
+nxsetrecursive = setrecursive
+
 # File level operations
-def load(filename, mode='r', recursive=True, **kwargs):
+def load(filename, mode='r', recursive=None, **kwargs):
     """Open or create a NeXus file and load its tree.
     
     Notes
@@ -6743,6 +6782,8 @@ def load(filename, mode='r', recursive=True, **kwargs):
     NXroot
         NXroot object containing the NeXus tree.
     """
+    if recursive is None:
+        recursive = NX_RECURSIVE
     with NXFile(filename, mode, recursive=recursive, **kwargs) as f:
         root = f.readfile()
     return root
@@ -6824,7 +6865,7 @@ def demo(argv):
     elif op == 'plot' and len(argv)==4:
         tree = load(argv[2])
         for entry in argv[3].split('.'):
-            tree = getattr(tree,entry)
+            tree = getattr(tree, entry)
         tree.plot()
         tree._plotter.show()
 

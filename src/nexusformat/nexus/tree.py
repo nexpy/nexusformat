@@ -384,7 +384,7 @@ class NXFile(object):
     the file closed again. 
     """
 
-    def __init__(self, name, mode='r', recursive=NX_RECURSIVE, **kwargs):
+    def __init__(self, name, mode='r', recursive=None, **kwargs):
         """Open an HDF5 file for reading and writing NeXus files.
 
         This creates a h5py File instance that is used for all subsequent
@@ -419,7 +419,10 @@ class NXFile(object):
         self._path = '/'
         self._root = None
         self._with_count = 0
-        self.recursive = recursive
+        if recursive is None:
+            self.recursive = NX_RECURSIVE
+        else:
+            self.recursive = recursive
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif not os.path.exists(os.path.dirname(self._filename)):
@@ -6755,7 +6758,7 @@ nxgetrecursive = getrecursive
 nxsetrecursive = setrecursive
 
 # File level operations
-def load(filename, mode='r', recursive=NX_RECURSIVE, **kwargs):
+def load(filename, mode='r', recursive=None, **kwargs):
     """Open or create a NeXus file and load its tree.
     
     Notes
@@ -6779,6 +6782,8 @@ def load(filename, mode='r', recursive=NX_RECURSIVE, **kwargs):
     NXroot
         NXroot object containing the NeXus tree.
     """
+    if recursive is None:
+        recursive = NX_RECURSIVE
     with NXFile(filename, mode, recursive=recursive, **kwargs) as f:
         root = f.readfile()
     return root

@@ -200,7 +200,7 @@ import numpy as np
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter('ignore', category=FutureWarning)
 
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'

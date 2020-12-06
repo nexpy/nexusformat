@@ -6491,7 +6491,7 @@ class NXdata(NXgroup):
         except KeyError:
             return None
 
-    @nxerrors.setter
+    @nxweights.setter
     def nxweights(self, weights):
         if self.nxsignal is not None:
             name = self.nxsignal.nxname+'_weights'

@@ -5698,31 +5698,11 @@ class NXdata(NXgroup):
             self[signal_name] = signal
             attrs['signal'] = signal_name
             if errors is not None:
-                if isinstance(errors, NXfield) or isinstance(errors, NXlink):
-                    if errors.nxname == 'unknown' or errors.nxname in self:
-                        errors_name = signal_name+'_errors'
-                    else:
-                        errors_name = errors.nxname
-                else:
-                    errors_name = signal_name+'_errors'
+                errors_name = signal_name+'_errors'
                 self[errors_name] = errors
-                try:
-                    self[signal_name].attrs['uncertainties'] = errors_name
-                except NeXusError:
-                    pass
             if weights is not None:
-                if isinstance(weights, NXfield) or isinstance(weights, NXlink):
-                    if weights.nxname == 'unknown' or weights.nxname in self:
-                        weights_name = signal_name+'_weights'
-                    else:
-                        weights_name = weights.nxname
-                else:
-                    weights_name = signal_name+'_errors'
+                weights_name = signal_name+'_weights'
                 self[weights_name] = weights
-                try:
-                    self[signal_name].attrs['weights'] = errors_name
-                except NeXusError:
-                    pass
         self.attrs._setattrs(attrs)
 
     def __setattr__(self, name, value):
@@ -6475,13 +6455,10 @@ class NXdata(NXgroup):
 
     @nxerrors.setter
     def nxerrors(self, errors):
-        if self.nxsignal is not None:
-            name = self.nxsignal.nxname+'_errors'
-            self.nxsignal.attrs['uncertainties'] = name
-        else:
-            name = 'errors'
-        self[name] = errors
-        return self.entries[name]
+        signal = self.nxsignal
+        if signal is not None:
+            name = signal.nxname+'_errors'
+            self[name] = errors
 
     @property
     def nxweights(self):
@@ -6505,12 +6482,10 @@ class NXdata(NXgroup):
 
     @nxweights.setter
     def nxweights(self, weights):
-        if self.nxsignal is not None:
-            name = self.nxsignal.nxname+'_weights'
-        else:
-            name = 'weights'
-        self[name] = weights
-        return self.entries[name]
+        signal = self.nxsignal
+        if signal is not None:
+            name = signal.nxname+'_weights'
+            self[name] = weights
 
     @property
     def mask(self):
@@ -6518,21 +6493,25 @@ class NXdata(NXgroup):
         
         This is set to a value of None or np.ma.nomask to remove the mask.
         """
-        if self.nxsignal is not None:
-            return self.nxsignal.mask
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.mask
         else:
             return None
 
     @mask.setter
     def mask(self, value):
+        signal = self.nxsignal
+        if signal is None:
+            return
         if value is None:
             value = np.ma.nomask
-        if value is np.ma.nomask and self.nxsignal.mask is not None:
-            self.nxsignal.mask = np.ma.nomask
-            if isinstance(self.nxsignal.mask, NXfield):
-                del self[self.nxsignal.mask.nxname]
-            if 'mask' in self.nxsignal.attrs:
-                del self.nxsignal.attrs['mask']
+        if value is np.ma.nomask and signal.mask is not None:
+            signal.mask = np.ma.nomask
+            if isinstance(signal.mask, NXfield):
+                del self[signal.mask.nxname]
+            if 'mask' in signal.attrs:
+                del signal.attrs['mask']
 
 
 class NXmonitor(NXdata):

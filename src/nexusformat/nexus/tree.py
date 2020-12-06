@@ -5871,6 +5871,11 @@ class NXdata(NXgroup):
                                                   other.nxerrors**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights + other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot add two arbitrary groups")
@@ -5908,6 +5913,11 @@ class NXdata(NXgroup):
                                                   other.nxerrors**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights - other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot subtract two arbitrary groups")
@@ -5948,6 +5958,11 @@ class NXdata(NXgroup):
                                           (other.nxerrors * self.nxsignal)**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights * other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot multiply two arbitrary groups")
@@ -6012,6 +6027,8 @@ class NXdata(NXgroup):
             result[self.nxsignal.nxname] = self.nxsignal / other
             if self.nxerrors: 
                 result.nxerrors = self.nxerrors / other
+            if self.nxweights: 
+                result.nxweights = self.nxweights / other
             return result
 
     def prepare_smoothing(self):

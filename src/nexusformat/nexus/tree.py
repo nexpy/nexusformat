@@ -6456,15 +6456,21 @@ class NXdata(NXgroup):
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        if self.nxsignal is not None: 
-            if self.nxsignal.nxname+'_errors' in self:
-                return self[self.nxsignal.nxname+'_errors']
-            elif ('uncertainties' in self.nxsignal.attrs and
-                self.nxsignal.attrs['uncertainties'] in self):
-                return self[self.nxsignal.attrs['uncertainties']]
-        try:
-            return self['errors']
-        except KeyError:
+        signal = self.nxsignal
+        errors = None
+        if signal is not None:
+            if signal.nxname+'_errors' in self:
+                errors = self[signal.nxname+'_errors']
+            elif ('uncertainties' in signal.attrs and
+                signal.attrs['uncertainties'] in self):
+                errors = self[signal.attrs['uncertainties']]
+            elif 'errors' in self:
+                errors = self['errors']
+            if errors and errors.shape == signal.shape:
+                return errors
+            else:
+                return None
+        else:
             return None
 
     @nxerrors.setter
@@ -6480,15 +6486,21 @@ class NXdata(NXgroup):
     @property
     def nxweights(self):
         """NXfield containing the signal weights."""
-        if self.nxsignal is not None: 
-            if self.nxsignal.nxname+'_weights' in self:
-                return self[self.nxsignal.nxname+'_weights']
-            elif ('weights' in self.nxsignal.attrs and
-                self.nxsignal.attrs['weights'] in self):
-                return self[self.nxsignal.attrs['weights']]
-        try:
-            return self['weights']
-        except KeyError:
+        signal = self.nxsignal
+        weights = None
+        if signal is not None: 
+            if signal.nxname+'_weights' in self:
+                weights = self[signal.nxname+'_weights']
+            elif ('weights' in signal.attrs and
+                signal.attrs['weights'] in self):
+                weights = self[signal.attrs['weights']]
+            elif 'weights' in self:
+                weights = self['weights']
+            if weights and weights.shape == signal.shape:
+                return weights
+            else:
+                return None
+        else:
             return None
 
     @nxweights.setter

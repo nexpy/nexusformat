@@ -5970,6 +5970,8 @@ class NXdata(NXgroup):
             result[self.nxsignal.nxname] = self.nxsignal * other
             if self.nxerrors:
                 result.nxerrors = self.nxerrors * other
+            if self.nxweights:
+                result.nxweights = self.nxweights * other
             return result
 
     def __rmul__(self, other):

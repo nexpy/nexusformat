@@ -6,9 +6,6 @@ This package provides a Python API that subclasses the
 nexusformat package to work with HDF5 files served by h5serv. 
 
 """
-from __future__ import (absolute_import, division, print_function)
-import six
-
 import os
 
 import numpy as np

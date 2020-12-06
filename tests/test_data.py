@@ -19,6 +19,8 @@ def test_data_creation():
     assert "axes" in data.attrs
     assert len(data.attrs["axes"]) == 3
     
+    assert data.ndim == 3
+    assert data.shape == (2, 5, 10)
     assert data.nxsignal.nxname == "v"
     assert data.nxsignal.ndim == 3
     assert data.nxsignal.shape == (2, 5, 10)
@@ -29,6 +31,32 @@ def test_data_creation():
     assert [axis.shape for axis in data.nxaxes] == [(3,), (6,), (11,)]
 
     assert data.nxtitle == "Title"
+
+
+def test_default_data():
+
+    data = NXdata(v, (z, y, x), title="Title")
+    root = NXroot(NXentry(data))
+    root["entry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry"].get_default() is root["entry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/data"]
+
+    root["entry/subentry"] = NXsubentry(data)
+    root["entry/subentry/data"].set_default()
+
+    assert root.get_default() is root["entry/data"]
+    assert root["entry/subentry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/subentry"].plottable_data is root["entry/subentry/data"]
+
+    root["entry/subentry/data"].set_default(over=True)
+
+    assert root.get_default() is root["entry/subentry/data"]
+    assert root["entry"].get_default() is root["entry/subentry/data"]
+    assert root["entry/data"].get_default() is root["entry/data"]
+    assert root.plottable_data is root["entry/subentry/data"]
 
 
 def test_plottable_data():
@@ -42,6 +70,15 @@ def test_plottable_data():
     assert data.plot_axes == data.nxaxes
     assert data.nxsignal.valid_axes(data.nxaxes)
 
+    v2 = v[0]
+    v2.resize((1, 5, 10))
+    data2 = NXdata(v2)
+
+    assert data2.shape == (1, 5, 10)
+    assert data2.plot_shape == (5, 10)
+    assert data2.plot_rank == 2
+    assert data2.plot_rank == data2.nxsignal.ndim - 1
+
 
 def test_signal_selection():
 
@@ -51,6 +88,20 @@ def test_signal_selection():
 
     assert data.nxsignal.nxname == "v"
     assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
+
+
+def test_rename():
+
+    data = NXdata()
+    data.nxsignal = v
+    data.nxaxes = (z, y, x)
+
+    data["x"].rename("xx")
+    data["y"].rename("yy")
+    data["z"].rename("zz")
+    data["v"].rename("vv")
+    assert data.nxsignal.nxname == "vv"
+    assert [axis.nxname for axis in data.nxaxes] == ["zz", "yy", "xx"]
 
 
 def test_size_one_axis():
@@ -143,41 +194,48 @@ def test_data_slabs():
 
     slab = data[0, 3.5:11.5, 2.5:17.5]
 
+    assert slab.shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_shape == (v.shape[1]-2, v.shape[2]-2)
     assert slab.plot_axes == [y[1:-1], x[1:-1]]
+
+    slab1 = data[0:0, 3.5:11.5, 2.5:17.5]
+    slab2 = data[0:1, 3.5:11.5, 2.5:17.5]
+
+    assert slab1.shape == slab.shape
+    assert slab2.shape == slab.shape
 
 
 def test_data_projections():
 
     d1 = NXdata(v[0], (y, x))
 
-    assert d1.nxaxes == [d1['y'], d1['x']]
+    assert d1.nxaxes == [d1["y"], d1["x"]]
 
     p1 = d1.project((1, 0))
     p2 = d1.project((0, 1), limits=((3., 9.), (4., 16.)))
 
-    assert p1.nxaxes == [p1['x'], p1['y']]
-    assert np.array_equal(p1['x'].nxvalue, d1['x'])
-    assert p2.nxaxes == [p2['y'], p2['x']]
-    assert np.array_equal(p2['x'].nxvalue, d1['x'][4.:16.])
-    assert np.array_equal(p2['x'].nxvalue, d1['x'][2:9])
+    assert p1.nxaxes == [p1["x"], p1["y"]]
+    assert np.array_equal(p1["x"].nxvalue, d1["x"])
+    assert p2.nxaxes == [p2["y"], p2["x"]]
+    assert np.array_equal(p2["x"].nxvalue, d1["x"][4.:16.])
+    assert np.array_equal(p2["x"].nxvalue, d1["x"][2:9])
 
     d2 = NXdata(v, (z, y, x))
 
     p3 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)))
 
-    assert p3.nxaxes == [p3['z'], p3['y']]
-    assert np.array_equal(p3['y'].nxvalue, d2['y'][3.:9.])
-    assert np.array_equal(p3['y'].nxvalue, d2['y'][1:4])
-    assert p3['x'] == 10.
-    assert p3['x'].attrs['minimum'] == 4.
-    assert p3['x'].attrs['maximum'] == 16.
-    assert p3['x'].attrs['summed_bins'] == 7
-    assert p3['v'].sum() == d2.v[:,1:3,2:8].sum()
+    assert p3.nxaxes == [p3["z"], p3["y"]]
+    assert np.array_equal(p3["y"].nxvalue, d2["y"][3.:9.])
+    assert np.array_equal(p3["y"].nxvalue, d2["y"][1:4])
+    assert p3["x"] == 10.
+    assert p3["x"].attrs["minimum"] == 4.
+    assert p3["x"].attrs["maximum"] == 16.
+    assert p3["x"].attrs["summed_bins"] == 7
+    assert p3["v"].sum() == d2.v[:,1:3,2:8].sum()
     
     p4 = d2.project((0,1),((0.,8.),(3.,9.),(4.,16.)), summed=False)
 
-    assert p4['v'].sum() == d2.v[:,1:3,2:8].sum() / p4['x'].attrs['summed_bins']
+    assert p4["v"].sum() == d2.v[:,1:3,2:8].sum() / p4["x"].attrs["summed_bins"]
 
 
 def test_data_smoothing():
@@ -195,11 +253,35 @@ def test_data_smoothing():
 def test_image_data():
 
     root = NXroot(NXentry(NXdata(im)))
-    root['entry'].attrs['default'] = 'data'
-    root['entry/other_data'] = NXdata(v, (z, y, x), title="Title")
+    root["entry"].attrs["default"] = "data"
+    root["entry/other_data"] = NXdata(v, (z, y, x), title="Title")
 
-    assert root['entry/data/image'].is_image()
-    assert root['entry/data'].is_image()
+    assert root["entry/data/image"].is_image()
+    assert root["entry/data"].is_image()
     assert root.plottable_data.is_image()
-    assert root['entry'].plottable_data.is_image()
-    assert not root['entry/other_data'].is_image()
+    assert root["entry"].plottable_data.is_image()
+    assert not root["entry/other_data"].is_image()
+
+
+def test_smart_indices():
+
+    ind = [1,3,5]
+
+    assert all(x[ind].nxvalue == x.nxvalue[ind])
+    assert all(v[v>50].nxvalue == v.nxvalue[v.nxvalue>50])
+    assert all(v[1,0,ind].nxvalue == v.nxvalue[1,0,ind])
+
+    x[ind] = 0
+
+    assert x.any() and not x[ind].any()
+
+    ind = np.array([[3, 7],[4, 5]])
+
+    assert np.all(x[ind].nxvalue == x.nxvalue[ind])
+
+    row = np.array([0, 1, 2])
+    col = np.array([2, 1, 3])
+
+    assert all(v[0][row,col].nxvalue == v[0].nxvalue[row,col])
+    assert np.all(v[0][row[:,np.newaxis],col].nxvalue == 
+                  v[0].nxvalue[row[:,np.newaxis],col])

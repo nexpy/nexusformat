@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Copyright (c) 2019, NeXpy Development Team.
+# Copyright (c) 2019-2020, NeXpy Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
 #-----------------------------------------------------------------------------
-from __future__ import (division, print_function)
-
 import argparse
 from nexusformat.nexus import *
 from nexusformat import __version__

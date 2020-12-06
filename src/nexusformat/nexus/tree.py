@@ -6457,11 +6457,11 @@ class NXdata(NXgroup):
     def nxerrors(self):
         """NXfield containing the signal errors."""
         if self.nxsignal is not None: 
-            if ('uncertainties' in self.nxsignal.attrs and
+            if self.nxsignal.nxname+'_errors' in self:
+                return self[self.nxsignal.nxname+'_errors']
+            elif ('uncertainties' in self.nxsignal.attrs and
                 self.nxsignal.attrs['uncertainties'] in self):
                 return self[self.nxsignal.attrs['uncertainties']]
-            elif self.nxsignal.nxname+'_errors' in self:
-                return self[self.nxsignal.nxname+'_errors']
         try:
             return self['errors']
         except KeyError:
@@ -6481,11 +6481,11 @@ class NXdata(NXgroup):
     def nxweights(self):
         """NXfield containing the signal weights."""
         if self.nxsignal is not None: 
-            if ('weights' in self.nxsignal.attrs and
+            if self.nxsignal.nxname+'_weights' in self:
+                return self[self.nxsignal.nxname+'_weights']
+            elif ('weights' in self.nxsignal.attrs and
                 self.nxsignal.attrs['weights'] in self):
                 return self[self.nxsignal.attrs['weights']]
-            elif self.nxsignal.nxname+'_weights' in self:
-                return self[self.nxsignal.nxname+'_weights']
         try:
             return self['weights']
         except KeyError:

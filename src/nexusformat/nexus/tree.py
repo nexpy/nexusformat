@@ -200,14 +200,14 @@ import numpy as np
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter('ignore', category=FutureWarning)
 
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
 NX_LOCK = 0
 NX_MAXSIZE = 10000
 NX_MEMORY = 2000 #Memory in MB
-NX_RECURSIVE = True
+NX_RECURSIVE = False
 
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)

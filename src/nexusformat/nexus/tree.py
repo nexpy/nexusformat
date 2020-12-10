@@ -5277,7 +5277,7 @@ class NXroot(NXgroup):
     def is_modified(self):
         """True if the NeXus file has been modified by an external process."""
         if self._file is None:
-            self._file.modified = False
+            self._file_modified = False
         else:
             _mtime = self._file.mtime
             if self._mtime and _mtime > self._mtime:

@@ -164,6 +164,9 @@ def test_data_errors():
     assert data.nxerrors.nxname == "v_errors"
     assert np.array_equal(data.nxerrors, e1)
 
+    data = NXdata(v1, (y1))
+    data.nxerrors = e1
+    
     new_data = 2 * data
 
     assert np.array_equal(new_data.nxerrors, 2 * e1)
@@ -189,6 +192,9 @@ def test_data_weights():
     assert data.nxweights.nxname == "v_weights"
     assert np.array_equal(data.nxweights, w1)
 
+    data = NXdata(v1, (y1))
+    data.nxweights = w1
+    
     new_data = 2 * data
 
     assert np.array_equal(new_data.nxweights, 2 * w1)

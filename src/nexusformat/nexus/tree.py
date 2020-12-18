@@ -2033,7 +2033,7 @@ class NXobject(object):
         str
             String containing the hierarchical structure of the tree.
         """
-        return self._str_tree(attrs=False, recursive=2)
+        return self._str_tree(attrs=False, recursive=1)
 
     def rename(self, name):
         """Rename the NeXus object.

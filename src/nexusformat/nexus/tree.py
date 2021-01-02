@@ -1432,8 +1432,10 @@ def _getvalue(value, dtype=None, shape=None):
             try:
                 _dtype = _getdtype(dtype)
                 if _dtype.kind == 'S':
-                    value = text(value).encode('utf-8')
-                return np.array(value, dtype=_dtype).item(), _dtype, ()
+                    value = np.array(text(value).encode('utf-8'), dtype=_dtype)
+                else:
+                    value = np.array(value, dtype=_dtype)
+                return value.item(), value.dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the dtype")
         else:

@@ -434,15 +434,15 @@ class NXFile(object):
               mode == 'x'):
             if mode == 'w5':
                 mode = 'w'
-            if (mode == 'w-' or mode == 'x') and os.path.exists(self._filename):
-                raise NeXusError("'%s' already exists" % self._filename)
-            elif (not os.path.exists(self._filename) and 
-                  not os.access(self._filedir, os.W_OK)):
+            if os.path.exists(self._filename):
+                if mode == 'w-' or mode == 'x':
+                    raise NeXusError("'%s' already exists" % self._filename)
+                elif not os.access(self._filename, os.W_OK):
+                    raise NeXusError("Not permitted to write to '%s'" 
+                                     % self._filename)
+            elif not os.access(self._filedir, os.W_OK):
                 raise NeXusError("Not permitted to create files in '%s'" 
                                  % self._filedir)
-            elif not os.access(self._filename, os.W_OK):
-                raise NeXusError("Not permitted to write to '%s'" 
-                                 % self._filename)
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()

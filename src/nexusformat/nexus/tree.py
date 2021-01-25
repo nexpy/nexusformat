@@ -415,6 +415,7 @@ class NXFile(object):
         self.name = name
         self._file = None
         self._filename = os.path.abspath(name)
+        self._filedir = os.path.dirname(self._filename)
         self._lock = NXLock(self._filename, timeout=NX_LOCK)
         self._path = '/'
         self._root = None
@@ -425,15 +426,26 @@ class NXFile(object):
             self.recursive = recursive
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
-        elif not os.path.exists(os.path.dirname(self._filename)):
-            raise NeXusError("'%s/' does not exist"
-                             % os.path.dirname(self._filename))
+        elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:
+            raise NeXusError("Invalid file mode")
+        elif not os.access(self._filedir, os.R_OK):
+            raise NeXusError("'%s/' is not accessible" % self._filedir)
         elif (mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or 
               mode == 'x'):
             if mode == 'w5':
                 mode = 'w'
+            if (mode == 'w-' or mode == 'x') and os.path.exists(self._filename):
+                raise NeXusError("'%s' already exists" % self._filename)
+            elif (not os.path.exists(self._filename) and 
+                  not os.access(self._filedir, os.W_OK)):
+                raise NeXusError("Not permitted to create files in '%s'" 
+                                 % self._filedir)
+            elif not os.access(self._filename, os.W_OK):
+                raise NeXusError("Not permitted to write to '%s'" 
+                                 % self._filename)
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
+                self._file.close()
             except Exception as error:
                 raise NeXusError("'%s' cannot be opened by h5py" 
                                  % self._filename)
@@ -444,15 +456,25 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            if os.path.exists(name):
-                try:
-                    self._file = self.h5.File(self._filename, mode, **kwargs)
-                except Exception as error:
-                    raise NeXusError("'%s' cannot be opened by h5py" 
-                                     % self._filename)
-            else:
-                raise NeXusError("'%s' does not exist" % name)
-        self._file.close()
+            if not os.path.exists(self._filename):
+                raise NeXusError("'%s' does not exist" % self._filename)
+            elif not os.access(self._filename, os.R_OK):
+                raise NeXusError("Not permitted to open '%s'" % self._filename)
+            elif (self.mode != 'r' and not os.access(self._filename, os.W_OK)):
+                raise NeXusError("Not permitted to write to '%s'" 
+                                 % self._filename)
+            elif (self._lock.timeout > 0 and 
+                  not os.access(self._filedir, os.W_OK)):
+                raise NeXusError("Not permitted to create a lock file in '%s'"
+                                 % self._filedir)                
+            try:
+                self.acquire_lock()
+                self._file = self.h5.File(self._filename, mode, **kwargs)
+                self._file.close()
+                self.release_lock()
+            except Exception as error:
+                raise NeXusError("'%s' cannot be opened by h5py" 
+                                 % self._filename)
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -586,7 +608,10 @@ class NXFile(object):
                 self.lock = True
             if self._lock is None:
                 return
-        self._lock.acquire()
+        try:
+            self._lock.acquire()
+        except PermissionError as error:
+            raise NeXusError("Denied permission to create the lock file")
 
     def release_lock(self):
         """Release the lock acquired by the current process."""
@@ -662,6 +687,10 @@ class NXFile(object):
             return True if self._file.id.valid else False
         else:
             return False
+
+    def is_accessible(self):
+        """Return True if a lock file exists for this NeXus file."""
+        return os.path.exists(self.lock_file)
 
     def readfile(self):
         """Read the NeXus file and return a tree of NeXus objects.
@@ -5302,6 +5331,10 @@ class NXroot(NXgroup):
         """Make the tree modifiable."""
         if self._filename:
             if self.file_exists():
+                if not os.access(self.nxfilename, os.W_OK):
+                    self._mode = self._file.mode = 'r'
+                    raise NeXusError("Not permitted to write to '%s'" 
+                                     % self._filename)
                 if self.is_modified():
                     raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'

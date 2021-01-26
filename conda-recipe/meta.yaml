@@ -1,10 +1,10 @@
 package:
   name: nexusformat
-  version: "0.6.0"
+  version: "0.6.1"
 
 source:
   git_url: https://github.com/nexpy/nexusformat.git
-  git_tag: v0.6.0
+  git_tag: v0.6.1
 
 build:
   entry_points:
@@ -26,9 +26,8 @@ requirements:
     - h5py
 
 test:
-  imports:
-    - nexusformat
-    - nexusformat.nexus
+  commands:
+    - nexusformat --version
 
 about:
   home: http://nexpy.github.io/nexusformat/

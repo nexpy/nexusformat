@@ -3905,6 +3905,11 @@ class NXfield(NXobject):
         return int(np.prod(self.shape))
 
     @property
+    def nbytes(self):
+        """Number of bytes in the NXfield array."""
+        return self.size * self.dtype.itemsize
+
+    @property
     def safe_attrs(self):
         """Attributes that can be safely copied to derived NXfields."""
         return {key: self.attrs[key] for key in self.attrs 

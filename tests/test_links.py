@@ -52,6 +52,8 @@ def test_saved_links(tmpdir, save):
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
 
+    assert root["g2/f1_link"].nxdata[0] == root["g1/f1"].nxdata[0]
+
 
 @pytest.mark.parametrize("save", ["False", "True"])
 def test_linkfield_properties(tmpdir, save):
@@ -72,6 +74,8 @@ def test_linkfield_properties(tmpdir, save):
 
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
+
+    assert root["g2/f1_link"].nxdata[0] == root["g1/f1"].nxdata[0]
 
 
 @pytest.mark.parametrize("save", ["False", "True"])

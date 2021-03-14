@@ -5220,6 +5220,10 @@ class NXlinkfield(NXlink, NXfield):
                         abspath=abspath, soft=soft)
         self._class = 'NXfield'
 
+    @property
+    def nxdata(self):
+        return self.nxlink.nxdata
+
 
 class NXlinkgroup(NXlink, NXgroup):
     """Class for NeXus linked groups."""

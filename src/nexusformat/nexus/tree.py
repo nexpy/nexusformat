@@ -274,7 +274,7 @@ def text(value):
 
 
 def is_text(value):
-    """Return True if the value represents text in both Python 2 and 3.
+    """Return True if the value represents text.
     
     Parameters
     ----------
@@ -1490,7 +1490,7 @@ def _getvalue(value, dtype=None, shape=None):
         if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
             _value = _value.astype(string_dtype)
     if dtype is not None:
-        if isinstance(value, np.bool_) and dtype != np.bool_:
+        if isinstance(value, bool) and dtype != bool:
             raise NeXusError(
                 "Cannot assign a Boolean value to a non-Boolean field")
         elif isinstance(_value, np.ndarray):
@@ -2835,7 +2835,7 @@ class NXfield(NXobject):
         if value is np.ma.masked:
             self._mask_data(idx)
         else:
-            if isinstance(value, np.bool_) and self.dtype != np.bool_:
+            if isinstance(value, bool) and self.dtype != bool:
                 raise NeXusError(
                     "Cannot set a Boolean value to a non-Boolean data type")
             elif value is np.ma.nomask:
@@ -2992,7 +2992,7 @@ class NXfield(NXobject):
             if self._memfile is None:
                 self._create_memfile()
             self._memfile.create_dataset('mask', shape=self._shape, 
-                                         dtype=np.bool, **self._h5opts)
+                                         dtype=bool, **self._h5opts)
         else:
             raise NeXusError("Cannot allocate mask before setting shape")       
 
@@ -3004,7 +3004,7 @@ class NXfield(NXobject):
                 if mask_name in self.nxgroup:
                     return mask_name
             mask_name = '%s_mask' % self.nxname
-            self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=np.bool, 
+            self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=bool, 
                                               fillvalue=False)
             self.attrs['mask'] = mask_name
             return mask_name
@@ -3109,10 +3109,12 @@ class NXfield(NXobject):
 
     def __len__(self):
         """Return the length of the NXfield data."""
-        try:
+        if is_string_dtype(self.dtype): 
+            return len(self.nxvalue)
+        elif self.shape == ():
+            return 1
+        else:
             return self.shape[0]
-        except Exception:
-            return 0
 
     def any(self):
         """Return False if all values are 0 or False, True otherwise."""
@@ -3905,6 +3907,11 @@ class NXfield(NXobject):
         return int(np.prod(self.shape))
 
     @property
+    def nbytes(self):
+        """Number of bytes in the NXfield array."""
+        return self.size * self.dtype.itemsize
+
+    @property
     def safe_attrs(self):
         """Attributes that can be safely copied to derived NXfields."""
         return {key: self.attrs[key] for key in self.attrs 
@@ -4016,8 +4023,8 @@ class NXfield(NXobject):
             else:
                 signal_path = self.nxpath
             data.attrs['signal_path'] = signal_path
-            plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
-                          vmin=None, vmax=None, **kwargs)
+            plotview.plot(data, fmt=fmt, xmin=None, xmax=None, 
+                          ymin=None, ymax=None, vmin=None, vmax=None, **kwargs)
         else:
             raise NeXusError("NXfield not plottable")
     
@@ -5220,6 +5227,10 @@ class NXlinkfield(NXlink, NXfield):
                         abspath=abspath, soft=soft)
         self._class = 'NXfield'
 
+    @property
+    def nxdata(self):
+        return self.nxlink.nxdata
+
 
 class NXlinkgroup(NXlink, NXgroup):
     """Class for NeXus linked groups."""
@@ -6126,6 +6137,8 @@ class NXdata(NXgroup):
         elif len(axes) > 2:
             raise NeXusError(
                 "Projections to more than two dimensions not supported")
+        elif any([limits[axis][1]-limits[axis][0]<=1 for axis in axes]):
+            raise NeXusError("One of the projection axes has zero range")
         projection_axes =  sorted([x for x in range(len(limits)) 
                                    if x not in axes], reverse=True)
         idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
@@ -6465,16 +6478,19 @@ class NXdata(NXgroup):
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        if self.nxsignal is not None: 
-            if ('uncertainties' in self.nxsignal.attrs and
-                self.nxsignal.attrs['uncertainties'] in self):
-                return self[self.nxsignal.attrs['uncertainties']]
-            elif self.nxsignal.nxname+'_errors' in self:
-                return self[self.nxsignal.nxname+'_errors']
-        try:
-            return self['errors']
-        except KeyError:
-            return None
+        _signal = self.nxsignal
+        _errors = None
+        if _signal is not None:
+            if ('uncertainties' in _signal.attrs and
+                _signal.attrs['uncertainties'] in self):
+                _errors = self[_signal.attrs['uncertainties']]
+            elif _signal.nxname+'_errors' in self:
+                _errors = self[_signal.nxname+'_errors']
+            elif 'errors' in self:
+                _errors = self['errors']
+            if _errors and _errors.shape == _signal.shape:
+                return _errors
+        return None
 
     @nxerrors.setter
     def nxerrors(self, errors):
@@ -6587,7 +6603,7 @@ def is_real_slice(idx):
         if isinstance(x, slice):
             x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
         x = np.array(x)
-        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == np.bool)
+        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)
 
     if isinstance(idx, slice):
         return is_real(idx)

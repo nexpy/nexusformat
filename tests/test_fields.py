@@ -19,7 +19,7 @@ def test_string_field_creation(text):
     assert field.nxvalue == text
     assert field.dtype == string_dtype
     assert field.is_string()
-    assert len(field) == 0
+    assert len(field) == len(text)
 
 
 @pytest.mark.parametrize("text", ["a", "abc", "αβγ"])
@@ -31,7 +31,7 @@ def test_byte_field_creation(text):
     assert field.nxdata.decode(NX_ENCODING) == text
     assert field.dtype != string_dtype
     assert field.is_string()
-    assert len(field) == 0
+    assert len(field) == len(text)
 
 
 @pytest.mark.parametrize("arr", [arr1D, arr2D, arr3D])

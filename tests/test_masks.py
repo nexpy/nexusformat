@@ -41,7 +41,7 @@ def test_group_masks(tmpdir, save):
     assert 'mask' in group['field'].attrs
     assert group['field'].attrs['mask'] == 'field_mask'
     assert 'field_mask' in group
-    assert group['field_mask'].dtype == np.bool
+    assert group['field_mask'].dtype == bool
     assert group['field'].mask == group['field_mask']
 
     group['field'].mask[10] = np.ma.nomask

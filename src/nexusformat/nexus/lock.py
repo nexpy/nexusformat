@@ -50,7 +50,7 @@ class NXLock(object):
             Name of file to be locked.
         timeout : int, optional
             Number of seconds to wait for a prior lock to clear before 
-            raising a NXLockException, by default 600.
+            raising a NXLockException, by default 60.
         check_interval : int, optional
             Number of seconds between attempts to acquire the lock, 
             by default 1.

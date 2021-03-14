@@ -232,7 +232,6 @@ class PylabPlotter(object):
                     ax.set_aspect('equal')
                 else:
                     im = ax.pcolormesh(x, y, data, **kwargs)
-                    im.get_cmap().set_bad('k', 1.0)
                     ax.set_xlim(x[0], x[-1])
                     ax.set_ylim(y[0], y[-1])
                     ax.set_aspect('auto')

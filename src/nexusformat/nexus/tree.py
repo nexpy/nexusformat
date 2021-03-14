@@ -6476,16 +6476,19 @@ class NXdata(NXgroup):
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        if self.nxsignal is not None: 
-            if ('uncertainties' in self.nxsignal.attrs and
-                self.nxsignal.attrs['uncertainties'] in self):
-                return self[self.nxsignal.attrs['uncertainties']]
-            elif self.nxsignal.nxname+'_errors' in self:
-                return self[self.nxsignal.nxname+'_errors']
-        try:
-            return self['errors']
-        except KeyError:
-            return None
+        _signal = self.nxsignal
+        _errors = None
+        if _signal is not None:
+            if ('uncertainties' in _signal.attrs and
+                _signal.attrs['uncertainties'] in self):
+                _errors = self[_signal.attrs['uncertainties']]
+            elif _signal.nxname+'_errors' in self:
+                _errors = self[_signal.nxname+'_errors']
+            elif 'errors' in self:
+                _errors = self['errors']
+            if _errors and _errors.shape == _signal.shape:
+                return _errors
+        return None
 
     @nxerrors.setter
     def nxerrors(self, errors):

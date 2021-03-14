@@ -3109,10 +3109,12 @@ class NXfield(NXobject):
 
     def __len__(self):
         """Return the length of the NXfield data."""
-        try:
+        if is_string_dtype(self.dtype): 
+            return len(self.nxvalue)
+        elif self.shape == ():
+            return 1
+        else:
             return self.shape[0]
-        except Exception:
-            return 0
 
     def any(self):
         """Return False if all values are 0 or False, True otherwise."""

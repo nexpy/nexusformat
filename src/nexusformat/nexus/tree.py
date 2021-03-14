@@ -4021,8 +4021,8 @@ class NXfield(NXobject):
             else:
                 signal_path = self.nxpath
             data.attrs['signal_path'] = signal_path
-            plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
-                          vmin=None, vmax=None, **kwargs)
+            plotview.plot(data, fmt=fmt, xmin=None, xmax=None, 
+                          ymin=None, ymax=None, vmin=None, vmax=None, **kwargs)
         else:
             raise NeXusError("NXfield not plottable")
     

@@ -2369,7 +2369,7 @@ class NXobject(object):
         """
         if self.nxclass == 'NXroot':
             return "/"
-        elif isinstance(self, NXlink):
+        elif self.nxtarget:
             return self.nxtarget
         elif self.nxgroup is None:
             return ""
@@ -5184,6 +5184,9 @@ class NXlink(NXobject):
         try:
             with self.nxfile as f:
                 item = f.readpath(self.nxfilepath)
+            item._target = self.nxfilepath
+            item._filename = self.nxfilename
+            item._mode = 'r'
             return item
         except Exception as error:
             raise NeXusError("Cannot read the external link to '%s'" 
@@ -5226,6 +5229,9 @@ class NXlinkfield(NXlink, NXfield):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath, soft=soft)
         self._class = 'NXfield'
+
+    def __getitem__(self, key):
+        return self.nxlink.__getitem__(key)
 
     @property
     def nxdata(self):

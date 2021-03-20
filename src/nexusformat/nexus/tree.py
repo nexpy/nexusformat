@@ -2369,7 +2369,7 @@ class NXobject(object):
         """
         if self.nxclass == 'NXroot':
             return "/"
-        elif isinstance(self, NXlink):
+        elif self.nxtarget:
             return self.nxtarget
         elif self.nxgroup is None:
             return ""
@@ -2773,7 +2773,7 @@ class NXfield(NXobject):
         Parameters
         ----------
         idx : slice
-            Slice indices.
+            Slice index or indices.
         
         Returns
         -------
@@ -5177,13 +5177,18 @@ class NXlink(NXobject):
 
     @property
     def internal_link(self):
+        """Return NXfield or NXgroup targeted by an internal link."""
         return self.nxroot[self._target]
 
     @property
     def external_link(self):
+        """Return NXfield or NXgroup targeted by an external link."""
         try:
             with self.nxfile as f:
                 item = f.readpath(self.nxfilepath)
+            item._target = self.nxfilepath
+            item._filename = self.nxfilename
+            item._mode = 'r'
             return item
         except Exception as error:
             raise NeXusError("Cannot read the external link to '%s'" 
@@ -5191,6 +5196,7 @@ class NXlink(NXobject):
 
     @property
     def attrs(self):
+        """Return attributes of the linked NXfield or NXgroup."""
         try:
             return self.nxlink.attrs
         except NeXusError:
@@ -5227,8 +5233,24 @@ class NXlinkfield(NXlink, NXfield):
                         abspath=abspath, soft=soft)
         self._class = 'NXfield'
 
+    def __getitem__(self, idx):
+        """Return the slab of the linked field defined by the index.
+        
+        Parameters
+        ----------
+        idx : slice
+            Slice index or indices.
+        
+        Returns
+        -------
+        NXfield
+            Field containing the slice values.
+        """
+        return self.nxlink.__getitem__(idx)
+
     @property
     def nxdata(self):
+        """Data of linked NXfield."""
         return self.nxlink.nxdata
 
 

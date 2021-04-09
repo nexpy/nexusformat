@@ -424,6 +424,8 @@ class NXFile(object):
             self.recursive = NX_RECURSIVE
         else:
             self.recursive = recursive
+        if mode is None:
+            mode = 'r'
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:

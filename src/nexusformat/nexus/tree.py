@@ -1323,7 +1323,7 @@ class NXFile(object):
     @property
     def filename(self):
         """The file name on disk."""
-        return self.file.filename
+        return self._filename
 
     @property
     def file(self):

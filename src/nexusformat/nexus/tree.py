@@ -3663,7 +3663,7 @@ class NXfield(NXobject):
         else:
             fname = self.nxfilename
             if fname is not None:
-                return fname + ':' + self.nxpath
+                return os.path.basename(fname) + ':' + self.nxpath
             else:
                 return self.nxpath
 
@@ -4959,7 +4959,7 @@ class NXgroup(NXobject):
             else:
                 fname = self.nxfilename
                 if fname is not None:
-                    return fname + ':' + self.nxpath
+                    return os.path.basename(fname) + ':' + self.nxpath
                 else:
                     return self.nxpath
 

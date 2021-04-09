@@ -1011,7 +1011,7 @@ class NXFile(object):
                 with _file as f:
                     f.copy(_path, self[self.nxparent], name=self.nxpath)
             else:
-                self.file.copy(_path, self[self.nxparent], name=self.nxpath)
+                self.copy(_path, self[self.nxparent], name=self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[self.nxparent], name=self.nxpath)

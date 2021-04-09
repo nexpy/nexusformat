@@ -1342,8 +1342,7 @@ class NXFile(object):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
         else:
-            self._mode = 'r'   
-        self.close()
+            self._mode = 'r' 
 
     @property
     def attrs(self):

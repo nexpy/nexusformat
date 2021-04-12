@@ -474,9 +474,10 @@ class NXFile(object):
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
                 self.release_lock()
+            except NeXusError as error:
+                raise error
             except Exception as error:
-                raise NeXusError("'%s' cannot be opened by h5py" 
-                                 % self._filename)
+                raise NeXusError(str(error))
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),

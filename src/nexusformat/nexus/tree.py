@@ -512,7 +512,6 @@ class NXFile(object):
             Current NXFile instance.
         """
         if self._with_count == 0:
-            self.acquire_lock()
             self.open()
         self._with_count += 1
         return self
@@ -521,7 +520,6 @@ class NXFile(object):
         """Close the NeXus file and, if necessary, release the lock."""
         if self._with_count == 1:
             self.close()
-            self.release_lock()
         self._with_count -= 1
 
     def __del__(self):
@@ -661,9 +659,19 @@ class NXFile(object):
         """Return the value defined by the `h5py` object path."""
         return self.file.get(*args, **kwargs)
 
+    @property
+    def file(self):
+        """The h5py File object, which is opened if necessary."""
+        if not self.is_open():
+            self.open()
+        return self._file
+
     def open(self, **kwargs):
         """Open the NeXus file for input/output."""
         if not self.is_open():
+            if not self.locked and self.is_locked():
+                raise NeXusError('File locked by another process')
+            self.acquire_lock()
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
@@ -681,6 +689,7 @@ class NXFile(object):
         """
         if self.is_open():
             self._file.close()
+            self.release_lock()
         if self._root:
             self._root._mtime = self.mtime
 
@@ -1325,13 +1334,6 @@ class NXFile(object):
     def filename(self):
         """The file name on disk."""
         return self._filename
-
-    @property
-    def file(self):
-        """The h5py File object, which is opened if necessary."""
-        if not self.is_open():
-            self.open()
-        return self._file
 
     @property
     def mode(self):

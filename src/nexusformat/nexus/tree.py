@@ -689,7 +689,7 @@ class NXFile(object):
         """
         if self.is_open():
             self._file.close()
-            self.release_lock()
+        self.release_lock()
         if self._root:
             self._root._mtime = self.mtime
 

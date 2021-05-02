@@ -1249,7 +1249,7 @@ class NXFile(object):
             NeXus file to be copied.
         """
         for entry in input_file['/']:
-            input_file.copy(entry, self['/'], **kwargs) 
+            input_file.copy(entry, self['/'], **kwargs)
         self._rootattrs()
 
     def _rootattrs(self):
@@ -1261,7 +1261,8 @@ class NXFile(object):
         self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
-        self._root._setattrs(self.file.attrs)
+        if self._root:
+            self._root._setattrs(self.file.attrs)
 
     def update(self, item):
         """Update the specifed object in the NeXus file.

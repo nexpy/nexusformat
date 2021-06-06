@@ -14,20 +14,20 @@ build:
 
 requirements:
   build:
-    - python
+    - python >=3.6
     - setuptools
-    - numpy
-    - h5py
-    - ipython
+    - versioneer
 
   run:
-    - python
-    - numpy
+    - python >=3.6
+    - numpy >=1.16
     - h5py
+    - versioneer
 
 test:
   commands:
     - nexusformat --version
+    - pytest
 
 about:
   home: http://nexpy.github.io/nexusformat/

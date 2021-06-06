@@ -215,9 +215,9 @@ class PylabPlotter(object):
                 from matplotlib.cm import get_cmap
 
                 if image:
-                    x = boundaries(axes[-2], data.shape[-2])
-                    y = boundaries(axes[-3], data.shape[-3])
-                    xlabel, ylabel = label(axes[-2]), label(axes[-3])
+                    x = boundaries(axes[-1], data.shape[-2])
+                    y = boundaries(axes[-2], data.shape[-3])
+                    xlabel, ylabel = label(axes[-1]), label(axes[-2])
                 else:
                     x = boundaries(axes[-1], data.shape[-1])
                     y = boundaries(axes[-2], data.shape[-2])

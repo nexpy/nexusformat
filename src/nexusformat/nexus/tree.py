@@ -424,6 +424,8 @@ class NXFile(object):
             self.recursive = NX_RECURSIVE
         else:
             self.recursive = recursive
+        if mode is None:
+            mode = 'r'
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
         elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:
@@ -472,9 +474,10 @@ class NXFile(object):
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
                 self.release_lock()
+            except NeXusError as error:
+                raise error
             except Exception as error:
-                raise NeXusError("'%s' cannot be opened by h5py" 
-                                 % self._filename)
+                raise NeXusError(str(error))
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -509,7 +512,6 @@ class NXFile(object):
             Current NXFile instance.
         """
         if self._with_count == 0:
-            self.acquire_lock()
             self.open()
         self._with_count += 1
         return self
@@ -518,7 +520,6 @@ class NXFile(object):
         """Close the NeXus file and, if necessary, release the lock."""
         if self._with_count == 1:
             self.close()
-            self.release_lock()
         self._with_count -= 1
 
     def __del__(self):
@@ -658,9 +659,19 @@ class NXFile(object):
         """Return the value defined by the `h5py` object path."""
         return self.file.get(*args, **kwargs)
 
+    @property
+    def file(self):
+        """The h5py File object, which is opened if necessary."""
+        if not self.is_open():
+            self.open()
+        return self._file
+
     def open(self, **kwargs):
         """Open the NeXus file for input/output."""
         if not self.is_open():
+            if not self.locked and self.is_locked():
+                raise NeXusError('File locked by another process')
+            self.acquire_lock()
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
@@ -678,6 +689,7 @@ class NXFile(object):
         """
         if self.is_open():
             self._file.close()
+        self.release_lock()
         if self._root:
             self._root._mtime = self.mtime
 
@@ -1009,7 +1021,7 @@ class NXFile(object):
                 with _file as f:
                     f.copy(_path, self[self.nxparent], name=self.nxpath)
             else:
-                self.file.copy(_path, self[self.nxparent], name=self.nxpath)
+                self.copy(_path, self[self.nxparent], name=self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[self.nxparent], name=self.nxpath)
@@ -1237,7 +1249,7 @@ class NXFile(object):
             NeXus file to be copied.
         """
         for entry in input_file['/']:
-            input_file.copy(entry, self['/'], **kwargs) 
+            input_file.copy(entry, self['/'], **kwargs)
         self._rootattrs()
 
     def _rootattrs(self):
@@ -1249,7 +1261,8 @@ class NXFile(object):
         self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
-        self._root._setattrs(self.file.attrs)
+        if self._root:
+            self._root._setattrs(self.file.attrs)
 
     def update(self, item):
         """Update the specifed object in the NeXus file.
@@ -1321,14 +1334,7 @@ class NXFile(object):
     @property
     def filename(self):
         """The file name on disk."""
-        return self.file.filename
-
-    @property
-    def file(self):
-        """The h5py File object, which is opened if necessary."""
-        if not self.is_open():
-            self.open()
-        return self._file
+        return self._filename
 
     @property
     def mode(self):
@@ -1340,8 +1346,7 @@ class NXFile(object):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
         else:
-            self._mode = 'r'   
-        self.close()
+            self._mode = 'r' 
 
     @property
     def attrs(self):
@@ -3661,7 +3666,7 @@ class NXfield(NXobject):
         else:
             fname = self.nxfilename
             if fname is not None:
-                return fname + ':' + self.nxpath
+                return os.path.basename(fname) + ':' + self.nxpath
             else:
                 return self.nxpath
 
@@ -4957,7 +4962,7 @@ class NXgroup(NXobject):
             else:
                 fname = self.nxfilename
                 if fname is not None:
-                    return fname + ':' + self.nxpath
+                    return os.path.basename(fname) + ':' + self.nxpath
                 else:
                     return self.nxpath
 

@@ -51,15 +51,6 @@ We can create a copy of the file using write::
 For a complete description of the features available in this tree view
 of the NeXus data file, see `nexus.tree`.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from .completer import nxcompleter
 from .lock import NXLock, NXLockException
 from .tree import *
-
-try:
-    import h5pyd
-    from .remote import *
-except ImportError:
-    pass

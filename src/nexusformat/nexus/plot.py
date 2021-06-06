@@ -12,6 +12,7 @@
 #-----------------------------------------------------------------------------
 
 """Module to provide standard Matplotlib plotting to the NeXus Python API."""
+import copy
 import numpy as np
 
 from . import NeXusError, NXfield
@@ -105,7 +106,7 @@ class PylabPlotter(object):
     with the same call signature for use outside NeXpy.
     """
 
-    def plot(self, data_group, fmt='', xmin=None, xmax=None, 
+    def plot(self, data_group, fmt=None, xmin=None, xmax=None, 
              ymin=None, ymax=None, vmin=None, vmax=None, **kwargs):
         """Plot the NXdata group.
         
@@ -114,7 +115,7 @@ class PylabPlotter(object):
         data_group : NXdata
             NeXus group containing the data to be plotted.
         fmt : str, optional
-            Formatting options that are compliant with PyPlot, by default ''
+            Formatting options that are compliant with PyPlot, by default None
         xmin : float, optional
             Minimum x-boundary, by default None
         xmax : float, optional
@@ -141,13 +142,19 @@ class PylabPlotter(object):
         log = kwargs.pop("log", False)
         logx = kwargs.pop("logx", False)
         logy = kwargs.pop("logy", False)
+        origin = kwargs.pop("origin", "lower")
+        aspect = kwargs.pop("aspect", "auto")
+        regular = kwargs.pop("regular", False)
+        cmap = kwargs.pop("cmap", "viridis")
+        colorbar = kwargs.pop("colorbar", True)
+        interpolation = kwargs.pop("interpolation", "nearest")
+        bad = kwargs.pop("bad", "darkgray")
+        ax = kwargs.pop("ax", None)
 
         signal = data_group.nxsignal
         if signal.ndim > 2 and not image:
             raise NeXusError(
                 "Can only plot 1D and 2D data - please select a slice")
-        elif signal.ndim > 1 and over:
-            raise NeXusError("Cannot overplot 2D data")
         errors = data_group.nxerrors
         title = data_group.nxtitle
 
@@ -160,42 +167,44 @@ class PylabPlotter(object):
 
         try:
             if over:
-                plt.autoscale(enable=False)
+                plt.autoscale(False)
             else:
-                plt.autoscale(enable=True)
-                plt.clf()
+                plt.autoscale(True)
+                if ax is None:
+                    plt.clf()
+            if ax:
+                plt.sca(ax)
+            else:
+                ax = plt.gca()
 
             #One-dimensional Plot
             if len(data.shape) == 1:
-                if fmt == '': 
+                if 'marker' in kwargs:
+                    fmt = kwargs.pop('marker')
+                else:
                     fmt = 'o'
                 if hasattr(signal, 'units'):
                     if not errors and signal.units == 'counts':
                         errors = NXfield(np.sqrt(data))
                 if errors:
                     ebars = errors.nxdata
-                    plt.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
-                                 fmt=fmt, **kwargs)
+                    ax.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
+                                fmt=fmt, **kwargs)
                 else:
-                    plt.plot(centers(axes[0], data.shape[0]), data, fmt, **kwargs)
+                    ax.plot(centers(axes[0], data.shape[0]), data, fmt, **kwargs)
                 if not over:
-                    ax = plt.gca()
-                    xlo, xhi = ax.set_xlim(auto=True)        
-                    ylo, yhi = ax.set_ylim(auto=True)                
-                    if xmin: 
-                        xlo = xmin
-                    if xmax: 
-                        xhi = xmax
-                    ax.set_xlim(xlo, xhi)
-                    if ymin: 
-                        ylo = ymin
-                    if ymax: 
-                        yhi = ymax
-                    ax.set_ylim(ylo, yhi)
+                    if xmin is not None: 
+                        ax.set_xlim(left=xmin)
+                    if xmax is not None:
+                        ax.set_xlim(right=xmax)
+                    if ymin is not None: 
+                       ax.set_ylim(bottom=ymin)
+                    if ymax is not None:
+                        ax.set_ylim(top=ymax)
                     if logx: 
-                        ax.set_xscale('symlog')
+                        ax.set_xscale('log')
                     if log or logy: 
-                        ax.set_yscale('symlog')
+                        ax.set_yscale('log')
                     plt.xlabel(label(axes[0]))
                     plt.ylabel(label(signal))
                     plt.title(title)
@@ -203,6 +212,7 @@ class PylabPlotter(object):
             #Two dimensional plot
             else:
                 from matplotlib.colors import LogNorm, Normalize
+                from matplotlib.cm import get_cmap
 
                 if image:
                     x = boundaries(axes[-2], data.shape[-2])
@@ -218,38 +228,41 @@ class PylabPlotter(object):
                 if not vmax: 
                     vmax = np.nanmax(data[data<np.inf])
             
-                if not image:
+                if image:
+                    im = ax.imshow(data, origin='upper', **kwargs)
+                    ax.set_aspect('equal')
+                else:
                     if log:
                         vmin = max(vmin, 0.01)
                         vmax = max(vmax, 0.01)
                         kwargs["norm"] = LogNorm(vmin, vmax)
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
-
-                ax = plt.gca()
-                if image:
-                    im = ax.imshow(data, **kwargs)
-                    ax.set_aspect('equal')
-                else:
-                    im = ax.pcolormesh(x, y, data, **kwargs)
-                    ax.set_xlim(x[0], x[-1])
-                    ax.set_ylim(y[0], y[-1])
-                    ax.set_aspect('auto')
-                if not image:
-                    plt.colorbar(im)
+                    cm = copy.copy(get_cmap(cmap))
+                    cm.set_bad(bad, 1.0)
+                    if regular:
+                        extent = (x[0], x[-1], y[0], y[-1])
+                        kwargs['interpolation'] = interpolation
+                        im = ax.imshow(data, origin=origin, extent=extent, 
+                                       cmap=cm, **kwargs)
+                    else:
+                        im = ax.pcolormesh(x, y, data, cmap=cm, **kwargs)
+                        ax.set_xlim(x[0], x[-1])
+                        ax.set_ylim(y[0], y[-1])
+                    ax.set_aspect(aspect)
+                    if colorbar:
+                        plt.colorbar(im)
 	
-                if 'origin' in kwargs and kwargs['origin'] == 'lower':
-                    image = False
-                if xmin: 
+                if xmin is not None: 
                     ax.set_xlim(left=xmin)
-                if xmax: 
+                if xmax is not None: 
                     ax.set_xlim(right=xmax)
-                if ymin: 
+                if ymin is not None: 
                     if image:
                         ax.set_ylim(top=ymin)
                     else:
                         ax.set_ylim(bottom=ymin)
-                if ymax: 
+                if ymax is not None: 
                     if image:
                         ax.set_ylim(bottom=ymax)
                     else:

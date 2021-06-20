@@ -242,12 +242,46 @@ def test_data_smoothing():
 
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
     data = NXdata(np.sin(x), (x))
-    smooth_data = data.smooth(n=100, xmin=x.min(), xmax=x.max())
+    smooth_data = data.smooth(n=101, xmin=x.min(), xmax=x.max())
 
-    assert smooth_data.nxsignal.shape == (100,)
-    assert smooth_data.nxaxes[0].shape == (100,)
+    assert smooth_data.nxsignal.shape == (101,)
+    assert smooth_data.nxaxes[0].shape == (101,)
     assert smooth_data.nxsignal[0] == np.sin(x)[0]
     assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+
+    smooth_data = data.smooth(factor=4)
+    
+    assert smooth_data.nxsignal.shape == (41,)
+    assert smooth_data.nxaxes[0].shape == (41,)
+    assert smooth_data.nxsignal[0] == np.sin(x)[0]
+    assert smooth_data.nxsignal[4] == np.sin(x)[1]
+    assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+
+
+def test_data_selection():
+
+    xx = np.linspace(0, 20.0, 21, dtype=float)
+    yy = np.ones(shape=xx.shape, dtype=float)
+    yy[np.where(np.remainder(xx, 4) == 0.0)] = 2.0
+    data = NXdata(yy, xx)
+    
+    selected_data = data.select(4.0)
+
+    assert selected_data.shape == (6,)
+    assert np.all(selected_data.nxsignal==2.0)
+
+    yy[(np.array((1,3,5,7,9,11,13,15,17,19)),)] = 1.5
+    data = NXdata(yy, xx)
+
+    selected_data = data.select(4.0, offset=1.0)
+
+    assert selected_data.shape == (5,)
+    assert np.all(selected_data.nxsignal==1.5)
+
+    selected_data = data.select(4.0, offset=1.0, symmetric=True)
+
+    assert selected_data.shape == (10,)
+    assert np.all(selected_data.nxsignal==1.5)
 
 
 def test_image_data():

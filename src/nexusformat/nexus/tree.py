@@ -6126,7 +6126,8 @@ class NXdata(NXgroup):
         else:
             xmax = min(xmax, x.max())
         if factor:
-            n = int(factor) * self.shape[0]
+            step = np.average(x[1:] - x[:-1]) / factor
+            n = int((xmax - xmin) / step) + 1
         xs = NXfield(np.linspace(xmin, xmax, n), name=axis.nxname)
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
         return NXdata(ys, xs, title=self.nxtitle)

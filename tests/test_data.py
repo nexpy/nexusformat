@@ -242,11 +242,19 @@ def test_data_smoothing():
 
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
     data = NXdata(np.sin(x), (x))
-    smooth_data = data.smooth(n=100, xmin=x.min(), xmax=x.max())
+    smooth_data = data.smooth(n=101, xmin=x.min(), xmax=x.max())
 
-    assert smooth_data.nxsignal.shape == (100,)
-    assert smooth_data.nxaxes[0].shape == (100,)
+    assert smooth_data.nxsignal.shape == (101,)
+    assert smooth_data.nxaxes[0].shape == (101,)
     assert smooth_data.nxsignal[0] == np.sin(x)[0]
+    assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+
+    smooth_data = data.smooth(factor=4)
+    
+    assert smooth_data.nxsignal.shape == (41,)
+    assert smooth_data.nxaxes[0].shape == (41,)
+    assert smooth_data.nxsignal[0] == np.sin(x)[0]
+    assert smooth_data.nxsignal[4] == np.sin(x)[1]
     assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
 
 

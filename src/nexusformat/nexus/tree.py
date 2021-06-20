@@ -6131,15 +6131,15 @@ class NXdata(NXgroup):
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
         return NXdata(ys, xs, title=self.nxtitle)
 
-    def select(self, factor=1.0, offset=0.0, symmetric=False, smooth=False, 
+    def select(self, divisor=1.0, offset=0.0, symmetric=False, smooth=False, 
                max=False, min=False, tol=1e-8):
-        """Return a NXdata group with axis values divisible by a factor.
+        """Return a NXdata group with axis values divisible by a given value.
         
         This function only applies to one-dimensional data. 
         
         Parameters
         ----------
-        factor : float, optional
+        divisor : float, optional
             Divisor used to select axis values, by default 1.0
         offset : float, optional
             Offset to add to selected values, by default 0.0
@@ -6164,7 +6164,7 @@ class NXdata(NXgroup):
         Notes
         -----
         It is assumed that the offset changes sign when the axis values are 
-        negative. So if `factor=1` and `offset=0.2`, the selected values close
+        negative. So if `divisor=1` and `offset=0.2`, the selected values close
         to the origin are -1.2, -0.2, 0.2, 1.2, etc. When `symmetric` is True,
         the selected values are -1.2, -0.8, -0.2, 0.2, 0.8, 1.2, etc.
         
@@ -6175,34 +6175,34 @@ class NXdata(NXgroup):
         if self.ndim > 1:
             raise NeXusError("This function only works on one-dimensional data")
         if smooth:
-            data = self.smooth(factor=5)
+            data = self.smooth(factor=10)
         else:
             data = self
         x = data.nxaxes[0]
         if symmetric:
             condition = np.where(
                             np.isclose(
-                                np.remainder(x-offset,  factor), 
+                                np.remainder(x-offset,  divisor), 
                                        0.0, atol=tol) |
                             np.isclose(
-                                np.remainder(x+offset,  factor), 
+                                np.remainder(x+offset,  divisor), 
                                        0.0, atol=tol) |
                             np.isclose(
-                                np.remainder(x-offset,  factor), 
-                                       factor, atol=tol) |
+                                np.remainder(x-offset,  divisor), 
+                                       divisor, atol=tol) |
                             np.isclose(
-                                np.remainder(x+offset,  factor), 
-                                       factor, atol=tol))
+                                np.remainder(x+offset,  divisor), 
+                                       divisor, atol=tol))
         else:
             condition = np.where(
                             np.isclose(
                                 np.remainder(
-                                    np.sign(x)*(np.abs(x)-offset), factor), 
+                                    np.sign(x)*(np.abs(x)-offset), divisor), 
                                        0.0, atol=tol) | 
                             np.isclose(
                                 np.remainder(
-                                    np.sign(x)*(np.abs(x)-offset), factor), 
-                                       factor, atol=tol))
+                                    np.sign(x)*(np.abs(x)-offset), divisor), 
+                                       divisor, atol=tol))
         if min and max:
             raise NeXusError("Select either 'min' or 'max', not both")
         elif min or max:

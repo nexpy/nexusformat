@@ -6131,6 +6131,83 @@ class NXdata(NXgroup):
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
         return NXdata(ys, xs, title=self.nxtitle)
 
+    def select(self, factor=1.0, offset=0.0, symmetric=False, smooth=False, 
+               max=False, tol=1e-8):
+        """Return a NXdata group with axis values divisible by a factor.
+        
+        This function only applies to one-dimensional data. 
+        
+        Parameters
+        ----------
+        factor : float, optional
+            Divisor used to select axis values, by default 1.0
+        offset : float, optional
+            Offset to add to selected values, by default 0.0
+        symmetric : bool, optional
+            True if the offset is to be applied symmetrically about selections,
+            by default False
+        smooth : bool, optional
+            True if data are to be smoothed before the selection, by default
+            False
+        max : bool, optional
+            True if the local maxima should be selected, by default False
+        tol : float, optional
+            Tolerance to be used in defining the remainder, by default 1e-8
+
+        Returns
+        -------
+        NXdata
+            NeXus group containing the selected data
+
+        Notes
+        -----
+        It is assumed that the offset changes sign when the axis values are 
+        negative. So if `factor=1` and `offset=0.2`, the selected values close
+        to the origin are -1.2, -0.2, 0.2, 1.2, etc. When `symmetric` is True,
+        the selected values are -1.2, -0.8, -0.2, 0.2, 0.8, 1.2, etc.
+        
+        """
+        if self.ndim > 1:
+            raise NeXusError("This function only works on one-dimensional data")
+        if smooth:
+            data = self.smooth(factor=5)
+        else:
+            data = self
+        x = data.nxaxes[0]
+        if symmetric:
+            condition = np.where(
+                            np.isclose(
+                                np.remainder(x-offset,  factor), 
+                                       0.0, atol=tol) |
+                            np.isclose(
+                                np.remainder(x+offset,  factor), 
+                                       0.0, atol=tol) |
+                            np.isclose(
+                                np.remainder(x-offset,  factor), 
+                                       factor, atol=tol) |
+                            np.isclose(
+                                np.remainder(x+offset,  factor), 
+                                       factor, atol=tol))
+        else:
+            condition = np.where(
+                            np.isclose(
+                                np.remainder(
+                                    np.sign(x)*(np.abs(x)-offset), factor), 
+                                       0.0, atol=tol) | 
+                            np.isclose(
+                                np.remainder(
+                                    np.sign(x)*(np.abs(x)-offset), factor), 
+                                       factor, atol=tol))
+        if max:
+            def consecutive(idx):
+                return np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
+            signal = data.nxsignal
+            unique_idx = []
+            for idx in consecutive(condition[0]):
+                unique_idx.append(idx[0]+signal.nxvalue[idx].argmax())
+            condition = (np.array(unique_idx),)
+        return data[condition]
+
     def project(self, axes, limits=None, summed=True):
         """Return a projection of the data with specified axes and limits.
         

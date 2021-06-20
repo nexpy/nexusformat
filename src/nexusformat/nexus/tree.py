@@ -6121,7 +6121,7 @@ class NXdata(NXgroup):
             xmax = min(xmax, x.max())
         xs = NXfield(np.linspace(xmin, xmax, n), name=axis.nxname)
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
-        return NXdata(ys, xs)      
+        return NXdata(ys, xs, title=self.nxtitle)
 
     def project(self, axes, limits=None, summed=True):
         """Return a projection of the data with specified axes and limits.

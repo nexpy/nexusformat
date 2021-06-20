@@ -6195,14 +6195,16 @@ class NXdata(NXgroup):
                                 np.remainder(x+offset,  divisor), 
                                        divisor, atol=tol))
         else:
+            def sign(x):
+                return np.where(x!=0.0, np.sign(x), 1)
             condition = np.where(
                             np.isclose(
                                 np.remainder(
-                                    np.sign(x)*(np.abs(x)-offset), divisor), 
+                                    sign(x)*(np.abs(x)-offset), divisor), 
                                        0.0, atol=tol) | 
                             np.isclose(
                                 np.remainder(
-                                    np.sign(x)*(np.abs(x)-offset), divisor), 
+                                    sign(x)*(np.abs(x)-offset), divisor), 
                                        divisor, atol=tol))
         if min and max:
             raise NeXusError("Select either 'min' or 'max', not both")

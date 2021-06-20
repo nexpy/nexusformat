@@ -6224,7 +6224,10 @@ class NXdata(NXgroup):
         axes = self.nxaxes
         slices = []
         for i,ind in enumerate(idx):
-            if is_real_slice(ind):
+            if isinstance(ind, np.ndarray):
+                slices.append(ind)
+                axes[i] = axes[i][ind]
+            elif is_real_slice(ind):
                 if signal.shape[i] == axes[i].shape[0]:
                     axis = axes[i].boundaries()
                 else:

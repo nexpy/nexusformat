@@ -6132,7 +6132,7 @@ class NXdata(NXgroup):
         return NXdata(ys, xs, title=self.nxtitle)
 
     def select(self, factor=1.0, offset=0.0, symmetric=False, smooth=False, 
-               max=False, tol=1e-8):
+               max=False, min=False, tol=1e-8):
         """Return a NXdata group with axis values divisible by a factor.
         
         This function only applies to one-dimensional data. 
@@ -6151,6 +6151,8 @@ class NXdata(NXgroup):
             False
         max : bool, optional
             True if the local maxima should be selected, by default False
+        min : bool, optional
+            True if the local minima should be selected, by default False
         tol : float, optional
             Tolerance to be used in defining the remainder, by default 1e-8
 
@@ -6165,6 +6167,9 @@ class NXdata(NXgroup):
         negative. So if `factor=1` and `offset=0.2`, the selected values close
         to the origin are -1.2, -0.2, 0.2, 1.2, etc. When `symmetric` is True,
         the selected values are -1.2, -0.8, -0.2, 0.2, 0.8, 1.2, etc.
+        
+        The `min` and `max` keywords are mutually exclusive. If both are set to
+        True, only the local maxima are returned.
         
         """
         if self.ndim > 1:
@@ -6198,13 +6203,19 @@ class NXdata(NXgroup):
                                 np.remainder(
                                     np.sign(x)*(np.abs(x)-offset), factor), 
                                        factor, atol=tol))
-        if max:
+        if min and max:
+            raise NeXusError("Select either 'min' or 'max', not both")
+        elif min or max:
             def consecutive(idx):
                 return np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
             signal = data.nxsignal
             unique_idx = []
-            for idx in consecutive(condition[0]):
-                unique_idx.append(idx[0]+signal.nxvalue[idx].argmax())
+            if max:
+                for idx in consecutive(condition[0]):
+                    unique_idx.append(idx[0]+signal.nxvalue[idx].argmax())
+            else:
+                 for idx in consecutive(condition[0]):
+                    unique_idx.append(idx[0]+signal.nxvalue[idx].argmin())
             condition = (np.array(unique_idx),)
         return data[condition]
 

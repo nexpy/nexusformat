@@ -6090,13 +6090,19 @@ class NXdata(NXgroup):
         x, y = centers(axes[0], signal.shape[0]), signal
         self._smoothing = interp1d(x, y, kind='cubic')
 
-    def smooth(self, n=1000, xmin=None, xmax=None):
+    def smooth(self, n=1001, factor=None, xmin=None, xmax=None):
         """Return a NXdata group containing smooth interpolations of 1D data.
+        
+        The number of point is either set by `n` or by decreasing the average
+        step size by `factor` - if `factor` is not None, it overrides the value
+        of `n``.
         
         Parameters
         ----------
         n : int, optional
-            Number of x-values in interpolation, by default 1000
+            Number of x-values in interpolation, by default 1001
+        factor: int, optional
+            Factor by which the step size will be reduced, by default None
         xmin : float, optional
             Minimum x-value, by default None
         xmax : float, optional
@@ -6119,6 +6125,8 @@ class NXdata(NXgroup):
             xmax = x.max()
         else:
             xmax = min(xmax, x.max())
+        if factor:
+            n = int(factor) * self.shape[0]
         xs = NXfield(np.linspace(xmin, xmax, n), name=axis.nxname)
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
         return NXdata(ys, xs, title=self.nxtitle)

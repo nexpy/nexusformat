@@ -52,6 +52,8 @@ def test_saved_links(tmpdir, save):
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
 
+    assert root["g2/f1_link"].nxdata[0] == root["g1/f1"].nxdata[0]
+
 
 @pytest.mark.parametrize("save", ["False", "True"])
 def test_linkfield_properties(tmpdir, save):
@@ -72,6 +74,8 @@ def test_linkfield_properties(tmpdir, save):
 
     assert "a1" in root["g2/f1_link"].attrs
     assert root["g2/f1_link"].a1 == 1
+
+    assert root["g2/f1_link"].nxdata[0] == root["g1/f1"].nxdata[0]
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
@@ -137,11 +141,14 @@ def test_embedded_links(tmpdir, save):
     assert "f2" not in root["entry/g2_link/g3"]
 
 
-def test_external_field_links(tmpdir):
+@pytest.mark.parametrize("save", ["False", "True"])
+def test_external_field_links(tmpdir, save):
 
-    filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry())
-    root.save(filename, mode="w")
+
+    if save:
+        filename = os.path.join(tmpdir, "file1.nxs")
+        root.save(filename, mode="w")
 
     external_filename = os.path.join(tmpdir, "file2.nxs")
     external_root = NXroot(NXentry(field1))
@@ -163,11 +170,14 @@ def test_external_field_links(tmpdir):
     assert "units" in root["entry/f1_link"].attrs
 
 
-def test_external_group_links(tmpdir):
+@pytest.mark.parametrize("save", ["False", "True"])
+def test_external_group_links(tmpdir, save):
 
-    filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry())
-    root.save(filename, mode="w")
+
+    if save:
+        filename = os.path.join(tmpdir, "file1.nxs")
+        root.save(filename, mode="w")
 
     external_filename = os.path.join(tmpdir, "file2.nxs")
     external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))

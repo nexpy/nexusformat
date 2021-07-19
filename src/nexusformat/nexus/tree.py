@@ -274,7 +274,7 @@ def text(value):
 
 
 def is_text(value):
-    """Return True if the value represents text in both Python 2 and 3.
+    """Return True if the value represents text.
     
     Parameters
     ----------
@@ -415,6 +415,7 @@ class NXFile(object):
         self.name = name
         self._file = None
         self._filename = os.path.abspath(name)
+        self._filedir = os.path.dirname(self._filename)
         self._lock = NXLock(self._filename, timeout=NX_LOCK)
         self._path = '/'
         self._root = None
@@ -423,17 +424,30 @@ class NXFile(object):
             self.recursive = NX_RECURSIVE
         else:
             self.recursive = recursive
+        if mode is None:
+            mode = 'r'
         if mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
-        elif not os.path.exists(os.path.dirname(self._filename)):
-            raise NeXusError("'%s/' does not exist"
-                             % os.path.dirname(self._filename))
+        elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:
+            raise NeXusError("Invalid file mode")
+        elif not os.access(self._filedir, os.R_OK):
+            raise NeXusError("'%s/' is not accessible" % self._filedir)
         elif (mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or 
               mode == 'x'):
             if mode == 'w5':
                 mode = 'w'
+            if os.path.exists(self._filename):
+                if mode == 'w-' or mode == 'x':
+                    raise NeXusError("'%s' already exists" % self._filename)
+                elif not os.access(self._filename, os.W_OK):
+                    raise NeXusError("Not permitted to write to '%s'" 
+                                     % self._filename)
+            elif not os.access(self._filedir, os.W_OK):
+                raise NeXusError("Not permitted to create files in '%s'" 
+                                 % self._filedir)
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
+                self._file.close()
             except Exception as error:
                 raise NeXusError("'%s' cannot be opened by h5py" 
                                  % self._filename)
@@ -444,15 +458,26 @@ class NXFile(object):
                 mode = 'r+'
             else:
                 self._mode = 'r'
-            if os.path.exists(name):
-                try:
-                    self._file = self.h5.File(self._filename, mode, **kwargs)
-                except Exception as error:
-                    raise NeXusError("'%s' cannot be opened by h5py" 
-                                     % self._filename)
-            else:
-                raise NeXusError("'%s' does not exist" % name)
-        self._file.close()
+            if not os.path.exists(self._filename):
+                raise NeXusError("'%s' does not exist" % self._filename)
+            elif not os.access(self._filename, os.R_OK):
+                raise NeXusError("Not permitted to open '%s'" % self._filename)
+            elif (self.mode != 'r' and not os.access(self._filename, os.W_OK)):
+                raise NeXusError("Not permitted to write to '%s'" 
+                                 % self._filename)
+            elif (self._lock.timeout > 0 and 
+                  not os.access(self._filedir, os.W_OK)):
+                raise NeXusError("Not permitted to create a lock file in '%s'"
+                                 % self._filedir)                
+            try:
+                self.acquire_lock()
+                self._file = self.h5.File(self._filename, mode, **kwargs)
+                self._file.close()
+                self.release_lock()
+            except NeXusError as error:
+                raise error
+            except Exception as error:
+                raise NeXusError(str(error))
 
     def __repr__(self):
         return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
@@ -487,7 +512,6 @@ class NXFile(object):
             Current NXFile instance.
         """
         if self._with_count == 0:
-            self.acquire_lock()
             self.open()
         self._with_count += 1
         return self
@@ -496,7 +520,6 @@ class NXFile(object):
         """Close the NeXus file and, if necessary, release the lock."""
         if self._with_count == 1:
             self.close()
-            self.release_lock()
         self._with_count -= 1
 
     def __del__(self):
@@ -586,7 +609,10 @@ class NXFile(object):
                 self.lock = True
             if self._lock is None:
                 return
-        self._lock.acquire()
+        try:
+            self._lock.acquire()
+        except PermissionError as error:
+            raise NeXusError("Denied permission to create the lock file")
 
     def release_lock(self):
         """Release the lock acquired by the current process."""
@@ -633,9 +659,19 @@ class NXFile(object):
         """Return the value defined by the `h5py` object path."""
         return self.file.get(*args, **kwargs)
 
+    @property
+    def file(self):
+        """The h5py File object, which is opened if necessary."""
+        if not self.is_open():
+            self.open()
+        return self._file
+
     def open(self, **kwargs):
         """Open the NeXus file for input/output."""
         if not self.is_open():
+            if not self.locked and self.is_locked():
+                raise NeXusError('File locked by another process')
+            self.acquire_lock()
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)
             else:
@@ -653,6 +689,7 @@ class NXFile(object):
         """
         if self.is_open():
             self._file.close()
+        self.release_lock()
         if self._root:
             self._root._mtime = self.mtime
 
@@ -662,6 +699,10 @@ class NXFile(object):
             return True if self._file.id.valid else False
         else:
             return False
+
+    def is_accessible(self):
+        """Return True if a lock file exists for this NeXus file."""
+        return os.path.exists(self.lock_file)
 
     def readfile(self):
         """Read the NeXus file and return a tree of NeXus objects.
@@ -980,7 +1021,7 @@ class NXFile(object):
                 with _file as f:
                     f.copy(_path, self[self.nxparent], name=self.nxpath)
             else:
-                self.file.copy(_path, self[self.nxparent], name=self.nxpath)
+                self.copy(_path, self[self.nxparent], name=self.nxpath)
             data._uncopied_data = None
         elif data._memfile:
             data._memfile.copy('data', self[self.nxparent], name=self.nxpath)
@@ -1208,7 +1249,7 @@ class NXFile(object):
             NeXus file to be copied.
         """
         for entry in input_file['/']:
-            input_file.copy(entry, self['/'], **kwargs) 
+            input_file.copy(entry, self['/'], **kwargs)
         self._rootattrs()
 
     def _rootattrs(self):
@@ -1220,7 +1261,8 @@ class NXFile(object):
         self.file.attrs['h5py_version'] = self.h5.version.version
         from .. import __version__
         self.file.attrs['nexusformat_version'] = __version__
-        self._root._setattrs(self.file.attrs)
+        if self._root:
+            self._root._setattrs(self.file.attrs)
 
     def update(self, item):
         """Update the specifed object in the NeXus file.
@@ -1292,14 +1334,7 @@ class NXFile(object):
     @property
     def filename(self):
         """The file name on disk."""
-        return self.file.filename
-
-    @property
-    def file(self):
-        """The h5py File object, which is opened if necessary."""
-        if not self.is_open():
-            self.open()
-        return self._file
+        return self._filename
 
     @property
     def mode(self):
@@ -1311,8 +1346,7 @@ class NXFile(object):
         if mode == 'rw' or mode == 'r+':
             self._mode = 'rw'
         else:
-            self._mode = 'r'   
-        self.close()
+            self._mode = 'r' 
 
     @property
     def attrs(self):
@@ -1432,8 +1466,10 @@ def _getvalue(value, dtype=None, shape=None):
             try:
                 _dtype = _getdtype(dtype)
                 if _dtype.kind == 'S':
-                    value = text(value).encode('utf-8')
-                return np.array(value, dtype=_dtype).item(), _dtype, ()
+                    value = np.array(text(value).encode('utf-8'), dtype=_dtype)
+                else:
+                    value = np.array(value, dtype=_dtype)
+                return value.item(), value.dtype, ()
             except Exception:
                 raise NeXusError("The value is incompatible with the dtype")
         else:
@@ -1459,7 +1495,7 @@ def _getvalue(value, dtype=None, shape=None):
         if _value.dtype.kind == 'S' or _value.dtype.kind == 'U':
             _value = _value.astype(string_dtype)
     if dtype is not None:
-        if isinstance(value, np.bool_) and dtype != np.bool_:
+        if isinstance(value, bool) and dtype != bool:
             raise NeXusError(
                 "Cannot assign a Boolean value to a non-Boolean field")
         elif isinstance(_value, np.ndarray):
@@ -2033,7 +2069,7 @@ class NXobject(object):
         str
             String containing the hierarchical structure of the tree.
         """
-        return self._str_tree(attrs=False, recursive=2)
+        return self._str_tree(attrs=False, recursive=1)
 
     def rename(self, name):
         """Rename the NeXus object.
@@ -2338,7 +2374,7 @@ class NXobject(object):
         """
         if self.nxclass == 'NXroot':
             return "/"
-        elif isinstance(self, NXlink):
+        elif self.nxtarget:
             return self.nxtarget
         elif self.nxgroup is None:
             return ""
@@ -2742,7 +2778,7 @@ class NXfield(NXobject):
         Parameters
         ----------
         idx : slice
-            Slice indices.
+            Slice index or indices.
         
         Returns
         -------
@@ -2804,7 +2840,7 @@ class NXfield(NXobject):
         if value is np.ma.masked:
             self._mask_data(idx)
         else:
-            if isinstance(value, np.bool_) and self.dtype != np.bool_:
+            if isinstance(value, bool) and self.dtype != bool:
                 raise NeXusError(
                     "Cannot set a Boolean value to a non-Boolean data type")
             elif value is np.ma.nomask:
@@ -2961,7 +2997,7 @@ class NXfield(NXobject):
             if self._memfile is None:
                 self._create_memfile()
             self._memfile.create_dataset('mask', shape=self._shape, 
-                                         dtype=np.bool, **self._h5opts)
+                                         dtype=bool, **self._h5opts)
         else:
             raise NeXusError("Cannot allocate mask before setting shape")       
 
@@ -2973,7 +3009,7 @@ class NXfield(NXobject):
                 if mask_name in self.nxgroup:
                     return mask_name
             mask_name = '%s_mask' % self.nxname
-            self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=np.bool, 
+            self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=bool, 
                                               fillvalue=False)
             self.attrs['mask'] = mask_name
             return mask_name
@@ -3077,14 +3113,13 @@ class NXfield(NXobject):
         return self.nxvalue.__contains__(key)
 
     def __len__(self):
-        """Return the length of the first dimension of NXfield data.
-        
-        This is consistent with the NumPy definition of this function.
-        """
-        try:
+        """Return the length of the NXfield data."""
+        if is_string_dtype(self.dtype): 
+            return len(self.nxvalue)
+        elif self.shape == ():
+            return 1
+        else:
             return self.shape[0]
-        except Exception:
-            return 0
 
     def any(self):
         """Return False if all values are 0 or False, True otherwise."""
@@ -3631,7 +3666,7 @@ class NXfield(NXobject):
         else:
             fname = self.nxfilename
             if fname is not None:
-                return fname + ':' + self.nxpath
+                return os.path.basename(fname) + ':' + self.nxpath
             else:
                 return self.nxpath
 
@@ -3877,6 +3912,11 @@ class NXfield(NXobject):
         return int(np.prod(self.shape))
 
     @property
+    def nbytes(self):
+        """Number of bytes in the NXfield array."""
+        return self.size * self.dtype.itemsize
+
+    @property
     def safe_attrs(self):
         """Attributes that can be safely copied to derived NXfields."""
         return {key: self.attrs[key] for key in self.attrs 
@@ -3988,8 +4028,8 @@ class NXfield(NXobject):
             else:
                 signal_path = self.nxpath
             data.attrs['signal_path'] = signal_path
-            plotview.plot(data, fmt, xmin=None, xmax=None, ymin=None, ymax=None,
-                          vmin=None, vmax=None, **kwargs)
+            plotview.plot(data, fmt=fmt, xmin=None, xmax=None, 
+                          ymin=None, ymax=None, vmin=None, vmax=None, **kwargs)
         else:
             raise NeXusError("NXfield not plottable")
     
@@ -4922,7 +4962,7 @@ class NXgroup(NXobject):
             else:
                 fname = self.nxfilename
                 if fname is not None:
-                    return fname + ':' + self.nxpath
+                    return os.path.basename(fname) + ':' + self.nxpath
                 else:
                     return self.nxpath
 
@@ -5142,13 +5182,18 @@ class NXlink(NXobject):
 
     @property
     def internal_link(self):
+        """Return NXfield or NXgroup targeted by an internal link."""
         return self.nxroot[self._target]
 
     @property
     def external_link(self):
+        """Return NXfield or NXgroup targeted by an external link."""
         try:
             with self.nxfile as f:
                 item = f.readpath(self.nxfilepath)
+            item._target = self.nxfilepath
+            item._filename = self.nxfilename
+            item._mode = 'r'
             return item
         except Exception as error:
             raise NeXusError("Cannot read the external link to '%s'" 
@@ -5156,6 +5201,7 @@ class NXlink(NXobject):
 
     @property
     def attrs(self):
+        """Return attributes of the linked NXfield or NXgroup."""
         try:
             return self.nxlink.attrs
         except NeXusError:
@@ -5191,6 +5237,26 @@ class NXlinkfield(NXlink, NXfield):
         NXlink.__init__(self, target=target, file=file, name=name, 
                         abspath=abspath, soft=soft)
         self._class = 'NXfield'
+
+    def __getitem__(self, idx):
+        """Return the slab of the linked field defined by the index.
+        
+        Parameters
+        ----------
+        idx : slice
+            Slice index or indices.
+        
+        Returns
+        -------
+        NXfield
+            Field containing the slice values.
+        """
+        return self.nxlink.__getitem__(idx)
+
+    @property
+    def nxdata(self):
+        """Data of linked NXfield."""
+        return self.nxlink.nxdata
 
 
 class NXlinkgroup(NXlink, NXgroup):
@@ -5280,7 +5346,7 @@ class NXroot(NXgroup):
     def is_modified(self):
         """True if the NeXus file has been modified by an external process."""
         if self._file is None:
-            self._file.modified = False
+            self._file_modified = False
         else:
             _mtime = self._file.mtime
             if self._mtime and _mtime > self._mtime:
@@ -5303,6 +5369,10 @@ class NXroot(NXgroup):
         """Make the tree modifiable."""
         if self._filename:
             if self.file_exists():
+                if not os.access(self.nxfilename, os.W_OK):
+                    self._mode = self._file.mode = 'r'
+                    raise NeXusError("Not permitted to write to '%s'" 
+                                     % self._filename)
                 if self.is_modified():
                     raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'
@@ -6042,13 +6112,19 @@ class NXdata(NXgroup):
         x, y = centers(axes[0], signal.shape[0]), signal
         self._smoothing = interp1d(x, y, kind='cubic')
 
-    def smooth(self, n=1000, xmin=None, xmax=None):
+    def smooth(self, n=1001, factor=None, xmin=None, xmax=None):
         """Return a NXdata group containing smooth interpolations of 1D data.
+        
+        The number of point is either set by `n` or by decreasing the average
+        step size by `factor` - if `factor` is not None, it overrides the value
+        of `n``.
         
         Parameters
         ----------
         n : int, optional
-            Number of x-values in interpolation, by default 1000
+            Number of x-values in interpolation, by default 1001
+        factor: int, optional
+            Factor by which the step size will be reduced, by default None
         xmin : float, optional
             Minimum x-value, by default None
         xmax : float, optional
@@ -6071,9 +6147,102 @@ class NXdata(NXgroup):
             xmax = x.max()
         else:
             xmax = min(xmax, x.max())
+        if factor:
+            step = np.average(x[1:] - x[:-1]) / factor
+            n = int((xmax - xmin) / step) + 1
         xs = NXfield(np.linspace(xmin, xmax, n), name=axis.nxname)
         ys = NXfield(self._smoothing(xs), name=signal.nxname)
-        return NXdata(ys, xs)      
+        return NXdata(ys, xs, title=self.nxtitle)
+
+    def select(self, divisor=1.0, offset=0.0, symmetric=False, smooth=False, 
+               max=False, min=False, tol=1e-8):
+        """Return a NXdata group with axis values divisible by a given value.
+        
+        This function only applies to one-dimensional data. 
+        
+        Parameters
+        ----------
+        divisor : float, optional
+            Divisor used to select axis values, by default 1.0
+        offset : float, optional
+            Offset to add to selected values, by default 0.0
+        symmetric : bool, optional
+            True if the offset is to be applied symmetrically about selections,
+            by default False
+        smooth : bool, optional
+            True if data are to be smoothed before the selection, by default
+            False
+        max : bool, optional
+            True if the local maxima should be selected, by default False
+        min : bool, optional
+            True if the local minima should be selected, by default False
+        tol : float, optional
+            Tolerance to be used in defining the remainder, by default 1e-8
+
+        Returns
+        -------
+        NXdata
+            NeXus group containing the selected data
+
+        Notes
+        -----
+        It is assumed that the offset changes sign when the axis values are 
+        negative. So if `divisor=1` and `offset=0.2`, the selected values close
+        to the origin are -1.2, -0.2, 0.2, 1.2, etc. When `symmetric` is True,
+        the selected values are -1.2, -0.8, -0.2, 0.2, 0.8, 1.2, etc.
+        
+        The `min` and `max` keywords are mutually exclusive. If both are set to
+        True, only the local maxima are returned.
+        
+        """
+        if self.ndim > 1:
+            raise NeXusError("This function only works on one-dimensional data")
+        if smooth:
+            data = self.smooth(factor=10)
+        else:
+            data = self
+        x = data.nxaxes[0]
+        if symmetric:
+            condition = np.where(
+                            np.isclose(
+                                np.remainder(x-offset,  divisor), 
+                                       0.0, atol=tol) |
+                            np.isclose(
+                                np.remainder(x+offset,  divisor), 
+                                       0.0, atol=tol) |
+                            np.isclose(
+                                np.remainder(x-offset,  divisor), 
+                                       divisor, atol=tol) |
+                            np.isclose(
+                                np.remainder(x+offset,  divisor), 
+                                       divisor, atol=tol))
+        else:
+            def sign(x):
+                return np.where(x!=0.0, np.sign(x), 1)
+            condition = np.where(
+                            np.isclose(
+                                np.remainder(
+                                    sign(x)*(np.abs(x)-offset), divisor), 
+                                       0.0, atol=tol) | 
+                            np.isclose(
+                                np.remainder(
+                                    sign(x)*(np.abs(x)-offset), divisor), 
+                                       divisor, atol=tol))
+        if min and max:
+            raise NeXusError("Select either 'min' or 'max', not both")
+        elif min or max:
+            def consecutive(idx):
+                return np.split(idx, np.where(np.diff(idx) != 1)[0]+1)
+            signal = data.nxsignal
+            unique_idx = []
+            if max:
+                for idx in consecutive(condition[0]):
+                    unique_idx.append(idx[0]+signal.nxvalue[idx].argmax())
+            else:
+                 for idx in consecutive(condition[0]):
+                    unique_idx.append(idx[0]+signal.nxvalue[idx].argmin())
+            condition = (np.array(unique_idx),)
+        return data[condition]
 
     def project(self, axes, limits=None, summed=True):
         """Return a projection of the data with specified axes and limits.
@@ -6116,6 +6285,8 @@ class NXdata(NXgroup):
         elif len(axes) > 2:
             raise NeXusError(
                 "Projections to more than two dimensions not supported")
+        elif any([limits[axis][1]-limits[axis][0]<=1 for axis in axes]):
+            raise NeXusError("One of the projection axes has zero range")
         projection_axes =  sorted([x for x in range(len(limits)) 
                                    if x not in axes], reverse=True)
         idx, _ = self.slab([slice(_min, _max) for _min, _max in limits])
@@ -6166,7 +6337,10 @@ class NXdata(NXgroup):
         axes = self.nxaxes
         slices = []
         for i,ind in enumerate(idx):
-            if is_real_slice(ind):
+            if isinstance(ind, np.ndarray):
+                slices.append(ind)
+                axes[i] = axes[i][ind]
+            elif is_real_slice(ind):
                 if signal.shape[i] == axes[i].shape[0]:
                     axis = axes[i].boundaries()
                 else:
@@ -6455,22 +6629,19 @@ class NXdata(NXgroup):
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        signal = self.nxsignal
-        errors = None
-        if signal is not None:
-            if signal.nxname+'_errors' in self:
-                errors = self[signal.nxname+'_errors']
-            elif ('uncertainties' in signal.attrs and
-                signal.attrs['uncertainties'] in self):
-                errors = self[signal.attrs['uncertainties']]
+        _signal = self.nxsignal
+        _errors = None
+        if _signal is not None:
+            if ('uncertainties' in _signal.attrs and
+                _signal.attrs['uncertainties'] in self):
+                _errors = self[_signal.attrs['uncertainties']]
+            elif _signal.nxname+'_errors' in self:
+                _errors = self[_signal.nxname+'_errors']
             elif 'errors' in self:
-                errors = self['errors']
-            if errors and errors.shape == signal.shape:
-                return errors
-            else:
-                return None
-        else:
-            return None
+                _errors = self['errors']
+            if _errors and _errors.shape == _signal.shape:
+                return _errors
+        return None
 
     @nxerrors.setter
     def nxerrors(self, errors):
@@ -6611,7 +6782,7 @@ def is_real_slice(idx):
         if isinstance(x, slice):
             x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
         x = np.array(x)
-        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == np.bool)
+        return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)
 
     if isinstance(idx, slice):
         return is_real(idx)

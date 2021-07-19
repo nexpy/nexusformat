@@ -5839,6 +5839,8 @@ class NXdata(NXgroup):
             result = NXdata(signal, axes, errors, weights, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
+            if weights is not None:
+                result.nxweights = weights
             if self.nxsignal.mask is not None:
                 if isinstance(self.nxsignal.mask, NXfield):
                     result[self.nxsignal.mask.nxname] = signal.mask 
@@ -6103,6 +6105,23 @@ class NXdata(NXgroup):
                 result.nxweights = self.nxweights / other
             return result
 
+    def weighted_data(self):
+        """Return group with the signal divided by the weights"""
+        _signal, _errors, _weights = (self.nxsignal, self.nxerrors, 
+                                      self.nxweights)
+        if _signal and _weights:
+            result = deepcopy(self)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                result[_signal.nxname] = np.where(_weights>0, 
+                                                  _signal/_weights, 
+                                                  0.0)
+                if _errors:
+                    result[_errors.nxname] = np.where(_weights>0, 
+                                                      _errors/_weights, 
+                                                      0.0)
+            del(result[_weights.nxname])
+        return result
+
     def prepare_smoothing(self):
         """Create a smooth interpolation function for one-dimensional data."""
         if self.nxsignal.ndim > 1:
@@ -6305,12 +6324,17 @@ class NXdata(NXgroup):
             else:
                 result = result.average(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
-            signal, errors = result.nxsignal, result.nxerrors
+            signal = result.nxsignal
+            errors = result.nxerrors
+            weights = result.nxweights
             result[signal.nxname].replace(signal.transpose())
             result.nxsignal = result[signal.nxname]
             if errors:
                 result[errors.nxname].replace(errors.transpose())
                 result.nxerrors = result[errors.nxname]
+            if weights:
+                result[weights.nxname].replace(weights.transpose())
+                result.nxweights = result[weights.nxname]
             result.nxaxes = result.nxaxes[::-1]            
         return result        
 

@@ -5677,6 +5677,8 @@ class NXdata(NXgroup):
         A tuple of NXfields containing the plot axes
     nxerrors : NXfield
         The NXfield containing the standard deviations of the signal values.
+    nxweights : NXfield
+        The NXfield containing signal value weights.
 
     Examples
     --------
@@ -5733,7 +5735,8 @@ class NXdata(NXgroup):
              @signal = 1
     """
 
-    def __init__(self, signal=None, axes=None, errors=None, *args, **kwargs):
+    def __init__(self, signal=None, axes=None, errors=None, weights=None,
+                 *args, **kwargs):
         self._class = 'NXdata'
         NXgroup.__init__(self, *args, **kwargs)
         attrs = {}
@@ -5765,15 +5768,11 @@ class NXdata(NXgroup):
             self[signal_name] = signal
             attrs['signal'] = signal_name
             if errors is not None:
-                if isinstance(errors, NXfield) or isinstance(errors, NXlink):
-                    if errors.nxname == 'unknown' or errors.nxname in self:
-                        errors_name = signal_name+'_errors'
-                    else:
-                        errors_name = errors.nxname
-                else:
-                    errors_name = signal_name+'_errors'
+                errors_name = signal_name+'_errors'
                 self[errors_name] = errors
-                self[signal_name].attrs['uncertainties'] = errors_name
+            if weights is not None:
+                weights_name = signal_name+'_weights'
+                self[weights_name] = weights
         self.attrs._setattrs(attrs)
 
     def __setattr__(self, name, value):
@@ -5831,11 +5830,17 @@ class NXdata(NXgroup):
                 errors = self.nxerrors[idx]
             else:
                 errors = None
+            if self.nxweights: 
+                weights = self.nxweights[idx]
+            else:
+                weights = None
             if 'axes' in signal.attrs:
                 del signal.attrs['axes']
-            result = NXdata(signal, axes, errors, *removed_axes)
+            result = NXdata(signal, axes, errors, weights, *removed_axes)
             if errors is not None:
                 result.nxerrors = errors
+            if weights is not None:
+                result.nxweights = weights
             if self.nxsignal.mask is not None:
                 if isinstance(self.nxsignal.mask, NXfield):
                     result[self.nxsignal.mask.nxname] = signal.mask 
@@ -5938,6 +5943,11 @@ class NXdata(NXgroup):
                                                   other.nxerrors**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights + other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot add two arbitrary groups")
@@ -5975,6 +5985,11 @@ class NXdata(NXgroup):
                                                   other.nxerrors**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights - other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot subtract two arbitrary groups")
@@ -6015,6 +6030,11 @@ class NXdata(NXgroup):
                                           (other.nxerrors * self.nxsignal)**2)
                     else:
                         result.nxerrors = self.nxerrors
+                if self.nxweights:
+                    if other.nxweights:
+                        result.nxweights = self.nxweights * other.nxweights
+                    else:
+                        result.nxweights = self.nxweights
                 return result
         elif isinstance(other, NXgroup):
             raise NeXusError("Cannot multiply two arbitrary groups")
@@ -6022,6 +6042,8 @@ class NXdata(NXgroup):
             result[self.nxsignal.nxname] = self.nxsignal * other
             if self.nxerrors:
                 result.nxerrors = self.nxerrors * other
+            if self.nxweights:
+                result.nxweights = self.nxweights * other
             return result
 
     def __rmul__(self, other):
@@ -6079,7 +6101,26 @@ class NXdata(NXgroup):
             result[self.nxsignal.nxname] = self.nxsignal / other
             if self.nxerrors: 
                 result.nxerrors = self.nxerrors / other
+            if self.nxweights: 
+                result.nxweights = self.nxweights / other
             return result
+
+    def weighted_data(self):
+        """Return group with the signal divided by the weights"""
+        _signal, _errors, _weights = (self.nxsignal, self.nxerrors, 
+                                      self.nxweights)
+        if _signal and _weights:
+            result = deepcopy(self)
+            with np.errstate(divide='ignore'):
+                result[_signal.nxname] = np.where(_weights>0, 
+                                                  _signal/_weights, 
+                                                  0.0)
+                if _errors:
+                    result[_errors.nxname] = np.where(_weights>0, 
+                                                      _errors/_weights, 
+                                                      0.0)
+            del(result[_weights.nxname])
+        return result
 
     def prepare_smoothing(self):
         """Create a smooth interpolation function for one-dimensional data."""
@@ -6283,12 +6324,17 @@ class NXdata(NXgroup):
             else:
                 result = result.average(projection_axes)
         if len(axes) > 1 and axes[0] > axes[1]:
-            signal, errors = result.nxsignal, result.nxerrors
+            signal = result.nxsignal
+            errors = result.nxerrors
+            weights = result.nxweights
             result[signal.nxname].replace(signal.transpose())
             result.nxsignal = result[signal.nxname]
             if errors:
                 result[errors.nxname].replace(errors.transpose())
                 result.nxerrors = result[errors.nxname]
+            if weights:
+                result[weights.nxname].replace(weights.transpose())
+                result.nxweights = result[weights.nxname]
             result.nxaxes = result.nxaxes[::-1]            
         return result        
 
@@ -6623,13 +6669,37 @@ class NXdata(NXgroup):
 
     @nxerrors.setter
     def nxerrors(self, errors):
-        if self.nxsignal is not None:
-            name = self.nxsignal.nxname+'_errors'
-            self.nxsignal.attrs['uncertainties'] = name
+        signal = self.nxsignal
+        if signal is not None:
+            name = signal.nxname+'_errors'
+            self[name] = errors
+
+    @property
+    def nxweights(self):
+        """NXfield containing the signal weights."""
+        signal = self.nxsignal
+        weights = None
+        if signal is not None: 
+            if signal.nxname+'_weights' in self:
+                weights = self[signal.nxname+'_weights']
+            elif ('weights' in signal.attrs and
+                signal.attrs['weights'] in self):
+                weights = self[signal.attrs['weights']]
+            elif 'weights' in self:
+                weights = self['weights']
+            if weights and weights.shape == signal.shape:
+                return weights
+            else:
+                return None
         else:
-            name = 'errors'
-        self[name] = errors
-        return self.entries[name]
+            return None
+
+    @nxweights.setter
+    def nxweights(self, weights):
+        signal = self.nxsignal
+        if signal is not None:
+            name = signal.nxname+'_weights'
+            self[name] = weights
 
     @property
     def mask(self):
@@ -6637,21 +6707,25 @@ class NXdata(NXgroup):
         
         This is set to a value of None or np.ma.nomask to remove the mask.
         """
-        if self.nxsignal is not None:
-            return self.nxsignal.mask
+        signal = self.nxsignal
+        if signal is not None:
+            return signal.mask
         else:
             return None
 
     @mask.setter
     def mask(self, value):
+        signal = self.nxsignal
+        if signal is None:
+            return
         if value is None:
             value = np.ma.nomask
-        if value is np.ma.nomask and self.nxsignal.mask is not None:
-            self.nxsignal.mask = np.ma.nomask
-            if isinstance(self.nxsignal.mask, NXfield):
-                del self[self.nxsignal.mask.nxname]
-            if 'mask' in self.nxsignal.attrs:
-                del self.nxsignal.attrs['mask']
+        if value is np.ma.nomask and signal.mask is not None:
+            signal.mask = np.ma.nomask
+            if isinstance(signal.mask, NXfield):
+                del self[signal.mask.nxname]
+            if 'mask' in signal.attrs:
+                del signal.attrs['mask']
 
 
 class NXmonitor(NXdata):

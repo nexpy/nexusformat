@@ -156,13 +156,17 @@ def test_data_errors():
 
     y1 = NXfield(np.linspace(1, 10, 10), name="y")
     v1 = NXfield(y1**2, name="v")
-    e1 = NXfield(np.sqrt(v1), name="e")
+    e1 = NXfield(np.sqrt(v1))
 
     data = NXdata(v1, (y1), errors=e1)
 
-    assert data.nxerrors.nxname == "e"
+    assert data.nxerrors is not None
+    assert data.nxerrors.nxname == "v_errors"
     assert np.array_equal(data.nxerrors, e1)
 
+    data = NXdata(v1, (y1))
+    data.nxerrors = e1
+    
     new_data = 2 * data
 
     assert np.array_equal(new_data.nxerrors, 2 * e1)
@@ -174,6 +178,34 @@ def test_data_errors():
     new_data = data - data / 2
 
     assert np.array_equal(new_data.nxerrors, e1 * np.sqrt(1.25))
+   
+
+def test_data_weights():
+
+    y1 = NXfield(np.linspace(1, 10, 10), name="y")
+    v1 = NXfield(y1**2, name="v")
+    w1 = NXfield(np.sqrt(v1))
+
+    data = NXdata(v1, (y1), weights=w1)
+
+    assert data.nxweights is not None
+    assert data.nxweights.nxname == "v_weights"
+    assert np.array_equal(data.nxweights, w1)
+
+    data = NXdata(v1, (y1))
+    data.nxweights = w1
+    
+    new_data = 2 * data
+
+    assert np.array_equal(new_data.nxweights, 2 * w1)
+
+    new_data = 2 * data - data
+
+    assert np.array_equal(new_data.nxweights, w1)
+ 
+    new_data = data - data / 2
+
+    assert np.array_equal(new_data.nxweights, w1/2)
    
 
 def test_data_slabs():

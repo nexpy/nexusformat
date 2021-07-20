@@ -149,6 +149,7 @@ class PylabPlotter(object):
         colorbar = kwargs.pop("colorbar", True)
         interpolation = kwargs.pop("interpolation", "nearest")
         bad = kwargs.pop("bad", "darkgray")
+        weights = kwargs.pop("weights", False)
         ax = kwargs.pop("ax", None)
 
         signal = data_group.nxsignal
@@ -161,6 +162,11 @@ class PylabPlotter(object):
         # Provide a new view of the data if there is a dimension of length 1
         data, axes = (signal.nxdata.reshape(data_group.plot_shape), 
                       data_group.plot_axes)
+
+        if weights and data_group.nxweights:
+            with np.errstate(divide='ignore'):
+                w = data_group.nxweights.nxdata.reshape(data_group.plot_shape)
+                data = np.where(w>0, data/w, 0.0) 
 
         isinteractive = plt.isinteractive()
         plt.ioff()

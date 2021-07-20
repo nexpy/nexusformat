@@ -6111,7 +6111,7 @@ class NXdata(NXgroup):
                                       self.nxweights)
         if _signal and _weights:
             result = deepcopy(self)
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide='ignore'):
                 result[_signal.nxname] = np.where(_weights>0, 
                                                   _signal/_weights, 
                                                   0.0)

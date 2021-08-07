@@ -5251,7 +5251,10 @@ class NXlinkfield(NXlink, NXfield):
         NXfield
             Field containing the slice values.
         """
-        return self.nxlink.__getitem__(idx)
+        result = self.nxlink.__getitem__(idx)
+        if isinstance(result, NXfield):
+            result._name = self._name
+        return result
 
     @property
     def nxdata(self):

@@ -166,7 +166,7 @@ class PylabPlotter(object):
         if weights and data_group.nxweights:
             with np.errstate(divide='ignore'):
                 w = data_group.nxweights.nxdata.reshape(data_group.plot_shape)
-                data = np.where(w>0, data/w, 0.0) 
+                data = np.where(w>0, data/w, 0.0)
 
         isinteractive = plt.isinteractive()
         plt.ioff()
@@ -255,6 +255,19 @@ class PylabPlotter(object):
                         im = ax.pcolormesh(x, y, data, cmap=cm, **kwargs)
                         ax.set_xlim(x[0], x[-1])
                         ax.set_ylim(y[0], y[-1])
+                    if aspect == 'equal':
+                        try:
+                            if 'scaling_factor' in axes[-1].attrs:
+                                _xscale = axes[-1].attrs['scaling_factor']
+                            else:
+                                _xscale = 1.0
+                            if 'scaling_factor' in axes[-2].attrs:
+                                _yscale = axes[-2].attrs['scaling_factor']
+                            else:
+                                _yscale = 1.0
+                            aspect = float(_yscale / _xscale)
+                        except Exception as error:
+                            raise NeXusError(str(error))              
                     ax.set_aspect(aspect)
                     if colorbar:
                         plt.colorbar(im)

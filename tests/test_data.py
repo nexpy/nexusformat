@@ -186,11 +186,17 @@ def test_data_weights():
     v1 = NXfield(y1**2, name="v")
     w1 = NXfield(np.sqrt(v1))
 
-    data = NXdata(v1, (y1), weights=w1)
+    data = NXdata(v1, (y1), errors=y1, weights=w1)
 
     assert data.nxweights is not None
     assert data.nxweights.nxname == "v_weights"
     assert np.array_equal(data.nxweights, w1)
+
+    weighted_data = data.weighted_data()
+
+    assert np.array_equal(weighted_data.nxsignal, v1 / w1)
+    assert np.array_equal(weighted_data.nxerrors, y1 / w1)
+    assert weighted_data.nxaxes == data.nxaxes
 
     data = NXdata(v1, (y1))
     data.nxweights = w1

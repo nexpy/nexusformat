@@ -6594,13 +6594,14 @@ class NXdata(NXgroup):
     
     @nxsignal.setter
     def nxsignal(self, signal):
-        current_signal = self.nxsignal
-        if current_signal is not None and current_signal is not signal:
-            if 'signal' in current_signal.attrs:
-                del current_signal.attrs['signal']
-        self.attrs['signal'] = signal.nxname
-        if signal not in self:
-            self[signal.nxname] = signal
+        if isinstance(signal, NXfield):
+            self.attrs['signal'] = signal.nxname
+            if signal not in self:
+                self[signal.nxname] = signal
+        elif isinstance(signal, str):
+            self.attrs['signal'] = signal
+        else:
+            raise NeXusError("Signal value must be a NXfield or string")
 
     @property
     def nxaxes(self):
@@ -6646,10 +6647,14 @@ class NXdata(NXgroup):
         for axis in axes:
             if axis is None:
                 axes_attr.append('.')
-            else:
+            elif isinstance(axis, NXfield):
                 axes_attr.append(axis.nxname)
                 if axis not in self:
                     self[axis.nxname] = axis
+            elif isinstance(axis, str):
+                axes_attr.append(axis)
+            else:
+                raise NeXusError("Axis values must be NXfields or strings")
         self.attrs['axes'] = axes_attr
 
     @property

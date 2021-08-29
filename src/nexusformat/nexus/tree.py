@@ -4640,7 +4640,6 @@ class NXgroup(NXobject):
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
             self[name] = value
-            self.update()
         else:
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)

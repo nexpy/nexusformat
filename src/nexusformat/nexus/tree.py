@@ -6565,19 +6565,19 @@ class NXdata(NXgroup):
     def ndim(self):
         """Rank of the NXdata signal."""
         signal = self.nxsignal
-        if signal is not None:
-            return signal.ndim
-        else:
+        if signal is None:
             raise NeXusError("No signal defined for NXdata group")
+        else:
+            return signal.ndim
 
     @property
     def shape(self):
         """Shape of the NXdata signal."""
         signal = self.nxsignal
-        if signal is not None:
-            return signal.shape
-        else:
+        if signal is None:
             raise NeXusError("No signal defined for NXdata group")
+        else:
+            return signal.shape
 
     @property
     def nxsignal(self):
@@ -6660,24 +6660,30 @@ class NXdata(NXgroup):
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        _signal = self.nxsignal
-        _errors = None
-        if _signal is not None:
-            if ('uncertainties' in _signal.attrs and
-                _signal.attrs['uncertainties'] in self):
-                _errors = self[_signal.attrs['uncertainties']]
-            elif _signal.nxname+'_errors' in self:
-                _errors = self[_signal.nxname+'_errors']
+        signal = self.nxsignal
+        errors = None
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if ('uncertainties' in signal.attrs and
+                signal.attrs['uncertainties'] in self):
+                errors = self[signal.attrs['uncertainties']]
+            elif signal.nxname+'_errors' in self:
+                errors = self[signal.nxname+'_errors']
             elif 'errors' in self:
-                _errors = self['errors']
-            if _errors and _errors.shape == _signal.shape:
-                return _errors
+                errors = self['errors']
+            if errors and errors.shape == signal.shape:
+                return errors
         return None
 
     @nxerrors.setter
     def nxerrors(self, errors):
         signal = self.nxsignal
-        if signal is not None:
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if errors.shape != signal.shape:
+                raise NeXusError("Error shape incompatible with the signal")
             name = signal.nxname+'_errors'
             self[name] = errors
 
@@ -6686,7 +6692,9 @@ class NXdata(NXgroup):
         """NXfield containing the signal weights."""
         signal = self.nxsignal
         weights = None
-        if signal is not None: 
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
             if signal.nxname+'_weights' in self:
                 weights = self[signal.nxname+'_weights']
             elif ('weights' in signal.attrs and
@@ -6696,15 +6704,16 @@ class NXdata(NXgroup):
                 weights = self['weights']
             if weights and weights.shape == signal.shape:
                 return weights
-            else:
-                return None
-        else:
-            return None
+        return None
 
     @nxweights.setter
     def nxweights(self, weights):
         signal = self.nxsignal
-        if signal is not None:
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if weights.shape != signal.shape:
+                raise NeXusError("Weights shape incompatible with the signal")
             name = signal.nxname+'_weights'
             self[name] = weights
 

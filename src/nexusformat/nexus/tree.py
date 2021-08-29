@@ -6109,19 +6109,22 @@ class NXdata(NXgroup):
 
     def weighted_data(self):
         """Return group with the signal divided by the weights"""
-        _signal, _errors, _weights = (self.nxsignal, self.nxerrors, 
-                                      self.nxweights)
-        if _signal and _weights:
+        signal, errors, weights = (self.nxsignal, self.nxerrors, self.nxweights)
+        if signal and weights:
             result = deepcopy(self)
             with np.errstate(divide='ignore'):
-                result[_signal.nxname] = np.where(_weights>0, 
-                                                  _signal/_weights, 
-                                                  0.0)
-                if _errors:
-                    result[_errors.nxname] = np.where(_weights>0, 
-                                                      _errors/_weights, 
-                                                      0.0)
-            del(result[_weights.nxname])
+                result[signal.nxname] = np.where(weights>0, 
+                                                 signal/weights, 
+                                                 0.0)
+                if errors:
+                    result[errors.nxname] = np.where(weights>0, 
+                                                     errors/weights, 
+                                                     0.0)
+            del(result[weights.nxname])
+        elif signal is None:
+            raise NeXusError("No signal defined for this NXdata group")
+        elif weights is None:
+            raise NeXusError("No weights defined for this NXdata group")
         return result
 
     def prepare_smoothing(self):

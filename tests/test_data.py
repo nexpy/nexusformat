@@ -88,6 +88,21 @@ def test_signal_selection():
 
     assert data.nxsignal.nxname == "v"
     assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
+    assert np.array_equal(data.nxsignal, v)
+    assert np.array_equal(data.nxaxes[0], z)
+
+    data = NXdata()
+    data["v"] = v
+    data["x"] = x
+    data["y"] = y
+    data["z"] = z
+    data.nxsignal = "v"
+    data.nxaxes = ("z", "y", "x")
+
+    assert data.nxsignal.nxname == "v"
+    assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
+    assert np.array_equal(data.nxsignal, v)
+    assert np.array_equal(data.nxaxes[0], z)
 
 
 def test_rename():

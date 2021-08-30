@@ -4745,6 +4745,12 @@ class NXgroup(NXobject):
                     result.nxerrors = NXfield(errors) / summed_bins
                 else:
                     result.nxerrors = NXfield(errors)
+            if self.nxweights:
+                weights = self.nxweights.nxdata.sum(axis)
+                if averaged:
+                    result.nxweights = NXfield(weights) / summed_bins
+                else:
+                    result.nxweights = NXfield(weights)
             if self.nxtitle:
                 result.title = self.nxtitle
             return result

@@ -4640,7 +4640,6 @@ class NXgroup(NXobject):
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
             self[name] = value
-            self.update()
         else:
             if name in self.entries:
                 raise NeXusError("'%s' already exists in group" % name)
@@ -4746,6 +4745,12 @@ class NXgroup(NXobject):
                     result.nxerrors = NXfield(errors) / summed_bins
                 else:
                     result.nxerrors = NXfield(errors)
+            if self.nxweights:
+                weights = self.nxweights.nxdata.sum(axis)
+                if averaged:
+                    result.nxweights = NXfield(weights) / summed_bins
+                else:
+                    result.nxweights = NXfield(weights)
             if self.nxtitle:
                 result.title = self.nxtitle
             return result
@@ -6110,19 +6115,22 @@ class NXdata(NXgroup):
 
     def weighted_data(self):
         """Return group with the signal divided by the weights"""
-        _signal, _errors, _weights = (self.nxsignal, self.nxerrors, 
-                                      self.nxweights)
-        if _signal and _weights:
+        signal, errors, weights = (self.nxsignal, self.nxerrors, self.nxweights)
+        if signal and weights:
             result = deepcopy(self)
             with np.errstate(divide='ignore'):
-                result[_signal.nxname] = np.where(_weights>0, 
-                                                  _signal/_weights, 
-                                                  0.0)
-                if _errors:
-                    result[_errors.nxname] = np.where(_weights>0, 
-                                                      _errors/_weights, 
-                                                      0.0)
-            del(result[_weights.nxname])
+                result[signal.nxname] = np.where(weights>0, 
+                                                 signal/weights, 
+                                                 0.0)
+                if errors:
+                    result[errors.nxname] = np.where(weights>0, 
+                                                     errors/weights, 
+                                                     0.0)
+            del(result[weights.nxname])
+        elif signal is None:
+            raise NeXusError("No signal defined for this NXdata group")
+        elif weights is None:
+            raise NeXusError("No weights defined for this NXdata group")
         return result
 
     def prepare_smoothing(self):
@@ -6566,19 +6574,19 @@ class NXdata(NXgroup):
     def ndim(self):
         """Rank of the NXdata signal."""
         signal = self.nxsignal
-        if signal is not None:
-            return signal.ndim
-        else:
+        if signal is None:
             raise NeXusError("No signal defined for NXdata group")
+        else:
+            return signal.ndim
 
     @property
     def shape(self):
         """Shape of the NXdata signal."""
         signal = self.nxsignal
-        if signal is not None:
-            return signal.shape
-        else:
+        if signal is None:
             raise NeXusError("No signal defined for NXdata group")
+        else:
+            return signal.shape
 
     @property
     def nxsignal(self):
@@ -6595,13 +6603,14 @@ class NXdata(NXgroup):
     
     @nxsignal.setter
     def nxsignal(self, signal):
-        current_signal = self.nxsignal
-        if current_signal is not None and current_signal is not signal:
-            if 'signal' in current_signal.attrs:
-                del current_signal.attrs['signal']
-        self.attrs['signal'] = signal.nxname
-        if signal not in self:
-            self[signal.nxname] = signal
+        if isinstance(signal, NXfield):
+            self.attrs['signal'] = signal.nxname
+            if signal not in self:
+                self[signal.nxname] = signal
+        elif isinstance(signal, str):
+            self.attrs['signal'] = signal
+        else:
+            raise NeXusError("Signal value must be a NXfield or string")
 
     @property
     def nxaxes(self):
@@ -6647,33 +6656,43 @@ class NXdata(NXgroup):
         for axis in axes:
             if axis is None:
                 axes_attr.append('.')
-            else:
+            elif isinstance(axis, NXfield):
                 axes_attr.append(axis.nxname)
                 if axis not in self:
                     self[axis.nxname] = axis
+            elif isinstance(axis, str):
+                axes_attr.append(axis)
+            else:
+                raise NeXusError("Axis values must be NXfields or strings")
         self.attrs['axes'] = axes_attr
 
     @property
     def nxerrors(self):
         """NXfield containing the signal errors."""
-        _signal = self.nxsignal
-        _errors = None
-        if _signal is not None:
-            if ('uncertainties' in _signal.attrs and
-                _signal.attrs['uncertainties'] in self):
-                _errors = self[_signal.attrs['uncertainties']]
-            elif _signal.nxname+'_errors' in self:
-                _errors = self[_signal.nxname+'_errors']
+        signal = self.nxsignal
+        errors = None
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if ('uncertainties' in signal.attrs and
+                signal.attrs['uncertainties'] in self):
+                errors = self[signal.attrs['uncertainties']]
+            elif signal.nxname+'_errors' in self:
+                errors = self[signal.nxname+'_errors']
             elif 'errors' in self:
-                _errors = self['errors']
-            if _errors and _errors.shape == _signal.shape:
-                return _errors
+                errors = self['errors']
+            if errors and errors.shape == signal.shape:
+                return errors
         return None
 
     @nxerrors.setter
     def nxerrors(self, errors):
         signal = self.nxsignal
-        if signal is not None:
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if errors.shape != signal.shape:
+                raise NeXusError("Error shape incompatible with the signal")
             name = signal.nxname+'_errors'
             self[name] = errors
 
@@ -6682,7 +6701,9 @@ class NXdata(NXgroup):
         """NXfield containing the signal weights."""
         signal = self.nxsignal
         weights = None
-        if signal is not None: 
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
             if signal.nxname+'_weights' in self:
                 weights = self[signal.nxname+'_weights']
             elif ('weights' in signal.attrs and
@@ -6692,15 +6713,16 @@ class NXdata(NXgroup):
                 weights = self['weights']
             if weights and weights.shape == signal.shape:
                 return weights
-            else:
-                return None
-        else:
-            return None
+        return None
 
     @nxweights.setter
     def nxweights(self, weights):
         signal = self.nxsignal
-        if signal is not None:
+        if signal is None:
+            raise NeXusError("No signal defined for NXdata group")
+        else:
+            if weights.shape != signal.shape:
+                raise NeXusError("Weights shape incompatible with the signal")
             name = signal.nxname+'_weights'
             self[name] = weights
 

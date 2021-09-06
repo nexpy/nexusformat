@@ -3565,7 +3565,7 @@ class NXfield(NXobject):
         """
         if not is_iterable(axes):
             axes = [axes]
-        plot_axes = [axis for axis in axes if axis.size > 1]
+        plot_axes = [axis for axis in axes if axis.size >= 1]
         axis_shape = [axis.size for axis in plot_axes]
         if (all(axis.ndim == 1 for axis in plot_axes) and 
             len([x for x,y in zip(self.plot_shape, axis_shape) 
@@ -3934,12 +3934,13 @@ class NXfield(NXobject):
     def plot_shape(self):
         """Shape of NXfield for plotting.
         
-        Size-1 axes are removed from the shape.
+        Size-1 axes are removed from the shape for multidimensional data.
         """
         try:  
             _shape = list(self.shape)
-            while 1 in _shape:
-                _shape.remove(1)
+            if len(_shape) > 1:
+                while 1 in _shape:
+                    _shape.remove(1)
             return tuple(_shape)
         except Exception:
             return ()
@@ -6618,7 +6619,7 @@ class NXdata(NXgroup):
         def empty_axis(i):
             return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
         def plot_axis(axis):
-            return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
+            return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
         try:
             if 'axes' in self.attrs:
                 axis_names = _readaxes(self.attrs['axes'])
@@ -6633,7 +6634,7 @@ class NXdata(NXgroup):
                     axes[i] = plot_axis(self[axis_name])
             return axes
         except (AttributeError, IndexError, KeyError, UnboundLocalError):
-            axes = {}
+            axes = []
             for entry in self:
                 if 'axis' in self[entry].attrs:
                     axis = self[entry].attrs['axis']

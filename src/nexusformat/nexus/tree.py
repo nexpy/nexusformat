@@ -6604,7 +6604,7 @@ class NXdata(NXgroup):
     
     @nxsignal.setter
     def nxsignal(self, signal):
-        if isinstance(signal, NXfield):
+        if isinstance(signal, NXfield) or isinstance(signal, NXlink):
             self.attrs['signal'] = signal.nxname
             if signal not in self:
                 self[signal.nxname] = signal

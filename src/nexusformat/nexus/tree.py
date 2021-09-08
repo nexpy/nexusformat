@@ -5205,6 +5205,12 @@ class NXlink(NXobject):
             raise NeXusError("Cannot read the external link to '%s'" 
                              % self._filename)
 
+    def is_external(self):
+        if self.nxroot is self and self._filename:
+            return True
+        else:
+            return super(NXlink, self).is_external()
+
     @property
     def attrs(self):
         """Return attributes of the linked NXfield or NXgroup."""

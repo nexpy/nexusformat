@@ -6322,7 +6322,8 @@ class NXdata(NXgroup):
         elif len(axes) > 2:
             raise NeXusError(
                 "Projections to more than two dimensions not supported")
-        elif any([limits[axis][1]-limits[axis][0]<=1 for axis in axes]):
+        elif any([np.isclose(limits[axis][1]-limits[axis][0], 0) 
+                  for axis in axes]):
             raise NeXusError("One of the projection axes has zero range")
         projection_axes =  sorted([x for x in range(len(limits)) 
                                    if x not in axes], reverse=True)

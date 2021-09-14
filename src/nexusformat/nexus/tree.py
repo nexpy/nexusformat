@@ -431,26 +431,25 @@ class NXFile(object):
         elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:
             raise NeXusError("Invalid file mode")
         elif not os.access(self._filedir, os.R_OK):
-            raise NeXusError("'%s/' is not accessible" % self._filedir)
+            raise NeXusError(f"'{self._filedir}/' is not accessible")
         elif (mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or 
               mode == 'x'):
             if mode == 'w5':
                 mode = 'w'
             if os.path.exists(self._filename):
                 if mode == 'w-' or mode == 'x':
-                    raise NeXusError("'%s' already exists" % self._filename)
+                    raise NeXusError(f"'{self._filename}' already exists")
                 elif not os.access(self._filename, os.W_OK):
-                    raise NeXusError("Not permitted to write to '%s'" 
-                                     % self._filename)
+                    raise NeXusError(
+                        f"Not permitted to write to '{self._filename}'")
             elif not os.access(self._filedir, os.W_OK):
-                raise NeXusError("Not permitted to create files in '%s'" 
-                                 % self._filedir)
+                raise NeXusError(
+                    f"Not permitted to create files in '{self._filedir}'")
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
             except Exception as error:
-                raise NeXusError("'%s' cannot be opened by h5py" 
-                                 % self._filename)
+                raise NeXusError(f"'{self._filename}' cannot be opened by h5py")
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -459,16 +458,16 @@ class NXFile(object):
             else:
                 self._mode = 'r'
             if not os.path.exists(self._filename):
-                raise NeXusError("'%s' does not exist" % self._filename)
+                raise NeXusError(f"'{self._filename}' does not exist")
             elif not os.access(self._filename, os.R_OK):
-                raise NeXusError("Not permitted to open '%s'" % self._filename)
+                raise NeXusError(f"Not permitted to open '{self._filename}'")
             elif (self.mode != 'r' and not os.access(self._filename, os.W_OK)):
-                raise NeXusError("Not permitted to write to '%s'" 
-                                 % self._filename)
+                raise NeXusError(
+                    f"Not permitted to write to '{self._filename}'")
             elif (self._lock.timeout > 0 and 
                   not os.access(self._filedir, os.W_OK)):
-                raise NeXusError("Not permitted to create a lock file in '%s'"
-                                 % self._filedir)                
+                raise NeXusError(
+                    f"Not permitted to create a lock file in '{self._filedir}'")                
             try:
                 self.acquire_lock()
                 self._file = self.h5.File(self._filename, mode, **kwargs)
@@ -480,8 +479,8 @@ class NXFile(object):
                 raise NeXusError(str(error))
 
     def __repr__(self):
-        return '<NXFile "%s" (mode %s)>' % (os.path.basename(self._filename),
-                                            self._mode)
+        return (
+          f'<NXFile "{os.path.basename(self._filename)}" mode "{self._mode}">')
 
     def __getattr__(self, name):
         """Return an attribute of the h5py File if not defined by NXFile"""
@@ -1386,11 +1385,11 @@ def _makeclass(cls, bases=None):
     type
         New subclass.
     """
-    docstring = """
-                %s group. This is a subclass of the NXgroup class.
+    docstring = f"""
+                {cls} group. This is a subclass of the NXgroup class.
 
                 See the NXgroup documentation for more details.
-                """ % cls
+                """
     if bases is None:
         bases = (NXgroup,)
     return type(str(cls), bases, {'_class':cls, '__doc__':docstring})
@@ -1424,7 +1423,7 @@ def _getclass(cls, link=False):
             cls = cls.replace('NX', 'NXlink')
             globals()[cls] = _makeclass(cls, bases)
         else:
-            raise NeXusError("'%s' is not a valid NeXus class" % cls)
+            raise NeXusError(f"'{cls}' is not a valid NeXus class")
     else:
         globals()[cls] = _makeclass(cls, (NXgroup,))
     return globals()[cls]
@@ -1542,7 +1541,7 @@ def _getdtype(dtype):
             else:
                 return _dtype
         except TypeError:
-            raise NeXusError("Invalid data type: %s" % dtype)
+            raise NeXusError(f"Invalid data type: {dtype}")
 
 
 def _getshape(shape, maxshape=False):
@@ -1577,7 +1576,7 @@ def _getshape(shape, maxshape=False):
             else:
                 return tuple([int(i) for i in shape])
         except ValueError:
-            raise NeXusError("Invalid shape: %s" % str(shape))
+            raise NeXusError(f"Invalid shape: {shape}")
 
     
 def _getmaxshape(maxshape, shape):
@@ -1817,9 +1816,9 @@ class NXattr(object):
             (self.shape == () or self.shape == (1,)) and 
             (self.dtype.type == np.string_ or self.dtype.type == np.str_ or 
              self.dtype == string_dtype)):
-            return "NXattr('%s')" % self
+            return f"NXattr('{self}')"
         else:
-            return "NXattr(%s)" % self
+            return f"NXattr({self})"
 
     def __eq__(self, other):
         """Returns true if the values of the two attributes are the same."""
@@ -1968,10 +1967,10 @@ class NXobject(object):
         self.__dict__ = dict
 
     def __str__(self):
-        return "%s" % self.nxname
+        return self.nxname
 
     def __repr__(self):
-        return "NXobject('%s')" % (self.nxname)
+        return f"NXobject('{self.nxname}')"
 
     def __bool__(self):
         """Return confirmation that the object exists."""
@@ -2710,9 +2709,9 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            return "NXfield(%s)" % repr(self.nxvalue)
+            return f"NXfield({repr(self.nxvalue)})"
         else:
-            return "NXfield(shape=%s, dtype=%s)" % (self.shape, self.dtype)
+            return f"NXfield(shape={self.shape}, dtype={self.dtype})"
 
     def __str__(self):
         if self._value is not None:
@@ -2882,7 +2881,7 @@ class NXfield(NXobject):
                     dims = ''
                 else:
                     dims = 'x'.join([text(n) for n in self.shape])
-                s = "%s(%s)" % (self.dtype, dims)
+                s = f"{self.dtype}({dims})"
         elif s == "":
             s = "None"
         try:
@@ -3008,7 +3007,7 @@ class NXfield(NXobject):
                 mask_name = self.attrs['mask']
                 if mask_name in self.nxgroup:
                     return mask_name
-            mask_name = '%s_mask' % self.nxname
+            mask_name = f'{self.nxname}_mask'
             self.nxgroup[mask_name] = NXfield(shape=self._shape, dtype=bool, 
                                               fillvalue=False)
             self.attrs['mask'] = mask_name
@@ -3521,7 +3520,7 @@ class NXfield(NXobject):
         def invalid_axis(axis):
             return axis.size != self.shape[i] and axis.size != self.shape[i]+1
         def empty_axis(i):
-            return NXfield(np.arange(self.shape[i]), name='Axis%s'%i)
+            return NXfield(np.arange(self.shape[i]), name=f'Axis{i}')
         def plot_axis(axis):
             return NXfield(axis.nxvalue, name=axis.nxname, attrs=axis.attrs) 
         if self.nxgroup:
@@ -3624,13 +3623,12 @@ class NXfield(NXobject):
                     if self._memfile:
                         self._value = self._get_memdata()
                 except Exception:
-                    raise NeXusError("Cannot read data for '%s'" % self.nxname)
+                    raise NeXusError(f"Cannot read data for '{self.nxname}'")
                 if self._value is not None:
                     self._value.shape = self.shape
             else:
                 raise NeXusError(
-                    "Use slabs to access data larger than NX_MEMORY=%s MB" 
-                    % NX_MEMORY)
+              f"Use slabs to access data larger than NX_MEMORY={NX_MEMORY} MB")
         if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
@@ -3724,8 +3722,7 @@ class NXfield(NXobject):
         """
         if axis is not None:
             if not (axis >=0 and axis < self.ndim):
-                raise NeXusError("Invalid axis (0 to %s allowed)" 
-                                 % (self.ndim-1))
+                raise NeXusError(f"Invalid axis (0 to {self.ndim-1} allowed)")
             try:
                 newlen = int(shape)
             except TypeError:
@@ -3816,10 +3813,10 @@ class NXfield(NXobject):
         """
         if self.nxfilemode:
             raise NeXusError(
-            "Cannot change the %s of a field already stored in a file" % name)
+            f"Cannot change the {name} of a field already stored in a file")
         elif self._memfile:
             raise NeXusError(
-            "Cannot change the %s of a field already in core memory" % name)
+            f"Cannot change the {name} of a field already in core memory")
         if value is not None:
             self._h5opts[name] = value
         
@@ -4008,8 +4005,8 @@ class NXfield(NXobject):
             image = True   - plot as an RGB(A) image
         """
         if not self.exists():
-            raise NeXusError("'%s' does not exist"
-                             % os.path.abspath(self.nxfilename))
+            raise NeXusError(
+                    f"'{os.path.abspath(self.nxfilename)}' does not exist")
 
         try:
             from __main__ import plotview
@@ -4138,8 +4135,8 @@ class NXgroup(NXobject):
         >>> entry.sample.temperature
         NXfield(40.0)
 
-        If the assigned value is not a valid NXobject, then it is cast as an NXfield
-        with a type determined from the Python data type.
+        If the assigned value is not a valid NXobject, then it is cast as 
+        an NXfield with a type determined from the Python data type.
 
         >>> entry.sample.temperature = 40.0
         >>> entry.sample.temperature
@@ -4252,7 +4249,7 @@ class NXgroup(NXobject):
                       key=natural_sort)
 
     def __repr__(self):
-        return "%s('%s')" % (self.__class__.__name__, self.nxname)
+        return f"{self.__class__.__name__}('{self.nxname}')"
 
     def __hash__(self):
         return id(self)
@@ -4602,14 +4599,14 @@ class NXgroup(NXobject):
             if item in self:
                 item = self[item]
             else:
-                raise NeXusError("'%s' not in group" % item)
+                raise NeXusError(f"'{item}' not in group")
         if is_text(group):
             if group in self:
                 group = self[group]
             elif group in self.nxroot:
                 group = self.nxroot[group]
             else:
-                raise NeXusError("'%s' not in tree" % group)
+                raise NeXusError(f"'{group}' not in tree")
             if not isinstance(group, NXgroup):
                 raise NeXusError("Destination must be a valid NeXus group")
         if item.nxroot != group.nxroot:
@@ -4617,7 +4614,7 @@ class NXgroup(NXobject):
         if name is None:
             name = item.nxname
         if name in group:
-            raise NeXusError("'%s' already in the destination group")
+            raise NeXusError(f"'{name}' already in the destination group")
         group[name] = item
         del self[item.nxname]
 
@@ -4639,11 +4636,11 @@ class NXgroup(NXobject):
             if name == 'unknown': 
                 name = value.nxname
             if name in self.entries:
-                raise NeXusError("'%s' already exists in group" % name)
+                raise NeXusError(f"'{name}' already exists in group")
             self[name] = value
         else:
             if name in self.entries:
-                raise NeXusError("'%s' already exists in group" % name)
+                raise NeXusError(f"'{name}' already exists in group")
             self[name] = NXfield(value=value, name=name, group=self)
 
     def makelink(self, target, name=None, abspath=False):
@@ -4673,8 +4670,8 @@ class NXgroup(NXobject):
         if name is None:
             name = target.nxname
         if name in self:
-            raise NeXusError("Object with the same name already exists in '%s'" 
-                             % self.nxpath)        
+            raise NeXusError(
+                f"Object with the same name already exists in '{self.nxpath}'")        
         if self.nxroot == target.nxroot:
             self[name] = NXlink(target=target)
         else:
@@ -5054,10 +5051,9 @@ class NXlink(NXobject):
 
     def __repr__(self):
         if self._filename:
-            return "NXlink(target='%s', file='%s')" % (self._target, 
-                                                       self._filename)
+            return f"NXlink(target='{self._target}', file='{self._filename}')"
         else:
-            return "NXlink('%s')" % (self._target)
+            return f"NXlink('{self._target}')"
 
     def __getattr__(self, name):
         """Return the requested attribute from the target object.
@@ -5068,7 +5064,7 @@ class NXlink(NXobject):
         try:
             return getattr(self.nxlink, name)
         except Exception as error:
-            raise NeXusError("Cannot resolve the link to '%s'" % self._target)
+            raise NeXusError(f"Cannot resolve the link to '{self._target}'")
 
     def __setattr__(self, name, value):
         """Set an attribute of the link target.
@@ -5202,8 +5198,8 @@ class NXlink(NXobject):
             item._mode = 'r'
             return item
         except Exception as error:
-            raise NeXusError("Cannot read the external link to '%s'" 
-                             % self._filename)
+            raise NeXusError(
+                f"Cannot read the external link to '{self._filename}'")
 
     def is_external(self):
         if self.nxroot is self and self._filename:
@@ -5355,8 +5351,8 @@ class NXroot(NXgroup):
                 f.reload()
             self.set_changed()
         else:
-            raise NeXusError("'%s' has no associated file to reload" 
-                              % self.nxname)
+            raise NeXusError(
+                f"'{self.nxname}' has no associated file to reload")
 
     def is_modified(self):
         """True if the NeXus file has been modified by an external process."""
@@ -5377,8 +5373,8 @@ class NXroot(NXgroup):
                 self._mode = self._file.mode = 'r'
                 self.set_changed()
             else:
-                raise NeXusError("'%s' does not exist"
-                                 % os.path.abspath(self.nxfilename))
+                raise NeXusError(
+                    f"'os.path.abspath(self.nxfilename)' does not exist")
 
     def unlock(self):
         """Make the tree modifiable."""
@@ -5386,16 +5382,16 @@ class NXroot(NXgroup):
             if self.file_exists():
                 if not os.access(self.nxfilename, os.W_OK):
                     self._mode = self._file.mode = 'r'
-                    raise NeXusError("Not permitted to write to '%s'" 
-                                     % self._filename)
+                    raise NeXusError(
+                        f"Not permitted to write to '{self._filename}'")
                 if self.is_modified():
                     raise NeXusError("File modified. Reload before unlocking")
                 self._mode = self._file.mode = 'rw'
             else:
                 self._mode = None
                 self._file = None
-                raise NeXusError("'%s' does not exist"
-                                 % os.path.abspath(self.nxfilename))
+                raise NeXusError(
+                    f"'{os.path.abspath(self.nxfilename)}' does not exist")
             self.set_changed()
 
     def backup(self, filename=None, dir=None):
@@ -5422,8 +5418,8 @@ class NXroot(NXgroup):
             if dir is not None:
                 filename = os.path.join(dir, filename)
             if os.path.exists(filename):
-                raise NeXusError("'%s' already exists" 
-                                 % os.path.abspath(filename))
+                raise NeXusError(
+                    f"'{os.path.abspath(filename)}' already exists")
             else:
                 backup = os.path.abspath(filename)
         import shutil
@@ -5447,8 +5443,8 @@ class NXroot(NXgroup):
         if filename is None:
             filename = self.nxfilename
         if os.path.exists(filename) and not overwrite:
-            raise NeXusError("To overwrite '%s', set 'overwite' to True"
-                             % os.path.abspath(filename))
+            raise NeXusError(
+          f"To overwrite '{os.path.abspath(filename)}', set 'overwite' to True")
         import shutil
         shutil.copy2(self._backup, filename)
         self.nxfile = filename
@@ -5521,7 +5517,7 @@ class NXroot(NXgroup):
             self._file = NXFile(self._filename, self._mode)
             self.set_changed()
         else:
-            raise NeXusError("'%s' does not exist" % os.path.abspath(filename))
+            raise NeXusError(f"'{os.path.abspath(filename)}' does not exist")
 
     @property
     def nxbackup(self):
@@ -5764,11 +5760,11 @@ class NXdata(NXgroup):
                 i += 1
                 if isinstance(axis, NXfield) or isinstance(axis, NXlink):
                     if axis.nxname == 'unknown' or axis.nxname in self: 
-                        axis_name = 'axis%s' % i
+                        axis_name = f'axis{i}'
                     else:
                         axis_name = axis.nxname
                 else:
-                    axis_name = 'axis%s' % i
+                    axis_name = f'axis{i}'
                 self[axis_name] = axis
                 axis_names[i] = axis_name
             attrs['axes'] = list(axis_names.values())
@@ -6533,9 +6529,9 @@ class NXdata(NXgroup):
         if signal is None:
             raise NeXusError("No plotting signal defined")
         elif not signal.exists():
-            raise NeXusError("Data for '%s' does not exist" % signal.nxpath)
+            raise NeXusError(f"Data for '{signal.nxpath}' does not exist")
         elif not signal.is_plottable():
-            raise NeXusError("'%s' is not plottable" % signal.nxpath)
+            raise NeXusError(f"'{signal.nxpath}' is not plottable")
         else:
             axes = self.plot_axes
             if axes is not None and not self.nxsignal.valid_axes(axes):
@@ -6624,7 +6620,7 @@ class NXdata(NXgroup):
     def nxaxes(self):
         """List of NXfields containing the axes."""
         def empty_axis(i):
-            return NXfield(np.arange(self.nxsignal.shape[i]), name='Axis%s'%i)
+            return NXfield(np.arange(self.nxsignal.shape[i]), name=f'Axis{i}')
         def plot_axis(axis):
             return NXfield(axis.nxdata, name=axis.nxname, attrs=axis.attrs) 
         try:
@@ -6653,7 +6649,7 @@ class NXdata(NXgroup):
                 return [plot_axis(axes[axis]) for axis in sorted(axes)]
             elif self.nxsignal is not None:
                 return [NXfield(np.arange(self.nxsignal.shape[i]), 
-                        name='Axis%s'%i) for i in range(self.nxsignal.ndim)]
+                        name=f'Axis{i}') for i in range(self.nxsignal.ndim)]
             return None
 
     @nxaxes.setter
@@ -6784,7 +6780,7 @@ class NXlog(NXgroup):
         Valid Matplotlib parameters, specifying markers, colors, etc, can be 
         specified using the 'kwargs' dictionary.
         """
-        title = NXfield("%s Log" % self.nxname)
+        title = NXfield(f"{self.nxname} Log")
         if 'start' in self['time'].attrs:
             title = title + ' - starting at ' + self['time'].attrs['start']
         NXdata(self['value'], self['time'], title=title).plot(**kwargs)
@@ -7157,12 +7153,12 @@ def demo(argv):
         tree._plotter.show()
 
     else:
-        usage = """
-    usage: %s cmd [args]
+        usage = f"""
+    usage: {argv[0]} cmd [args]
     copy fromfile.nxs tofile.nxs
     ls *.nxs
     plot file.nxs entry.data
-        """%(argv[0],)
+        """
         print(usage)
 
 nxdemo = demo

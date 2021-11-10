@@ -1,6 +1,6 @@
 import os
 import pytest
-from nexusformat.nexus.tree import NXfield, NXroot, NXentry, NXdata, NXFile, \
+from nexusformat.nexus.tree import NXroot, NXentry, NXdata, NXFile, \
     nxload
 
 

@@ -1,4 +1,3 @@
-import pytest
 from nexusformat.nexus.tree import NXroot, NXgroup, NXentry
 
 

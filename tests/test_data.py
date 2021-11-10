@@ -110,15 +110,17 @@ def test_plottable_data_02(data2):
     assert data2.plot_rank == data2.nxsignal.ndim - 1
 
 
-@pytest.mark.parametrize("data",
-                         [NXdata_from_empty_01, NXdata_from_empty_02],
-                         indirect=True)
-def test_signal_selection(data, z, v):
+@pytest.mark.parametrize(
+    "data_",
+    [pytest.lazy_fixture('NXdata_from_empty_01'),
+     pytest.lazy_fixture('NXdata_from_empty_02')]
+)
+def test_signal_selection(data_, z, v):
 
-    assert data.nxsignal.nxname == "v"
-    assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
-    assert np.array_equal(data.nxsignal, v)
-    assert np.array_equal(data.nxaxes[0], z)
+    assert data_.nxsignal.nxname == "v"
+    assert [axis.nxname for axis in data_.nxaxes] == ["z", "y", "x"]
+    assert np.array_equal(data_.nxsignal, v)
+    assert np.array_equal(data_.nxaxes[0], z)
 
 
 def test_rename(NXdata_from_empty_01):

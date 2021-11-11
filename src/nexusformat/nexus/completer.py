@@ -34,13 +34,6 @@ except ImportError:
     readline = None
 from string import punctuation
 
-import posixpath
-from IPython import get_ipython
-from IPython.core.error import TryNext
-from IPython.utils import generics
-
-from .tree import NXobject
-
 re_attr_match = re.compile(r"(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(r"""(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
 re_object_match = re.compile(r"(.+?)(?:\[)")
@@ -98,6 +91,7 @@ def nxitem_completer(shell, command):
     except Exception:
         return []
 
+    import posixpath
     path, _ = posixpath.split(item)
     try:
         if path:
@@ -179,6 +173,10 @@ def nxcompleter(shell, event):
     TryNext
         If no completions are found.
     """
+    from IPython.core.error import TryNext
+    from IPython.utils import generics
+    from .tree import NXobject
+
     if readline is None:
         raise NeXusError("Install the readline module to enable tab completion")
         
@@ -216,6 +214,7 @@ def load_ipython_extension(ip=None):
     ip : InteractiveShell, optional
         IPython shell to be modified. By default, it is set by get_ipython().
     """
+    from IPython import get_ipython
     if readline is None:
         raise NeXusError("Install the readline module to enable tab completion")
     if ip is None:

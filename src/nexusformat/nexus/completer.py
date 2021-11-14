@@ -33,6 +33,8 @@ try:
 except ImportError:
     readline = None
 from string import punctuation
+from .tree import NeXusError, NXobject
+
 
 re_attr_match = re.compile(r"(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(r"""(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
@@ -103,7 +105,6 @@ def nxitem_completer(shell, command):
     items = list(items)
 
     readline.set_completer_delims(' \t\n`!@#$^&*()=+[{]}\\|;:\'",<>?')
-    item_list = [i for i in items if i[:len(item)] == item]
     return [i for i in items if i[:len(item)] == item]
 
 
@@ -126,6 +127,9 @@ def nxattr_completer(shell, command):
     list of str
         List of possible completions.
     """
+    from IPython import get_ipython
+    from IPython.core.error import TryNext
+    from IPython.utils import generics
     base, attr = re_attr_match.split(command)[1:3]
     base = base.strip()
 
@@ -175,7 +179,6 @@ def nxcompleter(shell, event):
     """
     from IPython.core.error import TryNext
     from IPython.utils import generics
-    from .tree import NXobject
 
     if readline is None:
         raise NeXusError("Install the readline module to enable tab completion")

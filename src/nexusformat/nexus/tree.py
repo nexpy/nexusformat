@@ -448,7 +448,7 @@ class NXFile(object):
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
-            except Exception as error:
+            except Exception:
                 raise NeXusError("'%s' cannot be opened by h5py" 
                                  % self._filename)
             self._mode = 'rw'
@@ -611,7 +611,7 @@ class NXFile(object):
                 return
         try:
             self._lock.acquire()
-        except PermissionError as error:
+        except PermissionError:
             raise NeXusError("Denied permission to create the lock file")
 
     def release_lock(self):
@@ -1165,7 +1165,7 @@ class NXFile(object):
         if np.prod(shape) < 1000:# i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
-            except Exception as error:
+            except Exception:
                 value = None
         else:
             value = None
@@ -2456,7 +2456,7 @@ class NXobject(object):
                 try:
                     with self.nxfile as f:
                         return self.nxfilepath in f
-                except Exception as error:
+                except Exception:
                     return False
             else:
                 return False
@@ -3125,14 +3125,14 @@ class NXfield(NXobject):
         """Return False if all values are 0 or False, True otherwise."""
         try:
             return np.any(self.nxvalue)
-        except TypeError as error:
+        except TypeError:
             raise NeXusError("Invalid field type for numeric comparisons")
 
     def all(self):
         """Return False if any values are 0 or False, True otherwise."""
         try:
             return np.all(self.nxvalue)
-        except TypeError as error:
+        except TypeError:
             raise NeXusError("Invalid field type for numeric comparisons")
 
     def index(self, value, max=False):
@@ -5067,7 +5067,7 @@ class NXlink(NXobject):
         """
         try:
             return getattr(self.nxlink, name)
-        except Exception as error:
+        except Exception:
             raise NeXusError("Cannot resolve the link to '%s'" % self._target)
 
     def __setattr__(self, name, value):
@@ -5089,7 +5089,7 @@ class NXlink(NXobject):
         else:
             try:
                 self.nxlink.setattr(name, value)
-            except Exception as error:
+            except Exception:
                 raise NeXusError("Unable to modify link target")
 
     def __setitem__(self, idx, value):
@@ -5201,7 +5201,7 @@ class NXlink(NXobject):
             item._filename = self.nxfilename
             item._mode = 'r'
             return item
-        except Exception as error:
+        except Exception:
             raise NeXusError("Cannot read the external link to '%s'" 
                              % self._filename)
 

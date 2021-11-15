@@ -1,18 +1,20 @@
 import numpy as np
 import os
 import pytest
-from nexusformat.nexus import *
+from nexusformat.nexus.tree import NXroot, NXlink, NXgroup, nxload, NXentry, \
+    nxsetlock, NXfield
 
 
-field1 = NXfield((1,2), name="f1", dtype=np.float32, units='m')
-field2 = NXfield((3,4), name="f2", dtype=np.int16)
-field3 = NXfield((5,6), name="f3", dtype=np.float32)
+@pytest.fixture
+def field1a(): return NXfield((1, 2), name="f1", dtype=np.float32, units='m')
+@pytest.fixture
+def field2a(): return NXfield((3, 4), name="f2", dtype=np.int16)
 
 
-def test_link_creation():
+def test_link_creation(field1a):
 
-    root = NXroot()    
-    root["g1"] = NXgroup(f1=field1)
+    root = NXroot()
+    root["g1"] = NXgroup(f1=field1a)
     root["g2"] = NXgroup()
     root["g2"].f1_link = NXlink(root["g1/f1"])
 
@@ -30,10 +32,10 @@ def test_link_creation():
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_saved_links(tmpdir, save):
+def test_saved_links(tmpdir, field1a, save):
 
-    root = NXroot()    
-    root["g1"] = NXgroup(f1=field1)
+    root = NXroot()
+    root["g1"] = NXgroup(f1=field1a)
     root["g2"] = NXgroup()
 
     filename = os.path.join(tmpdir, "file1.nxs")
@@ -56,10 +58,10 @@ def test_saved_links(tmpdir, save):
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_linkfield_properties(tmpdir, save):
+def test_linkfield_properties(tmpdir, field1a, save):
 
-    root = NXroot()    
-    root["g1"] = NXgroup(f1=field1)
+    root = NXroot()
+    root["g1"] = NXgroup(f1=field1a)
     root["g2"] = NXgroup()
     root["g2"].f1_link = NXlink(root["g1/f1"])
 
@@ -79,11 +81,11 @@ def test_linkfield_properties(tmpdir, save):
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_linkgroup_properties(tmpdir, save):
+def test_linkgroup_properties(tmpdir, field1a, save):
 
-    root = NXroot(NXentry())    
+    root = NXroot(NXentry())
     root["entry/g1"] = NXgroup()
-    root["entry/g1/g2"] = NXgroup(field1)
+    root["entry/g1/g2"] = NXgroup(field1a)
     root["entry/g2_link"] = NXlink("entry/g1/g2")
 
     if save:
@@ -102,12 +104,12 @@ def test_linkgroup_properties(tmpdir, save):
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_embedded_links(tmpdir, save):
+def test_embedded_links(tmpdir, save, field1a, field2a):
 
-    root = NXroot(NXentry())    
+    root = NXroot(NXentry())
     root["entry/g1"] = NXgroup()
     root["entry/g1/g2"] = NXgroup()
-    root["entry/g1/g2/g3"] = NXgroup(field1)
+    root["entry/g1/g2/g3"] = NXgroup(field1a)
     root["entry/g2_link"] = NXlink("entry/g1/g2")
 
     if save:
@@ -132,7 +134,7 @@ def test_embedded_links(tmpdir, save):
     assert "a" in root["entry/g2_link/g3/f1"].attrs
     assert root["entry/g2_link/g3/f1"].attrs["a"] == 1
 
-    root["entry/g1/g2/g3/f2"] = field2
+    root["entry/g1/g2/g3/f2"] = field2a
 
     assert "f2" in root["entry/g2_link/g3"]
 
@@ -142,7 +144,7 @@ def test_embedded_links(tmpdir, save):
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_external_field_links(tmpdir, save):
+def test_external_field_links(tmpdir, field1a, save):
 
     root = NXroot(NXentry())
 
@@ -151,7 +153,7 @@ def test_external_field_links(tmpdir, save):
         root.save(filename, mode="w")
 
     external_filename = os.path.join(tmpdir, "file2.nxs")
-    external_root = NXroot(NXentry(field1))
+    external_root = NXroot(NXentry(field1a))
     external_root.save(external_filename, mode="w")
 
     root["entry/f1_link"] = NXlink(target="/entry/f1", file=external_filename)
@@ -171,7 +173,7 @@ def test_external_field_links(tmpdir, save):
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_external_group_links(tmpdir, save):
+def test_external_group_links(tmpdir, field1a, save):
 
     root = NXroot(NXentry())
 
@@ -180,11 +182,12 @@ def test_external_group_links(tmpdir, save):
         root.save(filename, mode="w")
 
     external_filename = os.path.join(tmpdir, "file2.nxs")
-    external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
+    external_root = NXroot(
+        NXentry(NXgroup(field1a, name='g1', attrs={"a": "b"})))
     external_root.save(external_filename, mode="w")
 
     root["entry/g1_link"] = NXlink(target="/entry/g1", file=external_filename)
-    
+
     assert root["entry/g1_link"].nxtarget == "/entry/g1"
     assert root["entry/g1_link"].nxfilepath == "/entry/g1"
     assert root["entry/g1_link"].nxfilename == external_filename
@@ -205,7 +208,7 @@ def test_external_group_links(tmpdir, save):
     assert "units" in root["entry/g1_link/f1"].attrs
 
 
-def test_external_group_files(tmpdir):
+def test_external_group_files(tmpdir, field1a):
 
     nxsetlock(10)
 
@@ -214,7 +217,8 @@ def test_external_group_files(tmpdir):
     root.save(filename, mode="w")
 
     external_filename = os.path.join(tmpdir, "file2.nxs")
-    external_root = NXroot(NXentry(NXgroup(field1, name='g1', attrs={"a":"b"})))
+    external_root = NXroot(
+        NXentry(NXgroup(field1a, name='g1', attrs={"a": "b"})))
     external_root.save(external_filename, mode="w")
 
     root["entry/g1_link"] = NXlink(target="/entry/g1", file=external_filename)
@@ -222,7 +226,7 @@ def test_external_group_files(tmpdir):
 
         assert root.nxfile.filename == filename
         assert root.nxfile.locked
-        
+
         with root["entry/g1_link"].nxfile:
 
             assert root["entry/g1_link"].nxfile.filename == external_filename

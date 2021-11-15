@@ -1,12 +1,7 @@
-import numpy as np
 import os
 import pytest
-import six
-from nexusformat.nexus import *
-
-field1 = NXfield((1,2), name="f1")
-field2 = NXfield((3,4), name="f2")
-field3 = NXfield((5,6), name="f3")
+from nexusformat.nexus.tree import NXroot, NXentry, NXdata, NXFile, \
+    nxload
 
 
 def test_file_creation(tmpdir):
@@ -18,7 +13,7 @@ def test_file_creation(tmpdir):
     assert not f.is_open()
 
 
-def test_file_save(tmpdir):
+def test_file_save(tmpdir, field1, field2):
 
     filename = os.path.join(tmpdir, "file.nxs")
 
@@ -41,7 +36,7 @@ def test_file_save(tmpdir):
 
 
 @pytest.mark.parametrize("recursive", ["True", "False"])
-def test_file_recursion(tmpdir, recursive):
+def test_file_recursion(tmpdir, field1, field2, recursive):
 
     filename = os.path.join(tmpdir, "file.nxs")
     w1 = NXroot(NXentry())
@@ -63,5 +58,3 @@ def test_file_recursion(tmpdir, recursive):
     assert "entry/data/f2" in w2
     assert "signal" in w2["entry/data"].attrs
     assert "axes" in w2["entry/data"].attrs
-        
-

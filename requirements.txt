@@ -3,4 +3,3 @@ numpy
 scipy
 ipython
 pytest
-pytest-lazy-fixture

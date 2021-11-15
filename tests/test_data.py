@@ -111,16 +111,17 @@ def test_plottable_data_02(data2):
 
 
 @pytest.mark.parametrize(
-    "data_",
-    [pytest.lazy_fixture('NXdata_from_empty_01'),
-     pytest.lazy_fixture('NXdata_from_empty_02')]
+    "data_fixture_name",
+    ['NXdata_from_empty_01',
+     'NXdata_from_empty_02']
 )
-def test_signal_selection(data_, z, v):
+def test_signal_selection(data_fixture_name, z, v, request):
 
-    assert data_.nxsignal.nxname == "v"
-    assert [axis.nxname for axis in data_.nxaxes] == ["z", "y", "x"]
-    assert np.array_equal(data_.nxsignal, v)
-    assert np.array_equal(data_.nxaxes[0], z)
+    data = request.getfixturevalue(data_fixture_name)
+    assert data.nxsignal.nxname == "v"
+    assert [axis.nxname for axis in data.nxaxes] == ["z", "y", "x"]
+    assert np.array_equal(data.nxsignal, v)
+    assert np.array_equal(data.nxaxes[0], z)
 
 
 def test_rename(NXdata_from_empty_01):

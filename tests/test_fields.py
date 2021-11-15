@@ -40,11 +40,12 @@ def test_byte_field_creation(text, string_dtype):
 
 @pytest.mark.parametrize(
     "arr",
-    [pytest.lazy_fixture("arr1D"),
-     pytest.lazy_fixture("arr2D"),
-     pytest.lazy_fixture("arr3D")])
-def test_array_field_creation(arr):
+    ["arr1D",
+     "arr2D",
+     "arr3D"])
+def test_array_field_creation(arr, request):
 
+    arr = request.getfixturevalue(arr)
     field = NXfield(arr)
 
     assert np.all(field.nxvalue == arr)
@@ -59,11 +60,12 @@ def test_array_field_creation(arr):
 
 @pytest.mark.parametrize(
     "arr",
-    [pytest.lazy_fixture("arr1D"),
-     pytest.lazy_fixture("arr2D"),
-     pytest.lazy_fixture("arr3D")])
-def test_binary_field_operations(arr):
+    ["arr1D",
+     "arr2D",
+     "arr3D"])
+def test_binary_field_operations(arr, request):
 
+    arr = request.getfixturevalue(arr)
     field = NXfield(arr)
 
     assert np.all((field+2).nxvalue == arr+2)
@@ -73,22 +75,24 @@ def test_binary_field_operations(arr):
 
 @pytest.mark.parametrize(
     "arr",
-    [pytest.lazy_fixture("arr1D"),
-     pytest.lazy_fixture("arr2D"),
-     pytest.lazy_fixture("arr3D")])
-def test_field_methods(arr):
+    ["arr1D",
+     "arr2D",
+     "arr3D"])
+def test_field_methods(arr, request):
 
+    arr = request.getfixturevalue(arr)
     field = NXfield(arr)
 
     assert field.sum() == np.sum(arr)
 
 
 @pytest.mark.parametrize(
-    "arr,idx", [(pytest.lazy_fixture("arr1D"), np.s_[2:5]),
-                (pytest.lazy_fixture("arr2D"), np.s_[2:5, 2:5]),
-                (pytest.lazy_fixture("arr3D"), np.s_[2:5, 2:5, 2:5])])
-def test_field_slice(arr, idx):
+    "arr,idx", [("arr1D", np.s_[2:5]),
+                ("arr2D", np.s_[2:5, 2:5]),
+                ("arr3D", np.s_[2:5, 2:5, 2:5])])
+def test_field_slice(arr, idx, request):
 
+    arr = request.getfixturevalue(arr)
     field = NXfield(arr)
 
     assert np.array_equal(field[idx].nxvalue, arr[idx])

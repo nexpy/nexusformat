@@ -37,10 +37,11 @@ def test_entry_operation_values(entry_3, entry_4, v):
 
 @pytest.mark.parametrize(
     "entry",
-    [pytest.lazy_fixture('entry_3'), pytest.lazy_fixture('entry_4')]
+    ['entry_3', 'entry_4']
 )
-def test_entry_operations(entry, entry_1):
+def test_entry_operations(entry, entry_1, request):
 
+    entry = request.getfixturevalue(entry)
     assert 'd1' in entry
     assert 's1' in entry
     assert entry.attrs['default'] == 'd1'

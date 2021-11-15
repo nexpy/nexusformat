@@ -1,7 +1,8 @@
-import numpy as np
 import os
+
+import numpy as np
 import pytest
-from nexusformat.nexus.tree import NXfield, NXroot, nxload, NXgroup
+from nexusformat.nexus.tree import NXfield, NXgroup, NXroot, nxload
 
 
 def test_field_masks(arr1D):

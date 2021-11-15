@@ -1,7 +1,8 @@
 import os
 import time
-from nexusformat.nexus.tree import nxsetlock, text, NXroot, NXentry, NXLock, \
-    nxload
+
+from nexusformat.nexus.tree import (NXentry, NXLock, NXroot, nxload, nxsetlock,
+                                    text)
 
 
 def test_lock_creation(tmpdir, field4):

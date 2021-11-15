@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import NXentry, NXdata, NXsample
+from nexusformat.nexus.tree import NXdata, NXentry, NXsample
 
 
 @pytest.fixture

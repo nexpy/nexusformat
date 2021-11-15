@@ -1,7 +1,7 @@
 import os
+
 import pytest
-from nexusformat.nexus.tree import NXroot, NXentry, NXdata, NXFile, \
-    nxload
+from nexusformat.nexus.tree import NXdata, NXentry, NXFile, NXroot, nxload
 
 
 def test_file_creation(tmpdir):

@@ -1,4 +1,4 @@
-from nexusformat.nexus.tree import NXroot, NXgroup, NXentry
+from nexusformat.nexus.tree import NXentry, NXgroup, NXroot
 
 
 def test_attribute_paths(field1):

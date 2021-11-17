@@ -1,7 +1,8 @@
-import numpy as np
-from nexusformat.nexus.tree import NXfield, NXdata, NXroot, NXentry, NXsubentry
-import pytest
 import warnings
+
+import numpy as np
+import pytest
+from nexusformat.nexus.tree import NXdata, NXentry, NXfield, NXroot, NXsubentry
 
 
 @pytest.fixture

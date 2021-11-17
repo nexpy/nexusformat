@@ -1,6 +1,6 @@
 import os
-from nexusformat.nexus.tree import NXgroup, NXentry, NXdata, NXgroup, NXlink, \
-    NXroot
+
+from nexusformat.nexus.tree import NXdata, NXentry, NXgroup, NXlink, NXroot
 
 
 def test_group_creation(field1, field2, field3):

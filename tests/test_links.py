@@ -1,8 +1,9 @@
-import numpy as np
 import os
+
+import numpy as np
 import pytest
-from nexusformat.nexus.tree import NXroot, NXlink, NXgroup, nxload, NXentry, \
-    nxsetlock, NXfield
+from nexusformat.nexus.tree import (NXentry, NXfield, NXgroup, NXlink, NXroot,
+                                    nxload, nxsetlock)
 
 
 @pytest.fixture

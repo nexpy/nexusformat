@@ -187,12 +187,12 @@ references the first detector of the first instrument of the first entry.
 Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 """
-__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
-           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'nxgetcompression', 'nxsetcompression', 
-           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock', 
-           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',  
-           'nxgetrecursive', 'nxsetrecursive',            
+__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
+           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError',
+           'nxgetcompression', 'nxsetcompression',
+           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
+           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
+           'nxgetrecursive', 'nxsetrecursive',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
            'nxversion']
 

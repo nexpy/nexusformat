@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013-2020, NeXpy Development Team.
+# Copyright (c) 2013-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -197,7 +197,8 @@ class PylabPlotter(object):
                     ax.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
                                 fmt=fmt, **kwargs)
                 else:
-                    ax.plot(centers(axes[0], data.shape[0]), data, fmt, **kwargs)
+                    ax.plot(centers(axes[0], data.shape[0]), data, fmt, 
+                            **kwargs)
                 if not over:
                     if xmin is not None: 
                         ax.set_xlim(left=xmin)

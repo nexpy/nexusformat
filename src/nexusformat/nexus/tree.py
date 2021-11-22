@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2013-2020, NeXpy Development Team.
+# Copyright (c) 2013-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -178,8 +178,8 @@ attribute name when it is assigned as a group attribute, e.g.,
     sample1
 
 You can traverse the tree by component class instead of component name. Since
-there may be multiple components of the same class in one group you will need to
-specify which one to use.  For example::
+there may be multiple components of the same class in one group you will need 
+to specify which one to use.  For example::
 
     tree.NXentry[0].NXinstrument[0].NXdetector[0].distance
 
@@ -187,6 +187,15 @@ references the first detector of the first instrument of the first entry.
 Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 """
+__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
+           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError',
+           'nxgetcompression', 'nxsetcompression',
+           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
+           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
+           'nxgetrecursive', 'nxsetrecursive',
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
+           'nxversion']
+
 import numbers
 import os
 import re
@@ -198,7 +207,7 @@ import h5py as h5
 import numpy as np
 
 from .. import __version__ as nxversion
-from .lock import NXLock, NXLockException
+from .lock import NXLock
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
@@ -212,29 +221,20 @@ NX_RECURSIVE = False
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
 
-__all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr', 
-           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError', 
-           'nxgetcompression', 'nxsetcompression', 
-           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock', 
-           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',  
-           'nxgetrecursive', 'nxsetrecursive',            
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
-           'nxversion']
-
 #List of defined base classes (later added to __all__)
-nxclasses = ['NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog', 
-             'NXsample', 'NXinstrument', 'NXaperture', 'NXattenuator', 'NXbeam', 
-             'NXbeam_stop', 'NXbending_magnet', 'NXcapillary', 'NXcite',
-             'NXcollection', 'NXcollimator', 'NXcrystal', 'NXdetector', 
-             'NXdetector_group', 'NXdetector_module', 'NXdisk_chopper', 
-             'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter', 
-             'NXflipper', 'NXgeometry', 'NXgrating', 'NXgoniometer', 'NXguide', 
-             'NXinsertion_device', 'NXmirror', 'NXmoderator', 'NXmonochromator', 
-             'NXnote', 'NXorientation', 'NXparameters', 'NXpinhole', 
-             'NXpolarizer', 'NXpositioner', 'NXprocess', 'NXreflections', 
-             'NXsample_component', 'NXsensor', 'NXshape', 'NXslit', 'NXsource', 
-             'NXtransformations', 'NXtranslation', 'NXuser', 
-             'NXvelocity_selector', 'NXxraylens']
+nxclasses = [
+    'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
+    'NXsample', 'NXinstrument', 'NXaperture', 'NXattenuator', 'NXbeam',
+    'NXbeam_stop', 'NXbending_magnet', 'NXcapillary', 'NXcite', 'NXcollection',
+    'NXcollimator', 'NXcrystal', 'NXdetector', 'NXdetector_group',
+    'NXdetector_module', 'NXdisk_chopper', 'NXenvironment', 'NXevent_data',
+    'NXfermi_chopper', 'NXfilter', 'NXflipper', 'NXgeometry', 'NXgrating',
+    'NXgoniometer', 'NXguide', 'NXinsertion_device', 'NXmirror', 'NXmoderator',
+    'NXmonochromator', 'NXnote', 'NXorientation', 'NXparameters', 'NXpinhole',
+    'NXpolarizer', 'NXpositioner', 'NXprocess', 'NXreflections',
+    'NXsample_component', 'NXsensor', 'NXshape', 'NXslit', 'NXsource',
+    'NXtransformations', 'NXtranslation', 'NXuser', 'NXvelocity_selector',
+    'NXxraylens']
 
 
 def text(value):
@@ -761,7 +761,8 @@ class NXFile(object):
         for name, value in items:
             self.nxpath = self.nxpath + '/' + name
             if isinstance(value, self.h5.Group):
-                children[name] = self._readgroup(name, recursive=self.recursive)
+                children[name] = self._readgroup(
+                    name, recursive=self.recursive)
             elif isinstance(value, self.h5.Dataset):
                 children[name] = self._readdata(name)
             else:
@@ -1081,7 +1082,8 @@ class NXFile(object):
         """
         # link sources to targets
         for path, target, soft in links:
-            if path != target and path not in self['/'] and target in self['/']:
+            if (path != target and path not in self['/'] 
+                and target in self['/']):
                 if soft:
                     self[path] = h5.SoftLink(target)
                 else:
@@ -1296,7 +1298,8 @@ class NXFile(object):
             elif isinstance(item, NXobject):
                 if isinstance(item._copyfile, NXFile):
                     with item._copyfile as f:
-                        self.copy(f[item._copypath], item.nxpath, **item._attrs)
+                        self.copy(f[item._copypath], item.nxpath, 
+                                  **item._attrs)
                     item = self.readpath(item.nxpath)
                     if self.nxparent == '/':
                         group = self._root
@@ -1708,18 +1711,18 @@ class AttrDict(dict):
     """
 
     def __init__(self, parent=None, attrs=None):
-        super(AttrDict, self).__init__()
+        super().__init__()
         self._parent = parent
         if attrs is not None:
             self._setattrs(attrs)
 
     def _setattrs(self, attrs):
         for key, value in attrs.items():
-            super(AttrDict, self).__setitem__(key, NXattr(value))
+            super().__setitem__(key, NXattr(value))
     
     def __getitem__(self, key):
         """Returns the value of the requested NXattr object."""
-        return super(AttrDict, self).__getitem__(key).nxvalue
+        return super().__getitem__(key).nxvalue
 
     def __setitem__(self, key, value):
         """Creates a new entry in the dictionary."""
@@ -1731,9 +1734,9 @@ class AttrDict(dict):
             elif self._parent.is_linked():
                 raise NeXusError("Cannot modify an item in a linked group")
         if isinstance(value, NXattr):
-            super(AttrDict, self).__setitem__(text(key), value)
+            super().__setitem__(text(key), value)
         else:
-            super(AttrDict, self).__setitem__(text(key), NXattr(value))
+            super().__setitem__(text(key), NXattr(value))
         if isinstance(self._parent, NXobject):
             self._parent.set_changed()
             if self._parent.nxfilemode == 'rw':
@@ -1747,7 +1750,7 @@ class AttrDict(dict):
                 raise NeXusError("NeXus file opened as readonly")
             elif self._parent.is_linked():
                 raise NeXusError("Cannot modify an item in a linked group")
-        super(AttrDict, self).__delitem__(key)
+        super().__delitem__(key)
         if isinstance(self._parent, NXobject):
             self._parent.set_changed()
             if self._parent.nxfilemode == 'rw':
@@ -1896,8 +1899,8 @@ class NXobject(object):
     Attributes
     ----------
     nxclass : str
-        The class of the NXobject. NXobjects can have class NXfield, NXgroup, or
-        be one of the NXgroup subclasses.
+        The class of the NXobject. NXobjects can have class NXfield, NXgroup, 
+        or be one of the NXgroup subclasses.
     nxname : str
         The name of the NXobject. Since it is possible to reference the same
         Python object multiple times, this is not necessarily the same as the
@@ -1913,12 +1916,12 @@ class NXobject(object):
         NXgroup.
     nxroot : NXgroup
         The root object of the NeXus tree containing this object. For
-        NeXus data read from a file, this will be a group of class NXroot, but
-        if the NeXus tree was defined interactively, it can be any valid
-        NXgroup.
+        NeXus data read from a file, this will be a group of class 
+        NXroot, but if the NeXus tree was defined interactively, it can 
+        be any valid NXgroup.
     nxfile : NXFile
-        The file handle of the root object of the NeXus tree containing this
-        object.
+        The file handle of the root object of the NeXus tree containing 
+        this object.
     nxfilename : str
         The file name of NeXus object's tree file handle.
     attrs : dict
@@ -2704,9 +2707,8 @@ class NXfield(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted([c for c in dir(super(self.__class__, self)) 
-                       if not c.startswith('_')]+list(self.attrs), 
-                      key=natural_sort)
+        return sorted([c for c in dir(super()) if not c.startswith('_')]
+                      + list(self.attrs), key=natural_sort)
 
     def __repr__(self):
         if self._value is not None:
@@ -3463,20 +3465,6 @@ class NXfield(NXobject):
             self[idx] += data.nxdata.astype(self.dtype)
         else:
             self[idx] += data.astype(self.dtype)
-
-    def convert(self, units=""):
-        """Returns the data in the requested units.
-        
-        This is not currently implemented.
-        """
-        try:
-            import units
-        except ImportError:
-            raise NeXusError("No conversion utility available")
-        if self._value is not None:
-            return self._converter(self.nxvalue, units)
-        else:
-            return None
 
     def walk(self):
         yield self
@@ -4247,9 +4235,8 @@ class NXgroup(NXobject):
         self.set_changed()
 
     def __dir__(self):
-        return sorted([c for c in dir(super(self.__class__, self))
-                       if not c.startswith('_')]+list(self)+list(self.attrs), 
-                      key=natural_sort)
+        return sorted([c for c in dir(super()) if not c.startswith('_')]
+                      + list(self)+list(self.attrs), key=natural_sort)
 
     def __repr__(self):
         return "%s('%s')" % (self.__class__.__name__, self.nxname)
@@ -5209,7 +5196,7 @@ class NXlink(NXobject):
         if self.nxroot is self and self._filename:
             return True
         else:
-            return super(NXlink, self).is_external()
+            return super().is_external()
 
     @property
     def attrs(self):
@@ -5806,7 +5793,7 @@ class NXdata(NXgroup):
         if name == 'mask':
             object.__setattr__(self, name, value)
         else:
-            super(NXdata, self).__setattr__(name, value)
+            super().__setattr__(name, value)
 
     def __getitem__(self, key):
         """Return an entry in the group or a NXdata group containing a slice.
@@ -5920,7 +5907,7 @@ class NXdata(NXgroup):
         key : str
             Name of the group entry to be deleted.
         """
-        super(NXdata, self).__delitem__(key)
+        super().__delitem__(key)
         if 'signal' in self.attrs and self.attrs['signal'] == key:
             del self.attrs['signal']
         elif 'axes' in self.attrs:

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2019-2020, NeXpy Development Team.
+# Copyright (c) 2019-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -28,13 +28,14 @@ Autocompletion works on each component of the following commands::
 
 """
 import re
+
 try:
     import readline
 except ImportError:
     readline = None
 from string import punctuation
-from .tree import NeXusError, NXobject
 
+from .tree import NeXusError, NXobject
 
 re_attr_match = re.compile(r"(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(r"""(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")

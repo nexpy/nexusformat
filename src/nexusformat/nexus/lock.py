@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2019-2020, NeXpy Development Team.
+# Copyright (c) 2019-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -63,7 +63,9 @@ class NXLock(object):
         self.fd = None
 
     def __repr__(self):
-        return "NXLock('"+os.path.basename(self.filename)+"', pid="+ str(self.pid)+")"
+        return ("NXLock('"
+                + os.path.basename(self.filename)
+                + "', pid=" + str(self.pid)+")")
 
     def acquire(self, timeout=None, check_interval=None):
         """Acquire the lock.
@@ -96,7 +98,8 @@ class NXLock(object):
             try:
                 # Attempt to create the lockfile. If it already exists,
                 # then someone else has the lock and we need to wait
-                self.fd = os.open(self.lock_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                self.fd = os.open(self.lock_file, os.O_CREAT |
+                                  os.O_EXCL | os.O_RDWR)
                 open(self.lock_file, 'w').write(str(self.pid))
                 break
             except OSError as e:
@@ -106,8 +109,9 @@ class NXLock(object):
                 time.sleep(check_interval)
         # Raise an error if we had to wait for too long
         else:
-            raise NXLockException("'%s' is currently locked by an external process" 
-                                  % self.filename)
+            raise NXLockException(
+                "'%s' is currently locked by an external process" 
+                % self.filename)
 
     def release(self):
         """Release the lock.
@@ -179,9 +183,10 @@ class NXLock(object):
                 if not os.path.exists(self.lock_file):
                     break
             else:
-                raise NXLockException("'%s' is currently locked by an external process" 
-                                      % self.filename)
-        return        
+                raise NXLockException(
+                    "'%s' is currently locked by an external process" 
+                    % self.filename)
+        return
 
     def __enter__(self):
         return self.acquire()

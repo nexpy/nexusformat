@@ -8,10 +8,9 @@ nexusformat package to work with HDF5 files served by h5serv.
 """
 import os
 
-import numpy as np
 import h5pyd as h5
-
-from nexusformat.nexus import *
+import numpy as np
+from nexusformat.nexus import NXfield, NXFile, NXgroup, NXlinkfield
 
 NX_SERVER = 'http://hdfgroup.org:5000'
 NX_DOMAIN = 'exfac.org'

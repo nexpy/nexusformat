@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #-----------------------------------------------------------------------------
-# Copyright (c) 2014, NeXpy Development Team.
+# Copyright (c) 2014-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -18,38 +18,31 @@ NeXus is a common data format for neutron, Xray and muon science.
 The files contain multidimensional data elements grouped into a
 hierarchical structure.  The data sets are self-describing, with
 a description of the instrument configuration including the units
-used as well as the data measured.
-
-The NeXus file interface requires compiled libraries to read the
-underlying HDF or XML files.  Binary packages are available for some
-platforms from the NeXus site.  Details of where the nexus package
-searches for the libraries are recorded in `nexus.napi`.
+used as well as the data measured. NeXus data are written to HDF5 
+files and accessed in this package using h5py. 
 
 Example
 =======
 
 First we need to load the file structure::
 
-    import nexus
-    f = nexus.load('file.nxs')
+    import nexusformat.nexus as nx
+    f = nx.load('file.nxs')
 
 We can examine the file structure using a number of commands::
 
     f.attrs             # Shows file name, date, user, and NeXus version
-    f.tree()            # Lists the entire contents of the NeXus file
-    f.NXentry           # Shows the list of datasets in the file
+    print(f.tree)       # Lists the entire contents of the NeXus file
+    f.NXentry           # Shows the list of scans in the file
     f.NXentry[0].dir()  # Lists the fields in the first entry
 
 Some files can even be plotted automatically::
 
-    f.NXentry[0].data.plot()
+    f.NXentry[0].NXdata[0].plot()
 
-We can create a copy of the file using write::
-
-    nexus.save('copy.nxs', tree)
 
 For a complete description of the features available in this tree view
-of the NeXus data file, see `nexus.tree`.
+of the NeXus data file, see `nx.tree`.
 """
 from .completer import nxcompleter
 from .lock import NXLock, NXLockException

@@ -1,12 +1,11 @@
-import numpy as np
 import os
+
+import numpy as np
 import pytest
-from nexusformat.nexus import *
-
-arr1D = np.linspace(0.0, 100.0, 101, dtype=np.float64)
+from nexusformat.nexus.tree import NXfield, NXgroup, NXroot, nxload
 
 
-def test_field_masks():
+def test_field_masks(arr1D):
     field = NXfield(arr1D)
     field[10:20] = np.ma.masked
 
@@ -25,7 +24,7 @@ def test_field_masks():
 
 
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_group_masks(tmpdir, save):
+def test_group_masks(tmpdir, arr1D, save):
     group = NXgroup(NXfield(arr1D, name='field'))
     group['field'][10:20] = np.ma.masked
 
@@ -48,4 +47,3 @@ def test_group_masks(tmpdir, save):
 
     assert np.all(group['field'].mask[10:12] == np.array([False, True]))
     assert np.all(group['field_mask'][10:12] == np.array([False, True]))
-

@@ -1,10 +1,7 @@
-import pytest
-from nexusformat.nexus import *
-
-field1 = NXfield((1,2), name="f1")
+from nexusformat.nexus.tree import NXentry, NXgroup, NXroot
 
 
-def test_attribute_paths():
+def test_attribute_paths(field1):
 
     root = NXroot(NXentry())
     root.entry.g1 = NXgroup(field1)
@@ -18,7 +15,7 @@ def test_attribute_paths():
     assert root.entry.g1.f1.nxroot is root
 
 
-def test_dictionary_paths():
+def test_dictionary_paths(field1):
 
     root = NXroot(NXentry())
     root["entry/g1"] = NXgroup(field1)
@@ -32,7 +29,7 @@ def test_dictionary_paths():
     assert root["/entry/g1/f1"].nxroot is root
 
 
-def test_relative_paths():
+def test_relative_paths(field1):
 
     root = NXroot(NXentry())
     root["entry/g1"] = NXgroup()

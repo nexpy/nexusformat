@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #-----------------------------------------------------------------------------
-# Copyright (c) 2019-2020, NeXpy Development Team.
+# Copyright (c) 2019-2021, NeXpy Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #

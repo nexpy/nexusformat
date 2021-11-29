@@ -5362,7 +5362,7 @@ class NXroot(NXgroup):
                 self.set_changed()
             else:
                 raise NeXusError(
-                    f"'os.path.abspath(self.nxfilename)' does not exist")
+                    f"'{os.path.abspath(self.nxfilename)}' does not exist")
 
     def unlock(self):
         """Make the tree modifiable."""

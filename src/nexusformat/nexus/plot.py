@@ -1,7 +1,7 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2013-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
@@ -9,7 +9,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 """Module to provide standard Matplotlib plotting to the NeXus Python API."""
 import copy
@@ -23,14 +23,14 @@ def centers(axis, dimlen):
 
     This works regardless of whether the axis consists of bin boundaries,
     i.e, `dimlen = len(axis) + 1``, or centers, i.e., `dimlen = len(axis)`.
-    
+
     Parameters
     ----------
     axis : ndarray
         Array containing the axis values.
     dimlen : int
         Length of corresponding data dimension.
-    
+
     Returns
     -------
     ndarray
@@ -49,14 +49,14 @@ def boundaries(axis, dimlen):
 
     This works regardless of whether the axis consists of bin boundaries,
     i.e, dimlen = len(axis) + 1, or centers, i.e., dimlen = len(axis).
-    
+
     Parameters
     ----------
     axis : ndarray
         Array containing the axis values.
     dimlen : int
         Length of corresponding data dimension.
-    
+
     Returns
     -------
     ndarray
@@ -67,7 +67,7 @@ def boundaries(axis, dimlen):
         start = ax[0] - (ax[1] - ax[0])/2
         end = ax[-1] + (ax[-1] - ax[-2])/2
         return np.concatenate((np.atleast_1d(start),
-                               (ax[:-1] + ax[1:])/2, 
+                               (ax[:-1] + ax[1:])/2,
                                np.atleast_1d(end)))
     else:
         assert ax.shape[0] == dimlen + 1
@@ -79,12 +79,12 @@ def label(field):
 
     This returns the attribute 'long_name' if it exists, or the field name,
     followed by the units attribute if it exists.
-    
+
     Parameters
     ----------
     field : NXfield
         NeXus field used to construct the label.
-    
+
     Returns
     -------
     str
@@ -93,7 +93,7 @@ def label(field):
     if 'long_name' in field.attrs:
         return field.long_name
     elif 'units' in field.attrs:
-        return "%s (%s)"%(field.nxname, field.units)
+        return "%s (%s)" % (field.nxname, field.units)
     else:
         return field.nxname
 
@@ -101,15 +101,15 @@ def label(field):
 class PylabPlotter(object):
     """Matplotlib plotter class for 1D or 2D NeXus data.
 
-    When the nexusformat package is used within NeXpy, plots are produced by 
-    calling the NXPlotView class function, 'plot'. This provides a function 
+    When the nexusformat package is used within NeXpy, plots are produced by
+    calling the NXPlotView class function, 'plot'. This provides a function
     with the same call signature for use outside NeXpy.
     """
 
-    def plot(self, data_group, fmt=None, xmin=None, xmax=None, 
+    def plot(self, data_group, fmt=None, xmin=None, xmax=None,
              ymin=None, ymax=None, vmin=None, vmax=None, **kwargs):
         """Plot the NXdata group.
-        
+
         Parameters
         ----------
         data_group : NXdata
@@ -160,13 +160,13 @@ class PylabPlotter(object):
         title = data_group.nxtitle
 
         # Provide a new view of the data if there is a dimension of length 1
-        data, axes = (signal.nxdata.reshape(data_group.plot_shape), 
+        data, axes = (signal.nxdata.reshape(data_group.plot_shape),
                       data_group.plot_axes)
 
         if weights and data_group.nxweights:
             with np.errstate(divide='ignore'):
                 w = data_group.nxweights.nxdata.reshape(data_group.plot_shape)
-                data = np.where(w>0, data/w, 0.0)
+                data = np.where(w > 0, data/w, 0.0)
 
         isinteractive = plt.isinteractive()
         plt.ioff()
@@ -183,7 +183,7 @@ class PylabPlotter(object):
             else:
                 ax = plt.gca()
 
-            #One-dimensional Plot
+            # One-dimensional Plot
             if len(data.shape) == 1:
                 if 'marker' in kwargs:
                     fmt = kwargs.pop('marker')
@@ -194,29 +194,29 @@ class PylabPlotter(object):
                         errors = NXfield(np.sqrt(data))
                 if errors:
                     ebars = errors.nxdata
-                    ax.errorbar(centers(axes[0], data.shape[0]), data, ebars, 
+                    ax.errorbar(centers(axes[0], data.shape[0]), data, ebars,
                                 fmt=fmt, **kwargs)
                 else:
-                    ax.plot(centers(axes[0], data.shape[0]), data, fmt, 
+                    ax.plot(centers(axes[0], data.shape[0]), data, fmt,
                             **kwargs)
                 if not over:
-                    if xmin is not None: 
+                    if xmin is not None:
                         ax.set_xlim(left=xmin)
                     if xmax is not None:
                         ax.set_xlim(right=xmax)
-                    if ymin is not None: 
-                       ax.set_ylim(bottom=ymin)
+                    if ymin is not None:
+                        ax.set_ylim(bottom=ymin)
                     if ymax is not None:
                         ax.set_ylim(top=ymax)
-                    if logx: 
+                    if logx:
                         ax.set_xscale('log')
-                    if log or logy: 
+                    if log or logy:
                         ax.set_yscale('log')
                     plt.xlabel(label(axes[0]))
                     plt.ylabel(label(signal))
                     plt.title(title)
 
-            #Two dimensional plot
+            # Two dimensional plot
             else:
                 from matplotlib.colors import LogNorm, Normalize
                 from matplotlib.cm import get_cmap
@@ -230,11 +230,11 @@ class PylabPlotter(object):
                     y = boundaries(axes[-2], data.shape[-2])
                     xlabel, ylabel = label(axes[-1]), label(axes[-2])
 
-                if not vmin: 
-                    vmin = np.nanmin(data[data>-np.inf])
-                if not vmax: 
-                    vmax = np.nanmax(data[data<np.inf])
-            
+                if not vmin:
+                    vmin = np.nanmin(data[data > -np.inf])
+                if not vmax:
+                    vmax = np.nanmax(data[data < np.inf])
+
                 if image:
                     im = ax.imshow(data, origin='upper', **kwargs)
                     ax.set_aspect('equal')
@@ -250,7 +250,7 @@ class PylabPlotter(object):
                     if regular:
                         extent = (x[0], x[-1], y[0], y[-1])
                         kwargs['interpolation'] = interpolation
-                        im = ax.imshow(data, origin=origin, extent=extent, 
+                        im = ax.imshow(data, origin=origin, extent=extent,
                                        cmap=cm, **kwargs)
                     else:
                         im = ax.pcolormesh(x, y, data, cmap=cm, **kwargs)
@@ -268,21 +268,21 @@ class PylabPlotter(object):
                                 _yscale = 1.0
                             aspect = float(_yscale / _xscale)
                         except Exception as error:
-                            raise NeXusError(str(error))              
+                            raise NeXusError(str(error))
                     ax.set_aspect(aspect)
                     if colorbar:
                         plt.colorbar(im)
-	
-                if xmin is not None: 
+
+                if xmin is not None:
                     ax.set_xlim(left=xmin)
-                if xmax is not None: 
+                if xmax is not None:
                     ax.set_xlim(right=xmax)
-                if ymin is not None: 
+                if ymin is not None:
                     if image:
                         ax.set_ylim(top=ymin)
                     else:
                         ax.set_ylim(bottom=ymin)
-                if ymax is not None: 
+                if ymax is not None:
                     if image:
                         ax.set_ylim(bottom=ymax)
                     else:
@@ -301,5 +301,6 @@ class PylabPlotter(object):
         finally:
             if isinteractive:
                 plt.ion()
+
 
 plotview = PylabPlotter()

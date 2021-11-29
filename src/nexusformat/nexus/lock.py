@@ -1,7 +1,7 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2019-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
@@ -9,7 +9,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 """Module to provide a file locking mechanism to prevent data corruption."""
 
@@ -25,11 +25,11 @@ class NXLockException(Exception):
 
 class NXLock(object):
     """Class for acquiring and releasing file-based locks.
-    
+
     Attributes
     ----------
     lock_file : str
-        Name of the lock file. This has the extension `.lock` appended to 
+        Name of the lock file. This has the extension `.lock` appended to
         the name of the locked file.
     pid : int
         Current process id.
@@ -41,18 +41,18 @@ class NXLock(object):
         """Create a lock to prevent file access.
 
         This creates a lock, which can be later acquired and released. It
-        creates a file, named `<filename>.lock`, which contains the 
-        calling process ID. 
-        
+        creates a file, named `<filename>.lock`, which contains the
+        calling process ID.
+
         Parameters
         ----------
         filename : str
             Name of file to be locked.
         timeout : int, optional
-            Number of seconds to wait for a prior lock to clear before 
+            Number of seconds to wait for a prior lock to clear before
             raising a NXLockException, by default 60.
         check_interval : int, optional
-            Number of seconds between attempts to acquire the lock, 
+            Number of seconds between attempts to acquire the lock,
             by default 1.
         """
         self.filename = os.path.realpath(filename)
@@ -69,16 +69,16 @@ class NXLock(object):
 
     def acquire(self, timeout=None, check_interval=None):
         """Acquire the lock.
-        
+
         Parameters
         ----------
         timeout : int, optional
-            Number of seconds to wait for a prior lock to clear before 
+            Number of seconds to wait for a prior lock to clear before
             raising a NXLockException, by default `self.timeout`.
         check_interval : int, optional
-            Number of seconds between attempts to acquire the lock, 
+            Number of seconds between attempts to acquire the lock,
             by default `self.check_interval`.
-        
+
         Raises
         ------
         NXLockException
@@ -110,12 +110,12 @@ class NXLock(object):
         # Raise an error if we had to wait for too long
         else:
             raise NXLockException(
-                "'%s' is currently locked by an external process" 
+                "'%s' is currently locked by an external process"
                 % self.filename)
 
     def release(self):
         """Release the lock.
-        
+
         Note
         ====
         This will only work if the lock was created by the current process.
@@ -127,7 +127,7 @@ class NXLock(object):
             except FileNotFoundError:
                 pass
             self.fd = None
- 
+
     @property
     def locked(self):
         """Return True if the current process has locked the file."""
@@ -135,7 +135,7 @@ class NXLock(object):
 
     def clear(self):
         """Clear the lock even if created by another process.
-        
+
         This will either release a lock created by the current process or
         remove the lock file created by an external process.
 
@@ -155,18 +155,18 @@ class NXLock(object):
 
     def wait(self, timeout=None, check_interval=None):
         """Wait until an existing lock is cleared.
-        
+
         This is for use in processes checking for external locks.
-        
+
         Parameters
         ----------
         timeout : int, optional
-            Number of seconds to wait for a prior lock to clear before 
+            Number of seconds to wait for a prior lock to clear before
             raising a NXLockException, by default `self.timeout`.
         check_interval : int, optional
-            Number of seconds between attempts to acquire the lock, 
+            Number of seconds between attempts to acquire the lock,
             by default `self.check_interval`.
-        
+
         Raises
         ------
         NXLockException
@@ -174,7 +174,7 @@ class NXLock(object):
         """
         if os.path.exists(self.lock_file):
             if timeout is None:
-                timeout = self.timeout 
+                timeout = self.timeout
             if check_interval is None:
                 check_interval = self.check_interval
             timeoutend = timeit.default_timer() + timeout
@@ -184,7 +184,7 @@ class NXLock(object):
                     break
             else:
                 raise NXLockException(
-                    "'%s' is currently locked by an external process" 
+                    "'%s' is currently locked by an external process"
                     % self.filename)
         return
 

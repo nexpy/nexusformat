@@ -110,8 +110,8 @@ class NXLock(object):
         # Raise an error if we had to wait for too long
         else:
             raise NXLockException(
-                "'%s' is currently locked by an external process"
-                % self.filename)
+                f"'{self.filename}' is currently locked by an external process"
+                )
 
     def release(self):
         """Release the lock.
@@ -183,9 +183,8 @@ class NXLock(object):
                 if not os.path.exists(self.lock_file):
                     break
             else:
-                raise NXLockException(
-                    "'%s' is currently locked by an external process"
-                    % self.filename)
+                raise NXLockException(f"'{self.filename}' is currently locked "
+                                      "by an external process")
         return
 
     def __enter__(self):

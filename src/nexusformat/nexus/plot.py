@@ -93,7 +93,7 @@ def label(field):
     if 'long_name' in field.attrs:
         return field.long_name
     elif 'units' in field.attrs:
-        return "%s (%s)" % (field.nxname, field.units)
+        return f"{field.nxname} ({field.units})"
     else:
         return field.nxname
 

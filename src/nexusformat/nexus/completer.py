@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2019-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
@@ -9,7 +9,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 """IPython extension to allow autocompletion of NeXus object names.
 
@@ -40,6 +40,7 @@ from .tree import NeXusError, NXobject
 re_attr_match = re.compile(r"(.+\[.*\].*)\.(\w*)$")
 re_item_match = re.compile(r"""(.*)\[(?P<s>['|"])(?!.*(?P=s))(.*)$""")
 re_object_match = re.compile(r"(.+?)(?:\[)")
+
 
 def _retrieve_obj(name, shell):
     """Retrieve the NeXus object at the base of the command.
@@ -181,9 +182,11 @@ def nxcompleter(shell, event):
     from IPython.core.error import TryNext
 
     if readline is None:
-        raise NeXusError("Install the readline module to enable tab completion")
+        raise NeXusError(
+            "Install the readline module to enable tab completion")
 
-    command = re.split('[ !#$%&()*+,:;<=>?@^~]', event.line)[-1].lstrip(punctuation)
+    command = re.split('[ !#$%&()*+,:;<=>?@^~]',
+                       event.line)[-1].lstrip(punctuation)
     try:
         base = re_object_match.split(command)[1]
     except Exception:
@@ -219,7 +222,8 @@ def load_ipython_extension(ip=None):
     """
     from IPython import get_ipython
     if readline is None:
-        raise NeXusError("Install the readline module to enable tab completion")
+        raise NeXusError(
+            "Install the readline module to enable tab completion")
     if ip is None:
         ip = get_ipython()
     ip.Completer.use_jedi = False

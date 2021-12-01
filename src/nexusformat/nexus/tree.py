@@ -6745,6 +6745,35 @@ class NXdata(NXgroup):
             self[name] = weights
 
     @property
+    def nxangles(self):
+        """Attribute containing angles between the axes in degrees."""
+        if 'angles' in self.attrs:
+            try:
+                return self.attrs['angles'].tolist()
+            except AttributeError:
+                return self.attrs['angles']
+        else:
+            return None
+
+    @nxangles.setter
+    def nxangles(self, angles):
+        if self.ndim == 2:
+            try:
+                self.attrs['angles'] = float(angles)
+            except TypeError:
+                raise NeXusError("Specify a single number for 2D data")
+        elif self.ndim == 3:
+            try:
+                if len(angles) == 3:
+                    self.attrs['angles'] = [float(a) for a in angles]
+                else:
+                    raise NeXusError("Specify three numbers for 3D data")
+            except TypeError:
+                raise NeXusError("Specify three numbers for 3D data")
+        else:
+            raise NeXusError("Angles only supported for 2D and 3D data")
+
+    @property
     def mask(self):
         """NXfield containing the signal mask if one exists.
 

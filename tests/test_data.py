@@ -245,6 +245,13 @@ def test_data_weights():
     assert np.array_equal(new_data.nxweights, w1/2)
 
 
+def test_data_angles(data):
+
+    data.nxangles = [120, 90, 90]
+
+    assert data.nxangles == [120.0, 90.0, 90.0]
+
+
 def test_data_slabs(data, x, y, v):
 
     slab = data[0, :, :]

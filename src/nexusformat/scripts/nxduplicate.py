@@ -24,7 +24,7 @@ def main():
     parser.add_argument('-o', '--overwrite', action='store_true',
                         help="overwrite any existing file")
     parser.add_argument('-v', '--version', action='version',
-                        version='nxduplicate v%s' % __version__)
+                        version=f'nxduplicate v{__version__}')
 
     args = parser.parse_args()
 

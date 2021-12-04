@@ -130,6 +130,13 @@ class PylabPlotter(object):
             Maximum signal value for 2D plots, by default None
         **kwargs : dict
             Options used to customize the plot.
+
+        Note
+        ----
+        If the qualitative color map, 'tab10', is specified as a
+        keyword argument, the color scale is chosen so that all the
+        integer values are centered on each color band, if the
+        maximum intensity is less than 10.
         """
         try:
             import matplotlib.pyplot as plt
@@ -271,7 +278,18 @@ class PylabPlotter(object):
                             raise NeXusError(str(error))
                     ax.set_aspect(aspect)
                     if colorbar:
-                        plt.colorbar(im)
+                        cb = plt.colorbar(im)
+                        if cmap == 'tab10':
+                            from matplotlib import __version__
+                            cmin, cmax = im.get_clim()
+                            if cmax - cmin <= 9:
+                                if cmin == 0:
+                                    im.set_clim(-0.5, 9.5)
+                                elif cmin == 1:
+                                    im.set_clim(0.5, 10.5)
+                                if __version__ >= '3.5.0':
+                                    cb.ax.set_ylim(cmin-0.5, cmax+0.5)
+                                    cb.set_ticks(range(int(cmin), int(cmax)+1))
 
                 if xmin is not None:
                     ax.set_xlim(left=xmin)

@@ -1,12 +1,11 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
-This package provides a Python API that subclasses the 
-nexusformat package to work with HDF5 files served by h5serv. 
+This package provides a Python API that subclasses the nexusformat
+package to work with HDF5 files served by h5serv.
 
 """
-import os
 
 import h5pyd as h5
 import numpy as np
@@ -15,9 +14,10 @@ from nexusformat.nexus import NXfield, NXFile, NXgroup, NXlinkfield
 NX_SERVER = 'http://hdfgroup.org:5000'
 NX_DOMAIN = 'exfac.org'
 
-__all__ = ['NXRemoteFile', 'nxloadremote', 
-           'nxgetserver', 'nxsetserver', 'NX_SERVER', 
+__all__ = ['NXRemoteFile', 'nxloadremote',
+           'nxgetserver', 'nxsetserver', 'NX_SERVER',
            'nxgetdomain', 'nxsetdomain', 'NX_DOMAIN']
+
 
 class NXRemoteFile(NXFile):
 
@@ -49,7 +49,7 @@ class NXRemoteFile(NXFile):
     The :class:`NXdata` objects in the returned tree hold the object values.
     """
 
-    def __init__(self, name, mode='r', server=None,  domain=None, 
+    def __init__(self, name, mode='r', server=None,  domain=None,
                  **kwds):
         """
         Creates an h5py File object for reading and writing.
@@ -64,16 +64,15 @@ class NXRemoteFile(NXFile):
             domain = NX_DOMAIN
         self._domain = domain
         self._file = self.h5.File(self.domain, mode, endpoint=server)
-        self._filename = self.domain                             
+        self._filename = self.domain
         self._path = '/'
 
     def __repr__(self):
-        return '<NXRemoteFile "%s" (mode %s)>' % (self._filename,
-                                                  self._mode)
+        return f'<NXRemoteFile "{self._filename}" (mode {self._mode})>'
 
     def open(self, **kwds):
         if not self.isopen():
-            self._file = self.h5.File(self._filename,self._mode, 
+            self._file = self.h5.File(self._filename, self._mode,
                                       endpoint=self._server)
             self.nxpath = '/'
         return self
@@ -103,8 +102,8 @@ class NXRemoteFile(NXFile):
 
     def readfile(self):
         """
-        Reads the NeXus file structure from the file and returns a tree of 
-        NXobjects.
+        Reads the NeXus file structure from the file and returns a tree
+        of NXobjects.
 
         Large datasets are not read until they are needed.
         """
@@ -142,7 +141,7 @@ class NXRemoteFile(NXFile):
         else:
             nxclass = 'NXgroup'
         children = self._readchildren(group)
-        group = NXgroup(nxclass=nxclass, name=name, attrs=attrs, 
+        group = NXgroup(nxclass=nxclass, name=name, attrs=attrs,
                         entries=children)
         for obj in children.values():
             obj._group = group
@@ -157,12 +156,14 @@ class NXRemoteFile(NXFile):
             return NXfield(name=name)
         value, shape, dtype, attrs = self.readvalues(field)
         if 'target' in attrs and self.nxpath != 'target':
-            return NXlinkfield(value=value, name=name, dtype=dtype, shape=shape, 
-                               target=self.attrs['target'], attrs=attrs)
+            return NXlinkfield(
+                value=value, name=name, dtype=dtype, shape=shape,
+                target=self.attrs['target'],
+                attrs=attrs)
         else:
-            return NXfield(value=value, name=name, dtype=dtype, shape=shape, 
+            return NXfield(value=value, name=name, dtype=dtype, shape=shape,
                            attrs=attrs)
- 
+
     def _readattrs(self):
         return dict(self[self.nxpath].attrs.items())
 
@@ -170,8 +171,8 @@ class NXRemoteFile(NXFile):
         shape, dtype = field.shape, field.dtype
         if shape == (1,):
             shape = ()
-        #Read in the data if it's not too large
-        if np.prod(shape) < 1000:# i.e., less than 1k dims
+        # Read in the data if it's not too large
+        if np.prod(shape) < 1000:  # i.e., less than 1k dims
             try:
                 value = field[()]
                 if isinstance(value, np.ndarray) and value.shape == (1,):
@@ -183,11 +184,14 @@ class NXRemoteFile(NXFile):
         attrs = self.attrs
         return value, shape, dtype, attrs
 
+
 def getserver():
     global NX_SERVER
     return NX_SERVER
 
+
 nxgetserver = getserver
+
 
 def setserver(value):
     """
@@ -196,13 +200,17 @@ def setserver(value):
     global NX_SERVER
     NX_SERVER = value
 
+
 nxsetserver = setserver
+
 
 def getdomain():
     global NX_DOMAIN
     return NX_DOMAIN
 
+
 nxgetdomain = getdomain
+
 
 def setdomain(value):
     """
@@ -211,7 +219,9 @@ def setdomain(value):
     global NX_DOMAIN
     NX_DOMAIN = value
 
+
 nxsetdomain = setdomain
+
 
 def loadremote(filename, server=None, domain=None, mode='r'):
     """
@@ -224,5 +234,6 @@ def loadremote(filename, server=None, domain=None, mode='r'):
     with NXRemoteFile(filename, mode, server=server, domain=domain) as f:
         tree = f.readfile()
     return tree
+
 
 nxloadremote = loadremote

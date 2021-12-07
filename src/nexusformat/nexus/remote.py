@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 This package provides a Python API that subclasses the nexusformat
 package to work with HDF5 files served by h5serv.

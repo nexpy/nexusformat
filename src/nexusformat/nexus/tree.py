@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # -----------------------------------------------------------------------------
 # Copyright (c) 2013-2021, NeXpy Development Team.
 #
@@ -449,8 +447,8 @@ class NXFile(object):
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
             except Exception:
-                raise NeXusError("'%s' cannot be opened by h5py"
-                                 % self._filename)
+                raise NeXusError(
+                    f"'{self._filename}' cannot be opened by h5py")
             self._mode = 'rw'
         else:
             if mode == 'rw' or mode == 'r+':
@@ -5065,7 +5063,7 @@ class NXlink(NXobject):
         try:
             return getattr(self.nxlink, name)
         except Exception:
-            raise NeXusError("Cannot resolve the link to '%s'" % self._target)
+            raise NeXusError(f"Cannot resolve the link to '{self._target}'")
 
     def __setattr__(self, name, value):
         """Set an attribute of the link target.
@@ -5201,8 +5199,8 @@ class NXlink(NXobject):
             item._mode = 'r'
             return item
         except Exception:
-            raise NeXusError("Cannot read the external link to '%s'"
-                             % self._filename)
+            raise NeXusError(
+                f"Cannot read the external link to '{self._filename}'")
 
     def is_external(self):
         if self.nxroot is self and self._filename:

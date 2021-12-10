@@ -1,7 +1,4 @@
-#!/usr/bin/env python 
-# -*- coding: utf-8 -*-
-
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2013-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
@@ -9,7 +6,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 """
 Python NeXus interface.
@@ -18,8 +15,8 @@ NeXus is a common data format for neutron, Xray and muon science.
 The files contain multidimensional data elements grouped into a
 hierarchical structure.  The data sets are self-describing, with
 a description of the instrument configuration including the units
-used as well as the data measured. NeXus data are written to HDF5 
-files and accessed in this package using h5py. 
+used as well as the data measured. NeXus data are written to HDF
+files and accessed in this package using h5py.
 
 Example
 =======

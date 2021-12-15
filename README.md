@@ -17,16 +17,10 @@ Released versions of `nexusformat` can be installed using either
     $ pip install nexusformat
 ```
 
-or
+or, if you are in a conda environment::
 
 ```
-    $ easy_install nexusformat
-```
-
-If you have an Anaconda installation, use::
-
-```
-    $ conda install -c nexpy nexusformat
+    $ conda install -c conda-forge nexusformat
 ```
 
 The source code can be downloaded from the NeXpy Git repository:

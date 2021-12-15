@@ -14,15 +14,13 @@ repository <https://github.com/nexpy/nexusformat>.
 Installing and Running
 ======================
 
-Released versions of NeXpy-RO are available on PyPI. If you have the Python 
-Setup Tools <https://pypi.python.org/pypi/setuptools> installed, then you can 
-install using either::
+Released versions of this package can be installed using either
 
     $ pip install nexusformat
 
-or:: 
+or, if you are in a conda environment,
 
-    $ easy_install nexusformat 
+    $ conda install -c conda-forge nexusformat
 
 The latest development versions of nexpy-api can be downloaded from the NeXpy 
 Git repository <https://github.com/nexpy/nexusformat>.

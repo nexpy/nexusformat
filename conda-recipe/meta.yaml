@@ -16,13 +16,11 @@ requirements:
   build:
     - python >=3.6
     - setuptools
-    - versioneer
 
   run:
     - python >=3.6
     - numpy >=1.16
     - h5py
-    - versioneer
 
 test:
   commands:

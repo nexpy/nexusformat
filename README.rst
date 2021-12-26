@@ -1,21 +1,14 @@
 Installation
 ============
-Released versions of the NeXus Python API are available on `PyPI 
-<https://pypi.python.org/pypi/nexusformat/>`_. If you have the `Python Setup 
-Tools <https://pypi.python.org/pypi/setuptools>`_ installed, then you can 
-install using either::
+Released versions of this package can be installed using either::
 
     $ pip install nexusformat
 
-or:: 
+or, if you are in a conda environment::
 
-    $ easy_install nexusformat 
+    $ conda install -c conda-forge nexusformat
 
-or::
-
-    $ conda install -c https://conda.anaconda.org/nexpy nexusformat
-
-If you have trouble with the pip or easy_install installations, you can install
+If you have trouble with the pip or conda installations, you can install
 the package from the source code either by downloading one of the 
 `Github releases <https://github.com/nexpy/nexusformat/releases>`_ or by cloning 
 the latest development version in the 

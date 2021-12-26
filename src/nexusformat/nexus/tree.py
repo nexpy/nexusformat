@@ -5345,6 +5345,13 @@ class NXroot(NXgroup):
         self._file_modified = False
         NXgroup.__init__(self, *args, **kwargs)
 
+    def __repr__(self):
+        """Customize display of NXroot when associated with a file."""
+        if self.nxfilename:
+            return f"NXroot('{os.path.basename(self.nxfilename)}')"
+        else:
+            return f"NXroot('{self.nxname}')"
+
     def reload(self):
         """Reload the NeXus file from disk."""
         if self.nxfilemode:

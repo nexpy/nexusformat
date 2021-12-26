@@ -10,6 +10,7 @@
 
 """Module to provide standard Matplotlib plotting to the NeXus Python API."""
 import copy
+
 import numpy as np
 
 from . import NeXusError, NXfield
@@ -222,8 +223,8 @@ class PylabPlotter(object):
 
             # Two dimensional plot
             else:
-                from matplotlib.colors import LogNorm, Normalize
                 from matplotlib.cm import get_cmap
+                from matplotlib.colors import LogNorm, Normalize
 
                 if image:
                     x = boundaries(axes[-1], data.shape[-2])
@@ -277,14 +278,15 @@ class PylabPlotter(object):
                     if colorbar:
                         cb = plt.colorbar(im)
                         if cmap == 'tab10':
-                            from matplotlib import __version__
+                            from matplotlib import mpl_version
+                            from pkg_resources import parse_version as pv
                             cmin, cmax = im.get_clim()
                             if cmax - cmin <= 9:
                                 if cmin == 0:
                                     im.set_clim(-0.5, 9.5)
                                 elif cmin == 1:
                                     im.set_clim(0.5, 10.5)
-                                if __version__ >= '3.5.0':
+                                if pv(mpl_version) >= pv('3.5.0'):
                                     cb.ax.set_ylim(cmin-0.5, cmax+0.5)
                                     cb.set_ticks(range(int(cmin), int(cmax)+1))
 

@@ -7,8 +7,9 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import argparse
-from nexusformat.nexus import nxduplicate
+
 from nexusformat import __version__
+from nexusformat.nexus import nxduplicate
 
 
 def main():

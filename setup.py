@@ -7,50 +7,6 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 
-import os
-import sys
+from setuptools import setup
 
-from setuptools import Extension, find_packages, setup
-
-import versioneer
-
-sys.path.insert(0, os.path.join('src', ))
-import nexusformat
-import nexusformat.requires
-
-verbose = 1
-
-setup(name=nexusformat.__package_name__,  # NeXpy
-      version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass(),
-      license=nexusformat.__license__,
-      description=nexusformat.__description__,
-      long_description=nexusformat.__long_description__,
-      author=nexusformat.__author_name__,
-      author_email=nexusformat.__author_email__,
-      url=nexusformat.__url__,
-      download_url=nexusformat.__download_url__,
-      platforms='any',
-      python_requires='>=3.6',
-      install_requires=nexusformat.requires.pkg_requirements,
-      package_dir={'': 'src'},
-      packages=find_packages('src'),
-      entry_points={
-          'console_scripts':
-                ['nxstack=nexusformat.scripts.nxstack:main',
-                 'nxduplicate=nexusformat.scripts.nxduplicate:main',
-                 'nexusformat=nexusformat.scripts.nexusformat:main'],
-      },
-      classifiers=['Development Status :: 4 - Beta',
-                   'Intended Audience :: Developers',
-                   'Intended Audience :: Science/Research',
-                   'License :: OSI Approved :: BSD License',
-                   'Programming Language :: Python',
-                   'Programming Language :: Python :: 3',
-                   'Programming Language :: Python :: 3.6',
-                   'Programming Language :: Python :: 3.7',
-                   'Programming Language :: Python :: 3.8',
-                   'Programming Language :: Python :: 3.9',
-                   'Topic :: Scientific/Engineering',
-                   'Topic :: Scientific/Engineering :: Visualization'],
-      )
+setup()

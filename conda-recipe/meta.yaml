@@ -10,16 +10,19 @@ build:
   entry_points:
     - nxstack = nexusformat.scripts.nxstack:main
     - nxduplicate = nexusformat.scripts.nxduplicate:main
+    - nexusformat = nexusformat.scripts.nexusformat:main
   number: 0
 
 requirements:
   build:
     - python >=3.6
     - setuptools
+    - setuptools_scm
 
   run:
     - python >=3.6
-    - numpy >=1.16
+    - numpy
+    - scipy
     - h5py
 
 test:

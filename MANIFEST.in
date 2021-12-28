@@ -1,4 +1,0 @@
-include versioneer.py
-include src/nexusformat/_version.py
-include src/notebooks/*.ipynb
-include COPYING

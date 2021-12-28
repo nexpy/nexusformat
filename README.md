@@ -28,19 +28,6 @@ The source code can be downloaded from the NeXpy Git repository:
 ```
     $ git clone http://github.com/nexpy/nexusformat.git
 ```
-
-To install in the standard Python location:
-
-```
-    $ python setup.py install
-```
-
-To install in an alternate location:
-
-```
-    $ python setup.py install --prefix=/path/to/installation/dir
-```
-
 Prerequisites
 =============
 The following libraries are used by the full installation of NeXpy. There is 
@@ -49,6 +36,7 @@ more details of the nature of these dependencies in the
 
 * h5py                 http://www.h5py.org
 * numpy                http://numpy.org
+* scipy                http://scipy.org
 
 User Support
 ============

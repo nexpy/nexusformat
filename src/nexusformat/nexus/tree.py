@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2021, NeXpy Development Team.
+# Copyright (c) 2013-2022, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -192,8 +192,8 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
-           'nxversion']
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
+           'nxconsolidate', 'nxdemo', 'nxversion']
 
 import numbers
 import os
@@ -7314,6 +7314,57 @@ def directory(filename, short=False):
 
 
 nxdir = directory
+
+
+def consolidate(files, data, scan=None):
+    """Create NXdata using a virtual field to combine multiple files.
+
+    Parameters
+    ----------
+    files : list of str or NXroot
+        List of files to be consolidated. The list should be sorted to
+        ensure that the scan variable changes monotonically.
+    data : str or NXdata
+        Path to the NXdata group to be consolidated. If the argument is
+        a NXdata group, its path within the NeXus file is used.
+    scan : str or NXfield, optional
+        Path to the scan variable in each file, by default None. If the
+        argument is a NXfield, its path within the NeXus file is used.
+        If not specified, the scan is constructed from file indices.
+    """
+
+    if isinstance(files[0], str):
+        files = [nxload(f) for f in files]
+    if isinstance(data, NXdata):
+        data = data.nxpath
+    if scan:
+        if isinstance(scan, NXfield):
+            scan = scan.nxpath
+        scan_files = [f for f in files if data in f and scan in f
+                      and f[data].nxsignal.exists()]
+    else:
+        scan_files = [f for f in files if data in f
+                      and f[data].nxsignal.exists()]
+    scan_file = scan_files[0]
+    if scan:
+        scan_axis = NXfield([f[scan] for f in scan_files if scan in f],
+                            name=scan_file[scan].nxname)
+        if 'long_name' in scan_file[scan].attrs:
+            scan_axis.attrs['long_name'] = scan_file[scan].attrs['long_name']
+    else:
+        scan_axis = NXfield(range(len(scan_files)), name='file_index',
+                            long_name='File Index')
+    signal = scan_file[data].nxsignal
+    axes = scan_file[data].nxaxes
+    sources = [f[signal.nxpath].nxfilename for f in scan_files]
+    scan_field = NXvirtualfield(signal, sources, name=signal.nxname)
+    scan_data = NXdata(scan_field, [scan_axis] + axes,
+                       name=scan_file[data].nxname)
+    scan_data.title = scan_file[data].nxtitle
+    return scan_data
+
+
+nxconsolidate = consolidate
 
 
 def demo(argv):

@@ -7296,16 +7296,21 @@ def duplicate(input_file, output_file, mode='w-', **kwargs):
 nxduplicate = duplicate
 
 
-def directory(filename):
+def directory(filename, short=False):
     """Print the contents of the named NeXus file.
 
     Parameters
     ----------
     filename : str
         Name of the file to be read.
+    short : bool, optional
+        True if only a short tree is to be printed, by default False
     """
     root = load(filename)
-    print(root.tree)
+    if short:
+        print(root.short_tree)
+    else:
+        print(root.tree)
 
 
 nxdir = directory

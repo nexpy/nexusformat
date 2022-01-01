@@ -841,7 +841,8 @@ class NXFile(object):
                 target = sources[0].dset_name
                 files = [s.file_name for s in sources]
                 return NXvirtualfield(target, files, name=name, attrs=attrs,
-                                      shape=field.shape[1:], dtype=field.dtype)
+                                      shape=field.shape[1:], dtype=field.dtype,
+                                      create_vds=False)
             else:
                 return NXfield(value=value, name=name, dtype=field.dtype,
                                shape=field.shape, attrs=attrs)
@@ -4079,7 +4080,8 @@ class NXvirtualfield(NXfield):
     """
 
     def __init__(self, target, files, name='unknown', shape=None, dtype=None,
-                 group=None, attrs=None, abspath=False, **kwargs):
+                 group=None, attrs=None, abspath=False, create_vds=True,
+                 **kwargs):
         """Initialize the field containing the virtual dataset.
 
         Parameters
@@ -4119,7 +4121,7 @@ class NXvirtualfield(NXfield):
             self._vshape = None
         super().__init__(name=name, shape=self._vshape, dtype=dtype,
                          group=group, attrs=attrs, **kwargs)
-        if shape and dtype:
+        if create_vds and shape and dtype:
             self._create_virtual_data()
 
     def _create_virtual_data(self):

@@ -321,16 +321,16 @@ def test_data_smoothing(x):
 
     assert smooth_data.nxsignal.shape == (101,)
     assert smooth_data.nxaxes[0].shape == (101,)
-    assert smooth_data.nxsignal[0] == np.sin(x)[0]
-    assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+    assert smooth_data.nxsignal[0] == pytest.approx(np.sin(x)[0])
+    assert smooth_data.nxsignal[-1] == pytest.approx(np.sin(x)[-1])
 
     smooth_data = data.smooth(factor=4)
 
     assert smooth_data.nxsignal.shape == (41,)
     assert smooth_data.nxaxes[0].shape == (41,)
-    assert smooth_data.nxsignal[0] == np.sin(x)[0]
-    assert smooth_data.nxsignal[4] == np.sin(x)[1]
-    assert smooth_data.nxsignal[-1] == np.sin(x)[-1]
+    assert smooth_data.nxsignal[0] == pytest.approx(np.sin(x)[0])
+    assert smooth_data.nxsignal[4] == pytest.approx(np.sin(x)[1])
+    assert smooth_data.nxsignal[-1] == pytest.approx(np.sin(x)[-1])
 
 
 def test_data_selection():

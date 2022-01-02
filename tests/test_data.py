@@ -435,3 +435,4 @@ def test_virtual_fields(tmpdir, path, v):
     assert vds3["entry/data/v"].shape == vds1.shape
     assert vds3["entry/data/v"].dtype == v.dtype
     assert vds3["entry/data/v"].sum() == 6 * v.sum()
+    assert vds3.nxfile["entry/data/v"].is_virtual

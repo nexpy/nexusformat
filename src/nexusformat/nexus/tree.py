@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2021, NeXpy Development Team.
+# Copyright (c) 2013-2022, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -186,13 +186,14 @@ Unfortunately, there is no guarantee regarding the order of the entries, and it
 may vary from call to call, so this is mainly useful in iterative searches.
 """
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
-           'NXlink', 'NXlinkfield', 'NXlinkgroup', 'NeXusError',
+           'NXvirtualfield', 'NXlink', 'NXlinkfield', 'NXlinkgroup',
+           'NeXusError',
            'nxgetcompression', 'nxsetcompression',
            'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir', 'nxdemo',
-           'nxversion']
+           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
+           'nxconsolidate', 'nxdemo', 'nxversion']
 
 import numbers
 import os
@@ -815,7 +816,7 @@ class NXFile(object):
 
         Returns
         -------
-        NXfield or NXlinkfield
+        NXfield, NXvirtualfield, or NXlinkfield
             Field or link defined by the current path.
         """
         _target, _filename, _abspath, _soft = self._getlink()
@@ -823,9 +824,28 @@ class NXFile(object):
             return NXlinkfield(name=name, target=_target, file=_filename,
                                abspath=_abspath, soft=_soft)
         else:
-            value, shape, dtype, attrs = self.readvalues()
-            return NXfield(value=value, name=name, dtype=dtype, shape=shape,
-                           attrs=attrs)
+            field = self.get(self.nxpath)
+            # Read in the data if it's not too large
+            if np.prod(field.shape) < 1000:  # i.e., less than 1k dims
+                try:
+                    value = self.readvalue(self.nxpath)
+                except Exception:
+                    value = None
+            else:
+                value = None
+            attrs = self.attrs
+            if 'NX_class' in attrs and text(attrs['NX_class']) == 'SDS':
+                attrs.pop('NX_class')
+            if field.is_virtual:
+                sources = field.virtual_sources()
+                target = sources[0].dset_name
+                files = [s.file_name for s in sources]
+                return NXvirtualfield(target, files, name=name, attrs=attrs,
+                                      shape=field.shape[1:], dtype=field.dtype,
+                                      create_vds=False)
+            else:
+                return NXfield(value=value, name=name, dtype=field.dtype,
+                               shape=field.shape, attrs=attrs)
 
     def _readlink(self, name):
         """Read an object that is an undefined link at the current path.
@@ -4051,6 +4071,92 @@ class NXfield(NXobject):
 SDS = NXfield  # For backward compatibility
 
 
+class NXvirtualfield(NXfield):
+
+    """NeXus Virtual Field
+
+    This creates a field that is stored as an HDF5 virtual dataset
+    defined by the file path and file names of the source files.
+    """
+
+    def __init__(self, target, files, name='unknown', shape=None, dtype=None,
+                 group=None, attrs=None, abspath=False, create_vds=True,
+                 **kwargs):
+        """Initialize the field containing the virtual dataset.
+
+        Parameters
+        ----------
+        target : str or NXfield
+            The field to be added from each source dataset. If it is a
+            string, it defines the path to the field within each source
+            file. If it is a NXfield, the path to the field is used, and
+            its shape and dtype override their respective arguments.
+        files : list of str
+            Paths to the source files. These must either be absolute
+            paths or, if abspath is False, a valid relative path.
+        shape : tuple, optional
+            Shape of each source field, by default None. If None, the
+            shape is derived from the target, which must be a NXfield.
+        dtype : dtype, optional
+            Data type of the virtual dataset, by default None. If None,
+            the data type is derived from the target, which must be a
+            NXfield.
+        group : [type], optional
+            Parent group of NeXus field, by default None
+        attrs : [type], optional
+            Dictionary containing NXfield attributes, by default None
+        """
+        if isinstance(target, NXfield):
+            shape = target.shape
+            dtype = target.dtype
+            target = target.nxfilepath
+        self._vpath = target
+        if abspath:
+            self._vfiles = [os.path.abspath(f) for f in files]
+        else:
+            self._vfiles = files
+        if shape:
+            self._vshape = (len(self._vfiles),) + shape
+        else:
+            self._vshape = None
+        super().__init__(name=name, shape=self._vshape, dtype=dtype,
+                         group=group, attrs=attrs, **kwargs)
+        if create_vds and shape and dtype:
+            self._create_virtual_data()
+
+    def _create_virtual_data(self):
+        source_shape = self.shape[1:]
+        maxshape = (None,) + source_shape
+        layout = h5.VirtualLayout(shape=self._vshape, dtype=self.dtype,
+                                  maxshape=maxshape)
+        for i, f in enumerate(self._vfiles):
+            layout[i] = h5.VirtualSource(f, self._vpath, shape=source_shape)
+        self._create_memfile()
+        self._memfile.create_virtual_dataset('data', layout)
+
+    def __deepcopy__(self, memo={}):
+        """Return a deep copy of the virtual field and its attributes."""
+        obj = self
+        dpcpy = obj.__class__(self._vpath, self._vfiles)
+        memo[id(self)] = dpcpy
+        dpcpy._name = copy(self.nxname)
+        dpcpy._dtype = copy(obj.dtype)
+        dpcpy._shape = copy(obj.shape)
+        dpcpy._vshape = copy(obj._vshape)
+        dpcpy._vpath = copy(obj._vpath)
+        dpcpy._vfiles = copy(obj._vfiles)
+        dpcpy._create_virtual_data()
+        dpcpy._h5opts = copy(obj._h5opts)
+        dpcpy._changed = True
+        dpcpy._uncopied_data = None
+        for k, v in obj.attrs.items():
+            dpcpy.attrs[k] = copy(v)
+        if 'target' in dpcpy.attrs:
+            del dpcpy.attrs['target']
+        dpcpy._group = None
+        return dpcpy
+
+
 class NXgroup(NXobject):
 
     """NeXus group.
@@ -7190,19 +7296,80 @@ def duplicate(input_file, output_file, mode='w-', **kwargs):
 nxduplicate = duplicate
 
 
-def directory(filename):
+def directory(filename, short=False):
     """Print the contents of the named NeXus file.
 
     Parameters
     ----------
     filename : str
         Name of the file to be read.
+    short : bool, optional
+        True if only a short tree is to be printed, by default False
     """
     root = load(filename)
-    print(root.tree)
+    if short:
+        print(root.short_tree)
+    else:
+        print(root.tree)
 
 
 nxdir = directory
+
+
+def consolidate(files, data_path, scan_path=None):
+    """Create NXdata using a virtual field to combine multiple files.
+
+    Parameters
+    ----------
+    files : list of str or NXroot
+        List of files to be consolidated. If a scan variable is defined,
+        the files are sorted by its values.
+    data : str or NXdata
+        Path to the NXdata group to be consolidated. If the argument is
+        a NXdata group, its path within the NeXus file is used.
+    scan : str or NXfield, optional
+        Path to the scan variable in each file, by default None. If the
+        argument is a NXfield, its path within the NeXus file is used.
+        If not specified, the scan is constructed from file indices.
+    """
+
+    if isinstance(files[0], str):
+        files = [nxload(f) for f in files]
+    if isinstance(data_path, NXdata):
+        data_path = data_path.nxpath
+    if scan_path:
+        if isinstance(scan_path, NXfield):
+            scan_path = scan_path.nxpath
+        scan_files = [f for f in files if data_path in f and scan_path in f
+                      and f[data_path].nxsignal.exists()]
+    else:
+        scan_files = [f for f in files if data_path in f
+                      and f[data_path].nxsignal.exists()]
+    scan_file = scan_files[0]
+    if scan_path:
+        scan_values = [f[scan_path] for f in scan_files]
+        scan_values, scan_files = list(
+            zip(*(sorted(zip(scan_values, scan_files)))))
+        scan_axis = NXfield(scan_values, name=scan_file[scan_path].nxname)
+        if 'long_name' in scan_file[scan_path].attrs:
+            scan_axis.attrs['long_name'] = (
+                scan_file[scan_path].attrs['long_name'])
+        if 'units' in scan_file[scan_path].attrs:
+            scan_axis.attrs['units'] = scan_file[scan_path].attrs['units']
+    else:
+        scan_axis = NXfield(range(len(scan_files)), name='file_index',
+                            long_name='File Index')
+    signal = scan_file[data_path].nxsignal
+    axes = scan_file[data_path].nxaxes
+    sources = [f[signal.nxpath].nxfilename for f in scan_files]
+    scan_field = NXvirtualfield(signal, sources, name=signal.nxname)
+    scan_data = NXdata(scan_field, [scan_axis] + axes,
+                       name=scan_file[data_path].nxname)
+    scan_data.title = data_path
+    return scan_data
+
+
+nxconsolidate = consolidate
 
 
 def demo(argv):

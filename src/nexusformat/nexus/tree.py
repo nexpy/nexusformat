@@ -7316,14 +7316,14 @@ def directory(filename, short=False):
 nxdir = directory
 
 
-def consolidate(files, data, scan=None):
+def consolidate(files, data_path, scan_path=None):
     """Create NXdata using a virtual field to combine multiple files.
 
     Parameters
     ----------
     files : list of str or NXroot
-        List of files to be consolidated. The list should be sorted to
-        ensure that the scan variable changes monotonically.
+        List of files to be consolidated. If a scan variable is defined,
+        the files are sorted by its values.
     data : str or NXdata
         Path to the NXdata group to be consolidated. If the argument is
         a NXdata group, its path within the NeXus file is used.
@@ -7335,32 +7335,37 @@ def consolidate(files, data, scan=None):
 
     if isinstance(files[0], str):
         files = [nxload(f) for f in files]
-    if isinstance(data, NXdata):
-        data = data.nxpath
-    if scan:
-        if isinstance(scan, NXfield):
-            scan = scan.nxpath
-        scan_files = [f for f in files if data in f and scan in f
-                      and f[data].nxsignal.exists()]
+    if isinstance(data_path, NXdata):
+        data_path = data_path.nxpath
+    if scan_path:
+        if isinstance(scan_path, NXfield):
+            scan_path = scan_path.nxpath
+        scan_files = [f for f in files if data_path in f and scan_path in f
+                      and f[data_path].nxsignal.exists()]
     else:
-        scan_files = [f for f in files if data in f
-                      and f[data].nxsignal.exists()]
+        scan_files = [f for f in files if data_path in f
+                      and f[data_path].nxsignal.exists()]
     scan_file = scan_files[0]
-    if scan:
-        scan_axis = NXfield([f[scan] for f in scan_files if scan in f],
-                            name=scan_file[scan].nxname)
-        if 'long_name' in scan_file[scan].attrs:
-            scan_axis.attrs['long_name'] = scan_file[scan].attrs['long_name']
+    if scan_path:
+        scan_values = [f[scan_path] for f in scan_files]
+        scan_values, scan_files = list(
+            zip(*(sorted(zip(scan_values, scan_files)))))
+        scan_axis = NXfield(scan_values, name=scan_file[scan_path].nxname)
+        if 'long_name' in scan_file[scan_path].attrs:
+            scan_axis.attrs['long_name'] = (
+                scan_file[scan_path].attrs['long_name'])
+        if 'units' in scan_file[scan_path].attrs:
+            scan_axis.attrs['units'] = scan_file[scan_path].attrs['units']
     else:
         scan_axis = NXfield(range(len(scan_files)), name='file_index',
                             long_name='File Index')
-    signal = scan_file[data].nxsignal
-    axes = scan_file[data].nxaxes
+    signal = scan_file[data_path].nxsignal
+    axes = scan_file[data_path].nxaxes
     sources = [f[signal.nxpath].nxfilename for f in scan_files]
     scan_field = NXvirtualfield(signal, sources, name=signal.nxname)
     scan_data = NXdata(scan_field, [scan_axis] + axes,
-                       name=scan_file[data].nxname)
-    scan_data.title = scan_file[data].nxtitle
+                       name=scan_file[data_path].nxname)
+    scan_data.title = data_path
     return scan_data
 
 

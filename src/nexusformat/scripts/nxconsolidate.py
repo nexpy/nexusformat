@@ -10,7 +10,6 @@ import argparse
 
 from nexusformat import __version__
 from nexusformat.nexus import NXentry, NXroot, nxconsolidate
-from nexusformat.nexus.tree import natural_sort
 
 
 def main():
@@ -21,8 +20,7 @@ def main():
                         help="name of NeXus input files (wild cards allowed)")
     parser.add_argument('-d', '--data', required=True,
                         help="path to the NXdata group")
-    parser.add_argument('-s', '--scan', required=True,
-                        help="path to the scan variable")
+    parser.add_argument('-s', '--scan', help="path to the scan variable")
     parser.add_argument('-e', '--entry', default='entry',
                         help="name of NXentry group")
     parser.add_argument('-o', '--output', required=True,
@@ -32,8 +30,7 @@ def main():
 
     args = parser.parse_args()
 
-    scan_data = nxconsolidate(sorted(args.files, key=natural_sort), args.data,
-                              scan=args.scan)
+    scan_data = nxconsolidate(args.files, args.data, scan_path=args.scan)
     NXroot(NXentry(scan_data, name=args.entry)).save(args.output, 'w-')
 
 

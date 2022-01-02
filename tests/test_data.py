@@ -1,8 +1,11 @@
+import os
 import warnings
 
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import NXdata, NXentry, NXfield, NXroot, NXsubentry
+from nexusformat.nexus.tree import (NXdata, NXentry, NXfield, NXroot,
+                                    NXsubentry, NXvirtualfield, nxconsolidate,
+                                    nxload)
 
 
 @pytest.fixture
@@ -394,3 +397,41 @@ def test_smart_indices(x, v):
     assert all(v[0][row, col].nxvalue == v[0].nxvalue[row, col])
     assert np.all(v[0][row[:, np.newaxis], col].nxvalue ==
                   v[0].nxvalue[row[:, np.newaxis], col])
+
+
+@pytest.mark.parametrize("path", [True, False])
+def test_virtual_fields(tmpdir, path, v):
+
+    s1 = NXroot(NXentry(NXdata(v)))
+    s2 = NXroot(NXentry(NXdata(2*v)))
+    s3 = NXroot(NXentry(NXdata(3*v)))
+
+    s1.save(os.path.join(tmpdir, "s1.nxs"), "w")
+    s2.save(os.path.join(tmpdir, "s2.nxs"), "w")
+    s3.save(os.path.join(tmpdir, "s3.nxs"), "w")
+
+    sources = [f.nxfilename for f in [s1, s2, s3]]
+
+    if path:
+        vds1 = NXvirtualfield("entry/data/v", sources, shape=v.shape,
+                              dtype=v.dtype)
+    else:
+        vds1 = NXvirtualfield(s1["entry/data/v"], sources)
+
+    assert vds1.shape == (3,) + v.shape
+    assert vds1.dtype == v.dtype
+    assert vds1.sum() == 6 * v.sum()
+
+    vds2 = nxconsolidate(sources, "entry/data")
+
+    assert vds2.nxsignal.shape == vds1.shape
+    assert vds2.nxsignal.dtype == v.dtype
+    assert vds2.sum() == 6 * v.sum()
+
+    NXroot(NXentry(vds2)).save(os.path.join(tmpdir, "vds.nxs"), "w")
+    vds3 = nxload(os.path.join(tmpdir, "vds.nxs"))
+
+    assert "entry/data/v" in vds3
+    assert vds3["entry/data/v"].shape == vds1.shape
+    assert vds3["entry/data/v"].dtype == v.dtype
+    assert vds3["entry/data/v"].sum() == 6 * v.sum()

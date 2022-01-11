@@ -134,3 +134,9 @@ def test_field_resize(field):
 
     assert field.shape == (15, 5, 10)
     assert field[:, :, 9].sum() == 75
+
+
+def test_field_printing(arr1D):
+
+    assert str(NXfield(arr1D)) == str(arr1D)
+    assert f"{NXfield(arr1D)[10]:g}" == f"{arr1D[10]:g}"

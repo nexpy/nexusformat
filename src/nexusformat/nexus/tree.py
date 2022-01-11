@@ -2745,6 +2745,9 @@ class NXfield(NXobject):
             return text(self.nxvalue)
         return ""
 
+    def __format__(self, format_spec):
+        return format(self.nxvalue, format_spec)
+
     def __getattr__(self, name):
         """Return NumPy array attribute or NeXus attributes if not defined."""
         if name in _npattrs:

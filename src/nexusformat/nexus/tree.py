@@ -1135,7 +1135,10 @@ class NXFile(object):
             The group or field defined by the current path.
         """
         item = self.get(self.nxpath)
-        if isinstance(item, self.h5.Group):
+
+        if item is None:
+            return None
+        elif isinstance(item, self.h5.Group):
             return self._readgroup(self.nxname)
         else:
             return self._readdata(self.nxname)
@@ -5278,7 +5281,7 @@ class NXlink(NXobject):
         """
         if self.nxclass == 'NXlink':
             if self.is_external():
-                if os.path.exists(self.nxfilename):
+                if self.path_exists():
                     with self.nxfile as f:
                         item = f.readpath(self.nxfilepath)
                 else:

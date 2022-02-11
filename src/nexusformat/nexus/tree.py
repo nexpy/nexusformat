@@ -206,7 +206,7 @@ import h5py as h5
 import numpy as np
 
 from .. import __version__ as nxversion
-from .lock import NXLock
+from .lock import NXLock, NXLockException
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
@@ -612,6 +612,8 @@ class NXFile(object):
             self._lock.acquire()
         except PermissionError:
             raise NeXusError("Denied permission to create the lock file")
+        except NXLockException as error:
+            raise NeXusError(str(error))
 
     def release_lock(self):
         """Release the lock acquired by the current process."""
@@ -668,8 +670,6 @@ class NXFile(object):
     def open(self, **kwargs):
         """Open the NeXus file for input/output."""
         if not self.is_open():
-            if not self.locked and self.is_locked():
-                raise NeXusError('File locked by another process')
             self.acquire_lock()
             if self._mode == 'rw':
                 self._file = self.h5.File(self._filename, 'r+', **kwargs)

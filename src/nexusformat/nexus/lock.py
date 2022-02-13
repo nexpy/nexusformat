@@ -15,6 +15,8 @@ import os
 import time
 import timeit
 
+from .tree import nxgetlock, nxgetlockdirectory
+
 
 class NXLockException(Exception):
     LOCK_FAILED = 1
@@ -34,7 +36,8 @@ class NXLock(object):
         File descriptor of the opened lock file.
     """
 
-    def __init__(self, filename, timeout=60, check_interval=1):
+    def __init__(self, filename, timeout=None, check_interval=1,
+                 directory=None):
         """Create a lock to prevent file access.
 
         This creates a lock, which can be later acquired and released. It
@@ -51,11 +54,24 @@ class NXLock(object):
         check_interval : int, optional
             Number of seconds between attempts to acquire the lock,
             by default 1.
+        directory : str, optional
+            Path to directory to contain lock file paths.
         """
         self.filename = os.path.realpath(filename)
-        self.lock_file = self.filename+'.lock'
+        if timeout is None:
+            timeout = nxgetlock()
         self.timeout = timeout
         self.check_interval = check_interval
+        if directory is None:
+            directory = nxgetlockdirectory()
+        if directory:
+            directory = os.path.join(
+                directory, os.path.dirname(self.filename)[1:])
+            os.makedirs(self.directory)
+            self.lock_file = os.path.join(
+                directory, os.path.basename(self.filename+'.lock'))
+        else:
+            self.lock_file = self.filename+'.lock'
         self.pid = os.getpid()
         self.fd = None
 

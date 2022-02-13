@@ -190,6 +190,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'NeXusError',
            'nxgetcompression', 'nxsetcompression',
            'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
+           'nxgetlockdirectory', 'nxsetlockdirectory',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
@@ -213,6 +214,7 @@ warnings.simplefilter('ignore', category=FutureWarning)
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
 NX_LOCK = 0
+NX_LOCKDIRECTORY = None
 NX_MAXSIZE = 10000
 NX_MEMORY = 2000  # Memory in MB
 NX_RECURSIVE = False
@@ -584,7 +586,7 @@ class NXFile(object):
     def lock_file(self):
         """Return the name of the file used to establish the lock."""
         if self._lock is None:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK)
+            self._lock = NXLock(self._filename)
         return self._lock.lock_file
 
     def acquire_lock(self, timeout=None):
@@ -7149,6 +7151,39 @@ def setlock(value=10):
 
 nxgetlock = getlock
 nxsetlock = setlock
+
+
+def getlockdirectory():
+    """Return the path to the lock directory.
+
+    If the value is None, lock files are stored in the same directory as
+    the file.
+
+    Returns
+    -------
+    str
+        Path to the lock directory.
+    """
+    return NX_LOCKDIRECTORY
+
+
+def setlockdirectory(value):
+    """Define a directory to store lock files.
+
+    If the value is None, lock files are stored in the same directory as
+    the file.
+
+    Parameters
+    ----------
+    value : str, optional
+        Path to the lock directory.
+    """
+    global NX_LOCKDIRECTORY
+    NX_LOCKDIRECTORY = value
+
+
+nxgetlockdirectory = getlockdirectory
+nxsetlockdirectory = setlockdirectory
 
 
 def getmaxsize():

@@ -12,6 +12,7 @@
 
 import errno
 import os
+import socket
 import time
 import timeit
 
@@ -73,12 +74,11 @@ class NXLock(object):
         else:
             self.lock_file = self.filename+'.lock'
         self.pid = os.getpid()
+        self.addr = f"{self.pid}@{socket.gethostname}"
         self.fd = None
 
     def __repr__(self):
-        return ("NXLock('"
-                + os.path.basename(self.filename)
-                + "', pid=" + str(self.pid)+")")
+        return f"NXLock('{os.path.basename(self.filename)}', pid={self.addr})"
 
     def acquire(self, timeout=None, check_interval=None):
         """Acquire the lock.
@@ -113,7 +113,7 @@ class NXLock(object):
                 # then someone else has the lock and we need to wait
                 self.fd = os.open(self.lock_file, os.O_CREAT |
                                   os.O_EXCL | os.O_RDWR)
-                open(self.lock_file, 'w').write(str(self.pid))
+                open(self.lock_file, 'w').write(self.addr)
                 break
             except OSError as e:
                 # Only catch if the lockfile already exists

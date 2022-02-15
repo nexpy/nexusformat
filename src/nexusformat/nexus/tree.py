@@ -689,8 +689,10 @@ class NXFile(object):
         if self.is_open():
             self._file.close()
         self.release_lock()
-        if self._root:
+        try:
             self._root._mtime = self.mtime
+        except Exception:
+            pass
 
     def is_open(self):
         """Return True if the file is open for input/output in h5py."""

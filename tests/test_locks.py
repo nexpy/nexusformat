@@ -1,8 +1,9 @@
 import os
 import time
 
-from nexusformat.nexus.tree import (NXentry, NXLock, NXroot, nxload, nxsetlock,
-                                    text)
+import pytest
+from nexusformat.nexus.tree import (NeXusError, NXentry, NXLock, NXroot,
+                                    nxload, nxsetlock, text)
 
 
 def test_lock_creation(tmpdir, field4):
@@ -139,6 +140,36 @@ def test_nested_locks(tmpdir, field4):
             assert text(root.nxfile["entry/f1"][()]) == "c"
             assert root.nxfile.locked
             assert root.nxfile.is_locked()
+
+        assert root.nxfile.locked
+        assert root.nxfile.is_locked()
+
+    assert not root.nxfile.locked
+    assert not root.nxfile.is_locked()
+
+
+def test_stale_locks(tmpdir):
+
+    nxsetlock(2)
+    filename = os.path.join(tmpdir, "file1.nxs")
+    root = NXroot(NXentry())
+    root.save(filename, "w")
+
+    with open(root.nxfile.lock_file, 'w'):
+        os.utime(root.nxfile.lock_file, None)
+
+    assert os.path.exists(root.nxfile.lock_file)
+
+    with pytest.raises(NeXusError):
+        root.nxfile.acquire_lock()
+
+    assert not root.nxfile.locked
+    assert root.nxfile.is_locked()
+
+    stat = os.stat(root.nxfile.lock_file)
+    os.utime(root.nxfile.lock_file, (stat.st_atime, stat.st_mtime - 100000))
+
+    with root.nxfile:
 
         assert root.nxfile.locked
         assert root.nxfile.is_locked()

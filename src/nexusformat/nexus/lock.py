@@ -117,7 +117,7 @@ class NXLock(object):
                 # Remove the lockfile if it is older than one day
                 elif initial_attempt and expiry:
                     if self.is_stale(expiry=expiry):
-                        os.remove(self.lock_file)
+                        self.clear()
                     initial_attempt = False
                 time.sleep(check_interval)
         # Raise an error if we had to wait for too long

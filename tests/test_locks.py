@@ -3,7 +3,7 @@ import time
 
 import pytest
 from nexusformat.nexus.tree import (NeXusError, NXentry, NXLock, NXroot,
-                                    nxload, nxsetlock, text)
+                                    nxload, nxsetlock, nxsetlockexpiry, text)
 
 
 def test_lock_creation(tmpdir, field4):
@@ -151,6 +151,7 @@ def test_nested_locks(tmpdir, field4):
 def test_stale_locks(tmpdir):
 
     nxsetlock(2)
+    nxsetlockexpiry(3600)
     filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry())
     root.save(filename, "w")
@@ -167,7 +168,7 @@ def test_stale_locks(tmpdir):
     assert root.nxfile.is_locked()
 
     stat = os.stat(root.nxfile.lock_file)
-    os.utime(root.nxfile.lock_file, (stat.st_atime, stat.st_mtime - 100000))
+    os.utime(root.nxfile.lock_file, (stat.st_atime, stat.st_mtime - 10000))
 
     with root.nxfile:
 

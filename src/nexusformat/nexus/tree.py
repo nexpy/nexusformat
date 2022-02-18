@@ -189,7 +189,8 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'NXvirtualfield', 'NXlink', 'NXlinkfield', 'NXlinkgroup',
            'NeXusError',
            'nxgetcompression', 'nxsetcompression',
-           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
+           'nxgetencoding', 'nxsetencoding',
+           'nxgetlock', 'nxsetlock', 'nxgetlockexpiry', 'nxsetlockexpiry',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
            'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
@@ -213,6 +214,7 @@ warnings.simplefilter('ignore', category=FutureWarning)
 NX_COMPRESSION = 'gzip'
 NX_ENCODING = 'utf-8'
 NX_LOCK = 0
+NX_LOCKEXPIRY = 8 * 3600
 NX_MAXSIZE = 10000
 NX_MEMORY = 2000  # Memory in MB
 NX_RECURSIVE = False
@@ -415,7 +417,8 @@ class NXFile(object):
         self._file = None
         self._filename = os.path.abspath(name)
         self._filedir = os.path.dirname(self._filename)
-        self._lock = NXLock(self._filename, timeout=NX_LOCK)
+        self._lock = NXLock(self._filename, timeout=NX_LOCK,
+                            expiry=NX_LOCKEXPIRY)
         self._path = '/'
         self._root = None
         self._with_count = 0
@@ -562,7 +565,8 @@ class NXFile(object):
     @lock.setter
     def lock(self, value):
         if self._lock is None:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK)
+            self._lock = NXLock(self._filename, timeout=NX_LOCK,
+                                expiry=NX_LOCKEXPIRY)
         if value is False or value is None or value == 0:
             self._lock.timeout = 0
         else:
@@ -584,7 +588,8 @@ class NXFile(object):
     def lock_file(self):
         """Return the name of the file used to establish the lock."""
         if self._lock is None:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK)
+            self._lock = NXLock(self._filename, timeout=NX_LOCK,
+                                expiry=NX_LOCKEXPIRY)
         return self._lock.lock_file
 
     def acquire_lock(self, timeout=None):
@@ -597,7 +602,7 @@ class NXFile(object):
         timeout : int, optional
             Timeout for attempts to acquire the lock, by default None.
         """
-        if self.locked and self.is_locked():
+        if self.locked:
             return
         if self._lock is None:
             if timeout is not None:
@@ -7151,6 +7156,42 @@ def setlock(value=10):
 
 nxgetlock = getlock
 nxsetlock = setlock
+
+
+def getlockexpiry():
+    """Return the number of seconds before a file lock expires.
+
+    If the value is 0, the file lock persists indefinitely.
+
+    Returns
+    -------
+    int
+        Number of seconds before a file lock expires.
+    """
+    return NX_LOCKEXPIRY
+
+
+def setlockexpiry(value=28800):
+    """Sets the lock file expiry.
+
+    This creates a file with `.lock` appended to the NeXus file name.
+
+    Parameters
+    ----------
+    value : int, optional
+        Number of seconds before a lock file is considered stale,
+        by default 8*3600. If the value is set to 0, the file lock
+        persists indefinitely.
+    """
+    global NX_LOCKEXPIRY
+    try:
+        NX_LOCKEXPIRY = int(value)
+    except ValueError:
+        raise NeXusError("Invalid value for file lock expiry")
+
+
+nxgetlockexpiry = getlockexpiry
+nxsetlockexpiry = setlockexpiry
 
 
 def getmaxsize():

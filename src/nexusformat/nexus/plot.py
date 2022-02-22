@@ -194,8 +194,8 @@ class PylabPlotter(object):
                     fmt = kwargs.pop('marker')
                 else:
                     fmt = 'o'
-                if hasattr(signal, 'units'):
-                    if not errors and signal.units == 'counts':
+                if 'units' in signal.attrs:
+                    if not errors and signal.attrs['units'] == 'counts':
                         errors = NXfield(np.sqrt(data))
                 if errors:
                     ebars = errors.nxdata

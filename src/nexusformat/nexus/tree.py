@@ -2015,6 +2015,13 @@ class NXobject(object):
     def __contains__(self, key):
         return False
 
+    def __lt__(self, other):
+        """Define ordering of NeXus objects using their names."""
+        if not isinstance(other, NXobject):
+            return False
+        else:
+            return self.nxname < other.nxname
+
     def _setattrs(self, attrs):
         for k, v in attrs.items():
             self._attrs[k] = v

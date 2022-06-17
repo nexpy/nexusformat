@@ -5480,6 +5480,21 @@ class NXroot(NXgroup):
         else:
             return f"NXroot('{self.nxname}')"
 
+    def __enter__(self):
+        """Open a NeXus file for multiple operations.
+
+        Returns
+        -------
+        NXroot
+            Current NXroot instance.
+        """
+        self.nxfile.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        """Close the NeXus file."""
+        self.nxfile.__exit__()
+
     def reload(self):
         """Reload the NeXus file from disk."""
         if self.nxfilemode:

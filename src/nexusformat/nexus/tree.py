@@ -193,7 +193,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'nxgetlock', 'nxsetlock', 'nxgetlockexpiry', 'nxsetlockexpiry',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
+           'nxclasses', 'nxload', 'nxopen', 'nxsave', 'nxduplicate', 'nxdir',
            'nxconsolidate', 'nxdemo', 'nxversion']
 
 import numbers
@@ -7321,7 +7321,7 @@ def load(filename, mode='r', recursive=None, **kwargs):
     return root
 
 
-nxload = load
+nxload = nxopen = load
 
 
 def save(filename, group, mode='w', **kwargs):

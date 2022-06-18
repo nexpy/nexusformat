@@ -5488,12 +5488,14 @@ class NXroot(NXgroup):
         NXroot
             Current NXroot instance.
         """
-        self.nxfile.__enter__()
+        if self.nxfile:
+            self.nxfile.__enter__()
         return self
 
     def __exit__(self, *args):
         """Close the NeXus file."""
-        self.nxfile.__exit__()
+        if self.nxfile:
+            self.nxfile.__exit__()
 
     def reload(self):
         """Reload the NeXus file from disk."""

@@ -193,7 +193,7 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'nxgetlock', 'nxsetlock', 'nxgetlockexpiry', 'nxsetlockexpiry',
            'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
-           'nxclasses', 'nxload', 'nxsave', 'nxduplicate', 'nxdir',
+           'nxclasses', 'nxload', 'nxopen', 'nxsave', 'nxduplicate', 'nxdir',
            'nxconsolidate', 'nxdemo', 'nxversion']
 
 import numbers
@@ -2014,6 +2014,13 @@ class NXobject(object):
 
     def __contains__(self, key):
         return False
+
+    def __lt__(self, other):
+        """Define ordering of NeXus objects using their names."""
+        if not isinstance(other, NXobject):
+            return False
+        else:
+            return self.nxname < other.nxname
 
     def _setattrs(self, attrs):
         for k, v in attrs.items():
@@ -5473,6 +5480,23 @@ class NXroot(NXgroup):
         else:
             return f"NXroot('{self.nxname}')"
 
+    def __enter__(self):
+        """Open a NeXus file for multiple operations.
+
+        Returns
+        -------
+        NXroot
+            Current NXroot instance.
+        """
+        if self.nxfile:
+            self.nxfile.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        """Close the NeXus file."""
+        if self.nxfile:
+            self.nxfile.__exit__()
+
     def reload(self):
         """Reload the NeXus file from disk."""
         if self.nxfilemode:
@@ -7299,7 +7323,7 @@ def load(filename, mode='r', recursive=None, **kwargs):
     return root
 
 
-nxload = load
+nxload = nxopen = load
 
 
 def save(filename, group, mode='w', **kwargs):

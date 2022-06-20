@@ -278,7 +278,7 @@ class PylabPlotter(object):
                     if colorbar:
                         cb = plt.colorbar(im)
                         if cmap == 'tab10':
-                            from matplotlib import mpl_version
+                            from matplotlib import __version__ as mpl_version
                             from pkg_resources import parse_version as pv
                             cmin, cmax = im.get_clim()
                             if cmax - cmin <= 9:

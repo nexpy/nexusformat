@@ -5232,6 +5232,13 @@ class NXlink(NXobject):
         else:
             self.nxlink.__setitem__(idx, value)
 
+    def __eq__(self, other):
+        if isinstance(other, NXlink):
+            return ((self._target == other._target) and
+                    (self._filename == other._filename))
+        else:
+            return False
+
     def __deepcopy__(self, memo={}):
         """Return a deep copy of the link containing the target information."""
         obj = self

@@ -5233,6 +5233,7 @@ class NXlink(NXobject):
             self.nxlink.__setitem__(idx, value)
 
     def __eq__(self, other):
+        """Return True if two linked objects share the same target."""
         if isinstance(other, NXlink):
             return ((self._target == other._target) and
                     (self._filename == other._filename))

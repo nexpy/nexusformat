@@ -316,6 +316,17 @@ def test_data_projections(x, y, z, v):
         p4["x"].attrs["summed_bins"]
 
 
+def test_data_transpose(data):
+
+    signal = data.nxsignal
+    assert data.transpose().shape == signal.shape[::-1]
+    axes = [2, 0, 1]
+    transposed_data = data.transpose(axes)
+    assert transposed_data.shape == signal.transpose(axes).shape
+    assert ([axis.nxname for axis in transposed_data.nxaxes] ==
+            [data.nxaxes[i].nxname for i in axes])
+
+
 def test_data_smoothing(x):
 
     warnings.filterwarnings("ignore", message="numpy.ufunc size changed")

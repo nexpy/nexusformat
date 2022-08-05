@@ -3464,9 +3464,22 @@ class NXfield(NXobject):
         return NXfield(value=self.nxdata, name=self.nxname, shape=shape,
                        attrs=self.safe_attrs)
 
-    def transpose(self):
-        """Return an NXfield containing the transpose of the data array."""
-        value = self.nxdata.transpose()
+    def transpose(self, axes=None):
+        """Return an NXfield containing the transpose of the data array.
+
+        Parameters
+        ----------
+        axes : tuple or list of ints, optional
+            If specified, it must be a tuple or list which contains a
+            permutation of [0,1,..,N-1] where N is the number of axes.
+            If not specified, defaults to range(self.ndim)[::-1].
+
+        Returns
+        -------
+        NXfield
+            NXfield containing the transposed array.
+        """
+        value = self.nxdata.transpose(axes)
         return NXfield(value=value, name=self.nxname,
                        shape=value.shape, attrs=self.safe_attrs)
 
@@ -6521,6 +6534,32 @@ class NXdata(NXgroup):
                 result[weights.nxname].replace(weights.transpose())
                 result.nxweights = result[weights.nxname]
             result.nxaxes = result.nxaxes[::-1]
+        return result
+
+    def transpose(self, axes=None):
+        """Transpose the signal array and axes.
+
+        Parameters
+        ----------
+        axes : tuple or list of ints, optional
+            If specified, it must be a tuple or list which contains a
+            permutation of [0,1,..,N-1] where N is the number of axes.
+            If not specified, defaults to range(self.ndim)[::-1].
+
+        Returns
+        -------
+        NXdata
+            NXdata group containing the data with transposed axes.
+        """
+        if axes is None:
+            axes = list(range(self.ndim)[::-1])
+        result = NXdata(self.nxsignal.transpose(axes=axes),
+                        [self.nxaxes[i] for i in axes], title=self.nxtitle)
+        if self.nxangles:
+            if self.ndim == 3:
+                result.nxangles = [self.nxangles[i] for i in axes]
+            else:
+                result.nxangles = self.nxangles
         return result
 
     def slab(self, idx):

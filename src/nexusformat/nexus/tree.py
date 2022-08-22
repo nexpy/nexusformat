@@ -6805,7 +6805,9 @@ class NXdata(NXgroup):
     @property
     def nxsignal(self):
         """NXfield containing the signal data."""
-        if 'signal' in self.attrs and self.attrs['signal'] in self:
+        if len(self) == 1 and self.NXfield:
+            return self.NXfield[0]
+        elif 'signal' in self.attrs and self.attrs['signal'] in self:
             return self[self.attrs['signal']]
         for obj in self.values():
             if 'signal' in obj.attrs and text(obj.attrs['signal']) == '1':

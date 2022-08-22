@@ -71,3 +71,9 @@ def v():
 @fixture
 def im():
     return NXfield(np.ones(shape=(10, 10, 4), dtype=np.float32), name="image")
+
+
+@fixture
+def peak1D():
+    x = np.linspace(0.0, 100.0, 101, dtype=np.float64)
+    return NXfield(np.exp(-(x - 50)**2 / 200), name="peak")

@@ -373,6 +373,17 @@ def test_data_selection():
     assert np.all(selected_data.nxsignal == 1.5)
 
 
+def test_data_moments(peak1D, arr1D):
+
+    data = NXdata(peak1D, arr1D)
+
+    assert data.sum() == data.nxsignal.nxvalue.sum()
+    assert np.isclose(data.moment(1), 50.0, rtol=1e-3)
+    assert np.isclose(data.moment(2), 100.0, rtol=1e-3)
+    assert np.isclose(data.std(), 10.0, rtol=1e-3)
+    assert np.isclose(data.average(), data.nxsignal.nxvalue.sum() / 101.0)
+
+
 def test_image_data(x, y, z, v, im):
 
     root = NXroot(NXentry(NXdata(im)))

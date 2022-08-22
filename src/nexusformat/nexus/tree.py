@@ -6374,7 +6374,7 @@ class NXdata(NXgroup):
                     result[errors.nxname] = np.where(weights > 0,
                                                      errors/weights,
                                                      0.0)
-            del(result[weights.nxname])
+            del result[weights.nxname]
         elif signal is None:
             raise NeXusError("No signal defined for this NXdata group")
         elif weights is None:

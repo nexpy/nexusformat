@@ -3459,6 +3459,70 @@ class NXfield(NXobject):
         return NXfield(np.average(self.nxdata, axis), name=self.nxname,
                        attrs=self.safe_attrs)
 
+    def moment(self, order=1, center=None):
+        """Return the central moments of a one-dimensional field.
+
+        This uses the array indices as the x-values.
+
+        Parameters
+        ----------
+        order : int, optional
+            Order of the calculated moment, by default 1.
+        center : float, optional
+            Center if defined externally for use by higher order moments,
+            by default None.
+
+        Returns
+        -------
+        NXfield
+            Value of moment.
+        """
+        if is_string_dtype(self.dtype):
+            raise NeXusError("Cannot calculate moments for a string")
+        elif self.ndim > 1:
+            raise NeXusError(
+                "Operation only possible on one-dimensional fields")
+        y = self / self.sum()
+        x = np.arange(self.shape[0])
+        if center:
+            c = center
+        else:
+            c = (y * x).sum()
+        if order == 1:
+            return c
+        else:
+            return (y * (x - c)**order).sum()
+
+    def mean(self):
+        """Return the mean value of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The mean of the group signal.
+        """
+        return self.moment(1)
+
+    def var(self):
+        """Return the variance of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The variance of the group signal.
+        """
+        return self.moment(2)
+
+    def std(self):
+        """Return the standard deviation of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The standard deviation of the group signal.
+        """
+        return np.sqrt(self.moment(2))
+
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""
         return NXfield(value=self.nxdata, name=self.nxname, shape=shape,

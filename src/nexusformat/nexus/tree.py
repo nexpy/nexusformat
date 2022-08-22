@@ -3459,14 +3459,91 @@ class NXfield(NXobject):
         return NXfield(np.average(self.nxdata, axis), name=self.nxname,
                        attrs=self.safe_attrs)
 
+    def moment(self, order=1, center=None):
+        """Return the central moments of a one-dimensional field.
+
+        This uses the array indices as the x-values.
+
+        Parameters
+        ----------
+        order : int, optional
+            Order of the calculated moment, by default 1.
+        center : float, optional
+            Center if defined externally for use by higher order moments,
+            by default None.
+
+        Returns
+        -------
+        NXfield
+            Value of moment.
+        """
+        if is_string_dtype(self.dtype):
+            raise NeXusError("Cannot calculate moments for a string")
+        elif self.ndim > 1:
+            raise NeXusError(
+                "Operation only possible on one-dimensional fields")
+        y = self / self.sum()
+        x = np.arange(self.shape[0])
+        if center:
+            c = center
+        else:
+            c = (y * x).sum()
+        if order == 1:
+            return c
+        else:
+            return (y * (x - c)**order).sum()
+
+    def mean(self):
+        """Return the mean value of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The mean of the group signal.
+        """
+        return self.moment(1)
+
+    def var(self):
+        """Return the variance of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The variance of the group signal.
+        """
+        return self.moment(2)
+
+    def std(self):
+        """Return the standard deviation of a one-dimensional field.
+
+        Returns
+        -------
+        NXfield
+            The standard deviation of the group signal.
+        """
+        return np.sqrt(self.moment(2))
+
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""
         return NXfield(value=self.nxdata, name=self.nxname, shape=shape,
                        attrs=self.safe_attrs)
 
-    def transpose(self):
-        """Return an NXfield containing the transpose of the data array."""
-        value = self.nxdata.transpose()
+    def transpose(self, axes=None):
+        """Return an NXfield containing the transpose of the data array.
+
+        Parameters
+        ----------
+        axes : tuple or list of ints, optional
+            If specified, it must be a tuple or list which contains a
+            permutation of [0,1,..,N-1] where N is the number of axes.
+            If not specified, defaults to range(self.ndim)[::-1].
+
+        Returns
+        -------
+        NXfield
+            NXfield containing the transposed array.
+        """
+        value = self.nxdata.transpose(axes)
         return NXfield(value=value, name=self.nxname,
                        shape=value.shape, attrs=self.safe_attrs)
 
@@ -6297,7 +6374,7 @@ class NXdata(NXgroup):
                     result[errors.nxname] = np.where(weights > 0,
                                                      errors/weights,
                                                      0.0)
-            del(result[weights.nxname])
+            del result[weights.nxname]
         elif signal is None:
             raise NeXusError("No signal defined for this NXdata group")
         elif weights is None:
@@ -6521,6 +6598,32 @@ class NXdata(NXgroup):
                 result[weights.nxname].replace(weights.transpose())
                 result.nxweights = result[weights.nxname]
             result.nxaxes = result.nxaxes[::-1]
+        return result
+
+    def transpose(self, axes=None):
+        """Transpose the signal array and axes.
+
+        Parameters
+        ----------
+        axes : tuple or list of ints, optional
+            If specified, it must be a tuple or list which contains a
+            permutation of [0,1,..,N-1] where N is the number of axes.
+            If not specified, defaults to range(self.ndim)[::-1].
+
+        Returns
+        -------
+        NXdata
+            NXdata group containing the data with transposed axes.
+        """
+        if axes is None:
+            axes = list(range(self.ndim)[::-1])
+        result = NXdata(self.nxsignal.transpose(axes=axes),
+                        [self.nxaxes[i] for i in axes], title=self.nxtitle)
+        if self.nxangles:
+            if self.ndim == 3:
+                result.nxangles = [self.nxangles[i] for i in axes]
+            else:
+                result.nxangles = self.nxangles
         return result
 
     def slab(self, idx):
@@ -6766,7 +6869,9 @@ class NXdata(NXgroup):
     @property
     def nxsignal(self):
         """NXfield containing the signal data."""
-        if 'signal' in self.attrs and self.attrs['signal'] in self:
+        if len(self) == 1 and self.NXfield:
+            return self.NXfield[0]
+        elif 'signal' in self.attrs and self.attrs['signal'] in self:
             return self[self.attrs['signal']]
         for obj in self.values():
             if 'signal' in obj.attrs and text(obj.attrs['signal']) == '1':

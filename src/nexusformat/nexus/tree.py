@@ -3521,7 +3521,7 @@ class NXfield(NXobject):
         NXfield
             The standard deviation of the group signal.
         """
-        return np.sqrt(self.moment(2))
+        return np.sqrt(np.abs(self.moment(2)))
 
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""
@@ -5043,7 +5043,7 @@ class NXgroup(NXobject):
         NXfield
             The standard deviation of the group signal.
         """
-        return np.sqrt(self.moment(2))
+        return np.sqrt(np.abs(self.moment(2)))
 
     def get_default(self):
         """Return the default data group if it is defined or None.

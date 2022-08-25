@@ -252,8 +252,8 @@ class PylabPlotter(object):
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
 
-                    from pkg_resources import parse_version
-                    if parse_version(mplversion) >= parse_version('3.5.0'):
+                    from pkg_resources import parse_version as pv
+                    if pv(mplversion) >= pv('3.5.0'):
                         from matplotlib import colormaps
                         cm = copy.copy(colormaps[self.cmap])
                     else:
@@ -286,15 +286,13 @@ class PylabPlotter(object):
                     if colorbar:
                         cb = plt.colorbar(im)
                         if cmap == 'tab10':
-                            from matplotlib import __version__ as mpl_version
-                            from pkg_resources import parse_version as pv
                             cmin, cmax = im.get_clim()
                             if cmax - cmin <= 9:
                                 if cmin == 0:
                                     im.set_clim(-0.5, 9.5)
                                 elif cmin == 1:
                                     im.set_clim(0.5, 10.5)
-                                if pv(mpl_version) >= pv('3.5.0'):
+                                if pv(mplversion) >= pv('3.5.0'):
                                     cb.ax.set_ylim(cmin-0.5, cmax+0.5)
                                     cb.set_ticks(range(int(cmin), int(cmax)+1))
 

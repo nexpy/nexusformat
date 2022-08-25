@@ -255,10 +255,10 @@ class PylabPlotter(object):
                     from pkg_resources import parse_version as pv
                     if pv(mplversion) >= pv('3.5.0'):
                         from matplotlib import colormaps
-                        cm = copy.copy(colormaps[self.cmap])
+                        cm = copy.copy(colormaps[cmap])
                     else:
                         from matplotlib.cm import get_cmap
-                        cm = copy.copy(get_cmap(self.cmap))
+                        cm = copy.copy(get_cmap(cmap))
                     cm.set_bad(bad, 1.0)
                     if regular:
                         extent = (x[0], x[-1], y[0], y[-1])

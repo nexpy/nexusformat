@@ -142,6 +142,8 @@ class PylabPlotter(object):
             raise NeXusError(
                 "Default plotting package (matplotlib) not available.")
 
+        from matplotlib import __version__ as mplversion
+
         over = kwargs.pop("over", False)
         image = kwargs.pop("image", False)
         log = kwargs.pop("log", False)
@@ -223,7 +225,6 @@ class PylabPlotter(object):
 
             # Two dimensional plot
             else:
-                from matplotlib.cm import get_cmap
                 from matplotlib.colors import LogNorm, Normalize
 
                 if image:
@@ -250,7 +251,14 @@ class PylabPlotter(object):
                         kwargs["norm"] = LogNorm(vmin, vmax)
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
-                    cm = copy.copy(get_cmap(cmap))
+
+                    from pkg_resources import parse_version as pv
+                    if pv(mplversion) >= pv('3.5.0'):
+                        from matplotlib import colormaps
+                        cm = copy.copy(colormaps[self.cmap])
+                    else:
+                        from matplotlib.cm import get_cmap
+                        cm = copy.copy(get_cmap(self.cmap))
                     cm.set_bad(bad, 1.0)
                     if regular:
                         extent = (x[0], x[-1], y[0], y[-1])
@@ -278,15 +286,13 @@ class PylabPlotter(object):
                     if colorbar:
                         cb = plt.colorbar(im)
                         if cmap == 'tab10':
-                            from matplotlib import __version__ as mpl_version
-                            from pkg_resources import parse_version as pv
                             cmin, cmax = im.get_clim()
                             if cmax - cmin <= 9:
                                 if cmin == 0:
                                     im.set_clim(-0.5, 9.5)
                                 elif cmin == 1:
                                     im.set_clim(0.5, 10.5)
-                                if pv(mpl_version) >= pv('3.5.0'):
+                                if pv(mplversion) >= pv('3.5.0'):
                                     cb.ax.set_ylim(cmin-0.5, cmax+0.5)
                                     cb.set_ticks(range(int(cmin), int(cmax)+1))
 

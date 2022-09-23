@@ -37,7 +37,7 @@ class NXLock(object):
         File descriptor of the opened lock file.
     """
 
-    def __init__(self, filename, timeout=None, check_interval=1,
+    def __init__(self, filename, timeout=None, check_interval=1, expiry=28800,
                  directory=None):
         """Create a lock to prevent file access.
 
@@ -55,6 +55,9 @@ class NXLock(object):
         check_interval : int, optional
             Number of seconds between attempts to acquire the lock,
             by default 1.
+        expiry : int, optional
+            Number of seconds after which a lock expires, by default 8*3600.
+            Set to 0 or None to make the locks persist indefinitely.
         directory : str, optional
             Path to directory to contain lock file paths.
         """
@@ -63,6 +66,7 @@ class NXLock(object):
             timeout = nxgetlock()
         self.timeout = timeout
         self.check_interval = check_interval
+        self.expiry = expiry
         if directory is None:
             directory = nxgetlockdirectory()
         if directory:
@@ -80,7 +84,7 @@ class NXLock(object):
     def __repr__(self):
         return f"NXLock('{os.path.basename(self.filename)}', pid={self.addr})"
 
-    def acquire(self, timeout=None, check_interval=None):
+    def acquire(self, timeout=None, check_interval=None, expiry=None):
         """Acquire the lock.
 
         Parameters
@@ -91,6 +95,9 @@ class NXLock(object):
         check_interval : int, optional
             Number of seconds between attempts to acquire the lock,
             by default `self.check_interval`.
+        expiry : int, optional
+            Number of seconds after which a lock expires, by default
+            `self.expiry`.
 
         Raises
         ------
@@ -106,22 +113,33 @@ class NXLock(object):
         if check_interval is None:
             check_interval = self.check_interval
 
+        if expiry is None:
+            expiry = self.expiry
+
         timeoutend = timeit.default_timer() + timeout
+        initial_attempt = True
         while timeoutend > timeit.default_timer():
             try:
                 # Attempt to create the lockfile. If it already exists,
                 # then someone else has the lock and we need to wait
-                self.fd = os.open(self.lock_file, os.O_CREAT |
-                                  os.O_EXCL | os.O_RDWR)
-                open(self.lock_file, 'w').write(self.addr)
+                self.fd = os.open(self.lock_file,
+                                  os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                open(self.lock_file, 'w').write(str(self.pid))
+                os.chmod(self.lock_file, 0o777)
                 break
             except OSError as e:
                 # Only catch if the lockfile already exists
                 if e.errno != errno.EEXIST:
                     raise
+                # Remove the lockfile if it is older than one day
+                elif initial_attempt and expiry:
+                    if self.is_stale(expiry=expiry):
+                        self.clear()
+                    initial_attempt = False
                 time.sleep(check_interval)
         # Raise an error if we had to wait for too long
         else:
+            self.fd = None
             raise NXLockException(
                 f"'{self.filename}' is currently locked by an external process"
                 )
@@ -199,6 +217,19 @@ class NXLock(object):
                 raise NXLockException(f"'{self.filename}' is currently locked "
                                       "by an external process")
         return
+
+    def is_stale(self, expiry=None):
+        """Return True if the lock file is older than one day.
+
+        If the lock file has been cleared before this check, the
+        function returns False to enable another attempt to acquire it.
+        """
+        if expiry is None:
+            expiry = self.expiry
+        try:
+            return ((time.time() - os.path.getmtime(self.lock_file)) > expiry)
+        except FileNotFoundError:
+            return False
 
     def __enter__(self):
         return self.acquire()

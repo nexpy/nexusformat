@@ -1,7 +1,8 @@
 import os
 
 import pytest
-from nexusformat.nexus.tree import NXdata, NXentry, NXFile, NXroot, nxload
+from nexusformat.nexus.tree import (NXdata, NXentry, NXFile, NXroot, nxload,
+                                    nxopen)
 
 
 def test_file_creation(tmpdir):
@@ -54,6 +55,27 @@ def test_file_recursion(tmpdir, field1, field2, recursive):
         assert w2["entry/data"]._entries is not None
         assert w2["entry/data/f2"] == field2
 
+    assert "entry/data/f1" in w2
+    assert "entry/data/f2" in w2
+    assert "signal" in w2["entry/data"].attrs
+    assert "axes" in w2["entry/data"].attrs
+
+
+def test_file_context_manager(tmpdir, field1, field2):
+
+    filename = os.path.join(tmpdir, "file.nxs")
+
+    with nxopen(filename, "w") as w1:
+        w1["entry"] = NXentry()
+        w1["entry/data"] = NXdata(field1, field2)
+        assert w1.nxfilename == filename
+        assert w1.nxfilemode == "rw"
+
+    assert os.path.exists(filename)
+
+    w2 = nxopen(filename)
+    assert w2.nxfilename == filename
+    assert w2.nxfilemode == "r"
     assert "entry/data/f1" in w2
     assert "entry/data/f2" in w2
     assert "signal" in w2["entry/data"].attrs

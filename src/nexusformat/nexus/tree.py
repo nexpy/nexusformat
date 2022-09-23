@@ -2402,7 +2402,7 @@ class NXobject(object):
             elif (self._group is not None and
                   self._group.nxfilename is not None):
                 return str(Path(self._group.nxfilename).parent.joinpath(
-                               self._filename))
+                                self._filename))
             else:
                 return str(Path(self._filename).resolve())
         elif self._group is not None:
@@ -3779,7 +3779,7 @@ class NXfield(NXobject):
         else:
             fname = self.nxfilename
             if fname is not None:
-                return str(PurePath(fname).name) + ':' + self.nxpath
+                return str(Path(fname).name) + ':' + self.nxpath
             else:
                 return self.nxpath
 
@@ -4508,22 +4508,21 @@ class NXgroup(NXobject):
 
     def __getitem__(self, key):
         """Return a NeXus field or group in the current group."""
-        if is_text(key):
-            path = PurePath(key)
-            if path.is_absolute():
-                return self.nxroot[key]
-            elif len(path.parts) == 1:
-                return self.entries[key]
-            else:
-                node = self
-                for name in path.parts:
-                    if name in node:
-                        node = node.entries[name]
-                    else:
-                        raise NeXusError("Invalid path")
-                return node
-        else:
+        try:
+            path = PurePath(str(key))
+        except TypeError:
             raise NeXusError("Invalid index")
+        if path.is_absolute():
+            node = self.nxroot
+            path = path.relative_to('/')
+        else:
+            node = self
+        for name in path.parts:
+            try:
+                node = node.entries[name]
+            except KeyError:
+                raise NeXusError("Invalid path")
+        return node            
 
     def __setitem__(self, key, value):
         """Add or modify entries to the group dictionary.
@@ -4546,70 +4545,65 @@ class NXgroup(NXobject):
         If the key is a path within the NeXus tree, the value is added to the
         base group in the path.
         """
-        if is_text(key):
-            group = self
-            if '/' in key:
-                names = [name for name in key.split('/') if name]
-                key = names.pop()
-                for name in names:
-                    if name in group:
-                        group = group[name]
-                    else:
-                        raise NeXusError("Invalid path")
-            if group.nxfilemode == 'r':
-                raise NeXusError("NeXus group marked as readonly")
-            elif isinstance(group, NXlink):
-                raise NeXusError("Cannot modify an item in a linked group")
-            elif isinstance(value, NXroot):
-                raise NeXusError(
-                    "Cannot assign an NXroot group to another group")
-            elif key in group and group.nxfilemode:
-                if isinstance(value, NXgroup):
-                    raise NeXusError(
-                        "Cannot assign an NXgroup to an existing group entry")
-                elif isinstance(value, NXlink):
-                    raise NeXusError(
-                        "Cannot assign an NXlink to an existing group entry")
-                elif isinstance(group.entries[key], NXlink):
-                    raise NeXusError("Cannot assign values to an NXlink")
-                elif group.entries[key].is_linked():
-                    raise NeXusError("Cannot modify an item in linked group")
-                group.entries[key].nxdata = value
-                if isinstance(value, NXfield):
-                    group.entries[key]._setattrs(value.attrs)
-            elif isinstance(value, NXobject):
-                if group.nxfilemode is None and value._copyfile is not None:
-                    raise NeXusError(
-                        "Can only copy objects to another NeXus file.")
-                if value._group:
-                    value = deepcopy(value)
-                value._group = group
-                value._name = key
-                if isinstance(value, NXlink):
-                    value.initialize_link()
-                group.entries[key] = value
-            else:
-                group.entries[key] = NXfield(value=value, name=key,
-                                             group=group)
-            if isinstance(group.entries[key], NXfield):
-                field = group.entries[key]
-                if field._value is not None:
-                    if isinstance(field._value, np.ma.MaskedArray):
-                        mask_name = field._create_mask()
-                        group[mask_name] = field._value.mask
-                elif field._memfile is not None:
-                    if 'mask' in field._memfile:
-                        mask_name = field._create_mask()
-                        group[mask_name]._create_memfile()
-                        field._memfile.copy('mask', group[mask_name]._memfile,
-                                            'data')
-                        del field._memfile['mask']
-            elif (isinstance(group.entries[key], NXentry) and
-                  not isinstance(group, NXroot)):
-                group.entries[key].nxclass = NXsubentry
-            group.entries[key].update()
-        else:
+        try:
+            path = PurePath(str(key))
+        except TypeError:
             raise NeXusError("Invalid key")
+        if len(path.parts) > 1:
+            group = self[path.parent]
+        else:
+            group = self
+        key = path.name
+        if group.nxfilemode == 'r':
+            raise NeXusError("NeXus group marked as readonly")
+        elif isinstance(group, NXlink):
+            raise NeXusError("Cannot modify an item in a linked group")
+        elif isinstance(value, NXroot):
+            raise NeXusError("Cannot assign an NXroot group to another group")
+        elif key in group and group.nxfilemode:
+            if isinstance(value, NXgroup):
+                raise NeXusError(
+                    "Cannot assign an NXgroup to an existing group entry")
+            elif isinstance(value, NXlink):
+                raise NeXusError(
+                    "Cannot assign an NXlink to an existing group entry")
+            elif isinstance(group.entries[key], NXlink):
+                raise NeXusError("Cannot assign values to an NXlink")
+            elif group.entries[key].is_linked():
+                raise NeXusError("Cannot modify an item in linked group")
+            group.entries[key].nxdata = value
+            if isinstance(value, NXfield):
+                group.entries[key]._setattrs(value.attrs)
+        elif isinstance(value, NXobject):
+            if group.nxfilemode is None and value._copyfile is not None:
+                raise NeXusError(
+                    "Can only copy objects to another NeXus file.")
+            if value._group:
+                value = deepcopy(value)
+            value._group = group
+            value._name = key
+            if isinstance(value, NXlink):
+                value.initialize_link()
+            group.entries[key] = value
+        else:
+            group.entries[key] = NXfield(value=value, name=key, group=group)
+        if isinstance(group.entries[key], NXfield):
+            field = group.entries[key]
+            if field._value is not None:
+                if isinstance(field._value, np.ma.MaskedArray):
+                    mask_name = field._create_mask()
+                    group[mask_name] = field._value.mask
+            elif field._memfile is not None:
+                if 'mask' in field._memfile:
+                    mask_name = field._create_mask()
+                    group[mask_name]._create_memfile()
+                    field._memfile.copy('mask', group[mask_name]._memfile,
+                                        'data')
+                    del field._memfile['mask']
+        elif (isinstance(group.entries[key], NXentry) and
+              not isinstance(group, NXroot)):
+            group.entries[key].nxclass = NXsubentry
+        group.entries[key].update()
 
     def __delitem__(self, key):
         """Delete an entry in the group dictionary.
@@ -4651,7 +4645,7 @@ class NXgroup(NXobject):
 
     def __contains__(self, key):
         """Implements 'k in d' test using the group's entries."""
-        if isinstance(self, NXroot) and key == '/':
+        if isinstance(self, NXroot) and str(key) == '/':
             return True
         elif isinstance(key, NXobject):
             return id(key) in [id(x) for x in self.entries.values()]
@@ -5169,7 +5163,7 @@ class NXgroup(NXobject):
             else:
                 fname = self.nxfilename
                 if fname is not None:
-                    return str(PurePath(fname).name) + ':' + self.nxpath
+                    return str(Path(fname).name) + ':' + self.nxpath
                 else:
                     return self.nxpath
 

@@ -109,6 +109,7 @@ class NXLock(object):
                 self.fd = os.open(self.lock_file,
                                   os.O_CREAT | os.O_EXCL | os.O_RDWR)
                 open(self.lock_file, 'w').write(str(self.pid))
+                os.chmod(self.lock_file, 0o777)
                 break
             except OSError as e:
                 # Only catch if the lockfile already exists

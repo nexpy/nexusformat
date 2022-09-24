@@ -187,12 +187,12 @@ may vary from call to call, so this is mainly useful in iterative searches.
 """
 __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'NXvirtualfield', 'NXlink', 'NXlinkfield', 'NXlinkgroup',
-           'NeXusError',
+           'NeXusError', 'nxgetconfig', 'nxsetconfig',
            'nxgetcompression', 'nxsetcompression',
            'nxgetencoding', 'nxsetencoding',
            'nxgetlock', 'nxsetlock',
-           'nxgetlockexpiry', 'nxsetlockexpiry',
            'nxgetlockdirectory', 'nxsetlockdirectory',
+           'nxgetlockexpiry', 'nxsetlockexpiry',
            'nxgetmaxsize', 'nxsetmaxsize',
            'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
@@ -216,14 +216,13 @@ from .lock import NXLock, NXLockException
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
-NX_COMPRESSION = 'gzip'
-NX_ENCODING = 'utf-8'
-NX_LOCK = 0
-NX_LOCKEXPIRY = 8 * 3600
-NX_LOCKDIRECTORY = None
-NX_MAXSIZE = 10000
-NX_MEMORY = 2000  # Memory in MB
-NX_RECURSIVE = False
+NX_CONFIG = {'compression': 'gzip', 'encoding': 'utf-8', 'lock': 0,
+             'lockexpiry': 8 * 3600, 'lockdirectory': None,
+             'maxsize': 10000, 'memory': 2000, 'recursive': False}
+
+for parameter in NX_CONFIG:
+    if 'NX_' + parameter.upper() in os.environ:
+        NX_CONFIG[parameter] = os.environ['NX_'+parameter.upper()]
 
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
@@ -269,9 +268,9 @@ def text(value):
         value = value[0]
     if isinstance(value, bytes):
         try:
-            _text = value.decode(NX_ENCODING)
+            _text = value.decode(NX_CONFIG['encoding'])
         except UnicodeDecodeError:
-            if NX_ENCODING == 'utf-8':
+            if NX_CONFIG['encoding'] == 'utf-8':
                 _text = value.decode('latin-1')
             else:
                 _text = value.decode('utf-8')
@@ -423,13 +422,14 @@ class NXFile(object):
         self._file = None
         self._filename = str(Path(name).resolve())
         self._filedir = str(Path(self._filename).parent)
-        self._lock = NXLock(self._filename, timeout=NX_LOCK,
-                            expiry=NX_LOCKEXPIRY)
+        self._lock = NXLock(self._filename, timeout=NX_CONFIG['lock'],
+                            expiry=NX_CONFIG['lockexpiry'],
+                            directory=NX_CONFIG['lockdirectory'])
         self._path = '/'
         self._root = None
         self._with_count = 0
         if recursive is None:
-            self.recursive = NX_RECURSIVE
+            self.recursive = NX_CONFIG['recursive']
         else:
             self.recursive = recursive
         if mode is None:
@@ -549,7 +549,7 @@ class NXFile(object):
     def lock(self):
         """Return the NXLock instance to be used in file locking.
 
-        The global variable, `NX_LOCK`, defines the default timeout in
+        The parameter, `NX_LOCK`, defines the default timeout in
         seconds of attempts to acquire the lock. If it is set to 0, the
         NXFile object is not locked by default. The `lock` property can
         be set to turn on file locking, either by setting it to a new
@@ -571,14 +571,15 @@ class NXFile(object):
     @lock.setter
     def lock(self, value):
         if self._lock is None:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK,
-                                expiry=NX_LOCKEXPIRY)
+            self._lock = NXLock(self._filename, timeout=NX_CONFIG['lock'],
+                                expiry=NX_CONFIG['lockexpiry'],
+                                directory=NX_CONFIG['lockdirectory'])
         if value is False or value is None or value == 0:
             self._lock.timeout = 0
         else:
             if value is True:
-                if NX_LOCK:
-                    timeout = NX_LOCK
+                if NX_CONFIG['lock']:
+                    timeout = NX_CONFIG['lock']
                 else:
                     timeout = 10
             else:
@@ -594,8 +595,9 @@ class NXFile(object):
     def lock_file(self):
         """Return the name of the file used to establish the lock."""
         if self._lock is None:
-            self._lock = NXLock(self._filename, timeout=NX_LOCK,
-                                expiry=NX_LOCKEXPIRY)
+            self._lock = NXLock(self._filename, timeout=NX_CONFIG['lock'],
+                                expiry=NX_CONFIG['lockexpiry'],
+                                directory=NX_CONFIG['lockdirectory'])
         return self._lock.lock_file
 
     def acquire_lock(self, timeout=None):
@@ -613,8 +615,8 @@ class NXFile(object):
         if self._lock is None:
             if timeout is not None:
                 self.lock = timeout
-            elif NX_LOCK:
-                self.lock = NX_LOCK
+            elif NX_CONFIG['lock']:
+                self.lock = NX_CONFIG['lock']
             elif self.is_locked():
                 self.lock = True
             if self._lock is None:
@@ -2731,10 +2733,12 @@ class NXfield(NXobject):
         _size = _getsize(self._shape)
         _h5opts = {}
         _h5opts['chunks'] = kwargs.pop('chunks',
-                                       True if _size > NX_MAXSIZE else None)
+                                       True if _size > NX_CONFIG['maxsize']
+                                       else None)
         _h5opts['compression'] = kwargs.pop('compression',
-                                            NX_COMPRESSION
-                                            if _size > NX_MAXSIZE else None)
+                                            NX_CONFIG['compression']
+                                            if _size > NX_CONFIG['maxsize']
+                                            else None)
         _h5opts['compression_opts'] = kwargs.pop('compression_opts', None)
         _h5opts['fillvalue'] = kwargs.pop('fillvalue', None)
         _h5opts['fletcher32'] = kwargs.pop('fletcher32', None)
@@ -2742,7 +2746,8 @@ class NXfield(NXobject):
                                            self._shape)
         _h5opts['scaleoffset'] = kwargs.pop('scaleoffset', None)
         _h5opts['shuffle'] = kwargs.pop('shuffle',
-                                        True if _size > NX_MAXSIZE else None)
+                                        True if _size > NX_CONFIG['maxsize']
+                                        else None)
         self._h5opts = dict((k, v) for (k, v) in _h5opts.items()
                             if v is not None)
         if attrs is None:
@@ -2905,7 +2910,7 @@ class NXfield(NXobject):
             if self.nxfilemode == 'rw':
                 self._put_filedata(value, idx)
             elif self._value is None:
-                if self.size > NX_MAXSIZE:
+                if self.size > NX_CONFIG['maxsize']:
                     self._put_memdata(value, idx)
                 else:
                     self._value = np.empty(self.shape, self.dtype)
@@ -3118,7 +3123,7 @@ class NXfield(NXobject):
                     f.copy(_path, self._memfile, name='data')
                 self._uncopied_data = None
                 if (np.prod(self.shape) * np.dtype(self.dtype).itemsize
-                        <= NX_MEMORY*1000*1000):
+                        <= NX_CONFIG['memory']*1000*1000):
                     return f.readvalue(_path)
                 else:
                     return None
@@ -3726,14 +3731,14 @@ class NXfield(NXobject):
     def nxdata(self):
         """NXfield data as stored in a file.
 
-        If the requested data is larger than NX_MEMORY,the return value
+        If the requested data is larger than NX_MEMORY, the return value
         is `None`.
         """
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
             if (np.prod(self.shape) * np.dtype(self.dtype).itemsize
-                    <= NX_MEMORY*1000*1000):
+                    <= NX_CONFIG['memory']*1000*1000):
                 try:
                     if self.nxfilemode:
                         self._value = self._get_filedata()
@@ -3747,7 +3752,7 @@ class NXfield(NXobject):
                     self._value.shape = self.shape
             else:
                 raise NeXusError("Use slabs to access data larger than "
-                                 f"NX_MEMORY={NX_MEMORY} MB")
+                                 f"NX_MEMORY={NX_CONFIG['memory']} MB")
         if self.mask is not None:
             try:
                 if isinstance(self.mask, NXfield):
@@ -7226,17 +7231,68 @@ def centers(axis, dimlen):
         return ax
 
 
+def getconfig(parameter=None):
+    """Return configuration parameter.
+
+    Parameters
+    ----------
+    parameter : str
+        Name of configuration parameter
+    """
+    if parameter is None:
+        return NX_CONFIG
+    else:
+        try:
+            return NX_CONFIG[parameter]
+        except KeyError:
+            raise NeXusError(f"'{parameter}' is not a valid parameter")
+
+
+def setconfig(**kwargs):
+    """Set configuration parameter.
+
+    Parameters
+    ----------
+    kwargs : dictionary
+        Key/value pairs of configuration parameters
+    """
+    global NX_CONFIG
+    for (parameter, value) in kwargs.items():
+        if parameter not in NX_CONFIG:
+            raise NeXusError(f"'{parameter}' is not a valid parameter")
+        if value == 'None':
+            value = None
+        elif (parameter == 'lock' or parameter == 'lockexpiry' or
+              parameter == 'maxsize' or parameter == 'memory'):
+            try:
+                value = int(value)
+            except TypeError:
+                raise NeXusError(f"'{parameter} must be an integer")
+        elif parameter == 'lockdirectory' and value is not None:
+            value = str(value)
+        elif parameter == 'recursive':
+            if value in ['True', 'true', 'Yes', 'yes', 'Y', 'y']:
+                value = True
+            else:
+                value = False
+        NX_CONFIG[parameter] = value
+
+
+nxgetconfig = getconfig
+nxsetconfig = setconfig
+
+
 def getcompression():
     """Return default compression filter."""
-    return NX_COMPRESSION
+    return NX_CONFIG['compression']
 
 
 def setcompression(value):
     """Set default compression filter."""
-    global NX_COMPRESSION
+    global NX_CONFIG
     if value == 'None':
         value = None
-    NX_COMPRESSION = value
+    NX_CONFIG['compression'] = value
 
 
 nxgetcompression = getcompression
@@ -7245,13 +7301,13 @@ nxsetcompression = setcompression
 
 def getencoding():
     """Return the default encoding for input strings (usually 'utf-8')."""
-    return NX_ENCODING
+    return NX_CONFIG['encoding']
 
 
 def setencoding(value):
     """Set the default encoding for input strings (usually 'utf-8')."""
-    global NX_ENCODING
-    NX_ENCODING = value
+    global NX_CONFIG
+    NX_CONFIG['encoding'] = value
 
 
 nxgetencoding = getencoding
@@ -7268,7 +7324,7 @@ def getlock():
     int
         Number of seconds before a lock acquisition times out.
     """
-    return NX_LOCK
+    return NX_CONFIG['lock']
 
 
 def setlock(value=10):
@@ -7282,9 +7338,9 @@ def setlock(value=10):
         Number of seconds before a lock acquisition times out, by default 10.
         If the value is set to 0, file locking is disabled.
     """
-    global NX_LOCK
+    global NX_CONFIG
     try:
-        NX_LOCK = int(value)
+        NX_CONFIG['lock'] = int(value)
     except ValueError:
         raise NeXusError("Invalid value for file lock time")
 
@@ -7303,7 +7359,7 @@ def getlockexpiry():
     int
         Number of seconds before a file lock expires.
     """
-    return NX_LOCKEXPIRY
+    return NX_CONFIG['lockexpiry']
 
 
 def setlockexpiry(value=28800):
@@ -7318,9 +7374,9 @@ def setlockexpiry(value=28800):
         by default 8*3600. If the value is set to 0, the file lock
         persists indefinitely.
     """
-    global NX_LOCKEXPIRY
+    global NX_CONFIG
     try:
-        NX_LOCKEXPIRY = int(value)
+        NX_CONFIG['lockexpiry'] = int(value)
     except ValueError:
         raise NeXusError("Invalid value for file lock expiry")
 
@@ -7340,7 +7396,7 @@ def getlockdirectory():
     str
         Path to the lock directory.
     """
-    return NX_LOCKDIRECTORY
+    return NX_CONFIG['lockdirectory']
 
 
 def setlockdirectory(value):
@@ -7354,9 +7410,10 @@ def setlockdirectory(value):
     value : str, optional
         Path to the lock directory.
     """
-    global NX_LOCKDIRECTORY
-    value = Path(value).resolve(strict=True)
-    NX_LOCKDIRECTORY = value
+    global NX_CONFIG
+    if value is not None:
+        value = Path(value).resolve(strict=True)
+    NX_CONFIG['lockdirectory'] = value
 
 
 nxgetlockdirectory = getlockdirectory
@@ -7365,14 +7422,14 @@ nxsetlockdirectory = setlockdirectory
 
 def getmaxsize():
     """Return the default maximum size for arrays without using core memory."""
-    return NX_MAXSIZE
+    return NX_CONFIG['maxsize']
 
 
 def setmaxsize(value):
     """Set the default maximum size for arrays without using core memory."""
-    global NX_MAXSIZE
+    global NX_CONFIG
     try:
-        NX_MAXSIZE = int(value)
+        NX_CONFIG['maxsize'] = int(value)
     except ValueError:
         raise NeXusError("Invalid value for maximum array size")
 
@@ -7383,14 +7440,14 @@ nxsetmaxsize = setmaxsize
 
 def getmemory():
     """Return the memory limit for data arrays (in MB)."""
-    return NX_MEMORY
+    return NX_CONFIG['memory']
 
 
 def setmemory(value):
     """Set the memory limit for data arrays (in MB)."""
-    global NX_MEMORY
+    global NX_CONFIG
     try:
-        NX_MEMORY = int(value)
+        NX_CONFIG['memory'] = int(value)
     except ValueError:
         raise NeXusError("Invalid value for memory limit")
 
@@ -7407,7 +7464,7 @@ def getrecursive():
     bool
         True if files are to be opened recursively.
     """
-    return bool(NX_RECURSIVE)
+    return bool(NX_CONFIG['recursive'])
 
 
 def setrecursive(value):
@@ -7421,13 +7478,13 @@ def setrecursive(value):
     value : bool
         True if files are to be opened recursively by default.
     """
-    global NX_RECURSIVE
+    global NX_CONFIG
     if value in [True, 'True', 'true', 'Yes', 'yes', 'Y', 'y', 1]:
         value = True
     else:
         value = False
     try:
-        NX_RECURSIVE = value
+        NX_CONFIG['recursive'] = value
     except ValueError:
         raise NeXusError("Invalid value for setting default recursion.")
 
@@ -7462,7 +7519,7 @@ def load(filename, mode='r', recursive=None, **kwargs):
         NXroot object containing the NeXus tree.
     """
     if recursive is None:
-        recursive = NX_RECURSIVE
+        recursive = NX_CONFIG['recursive']
     with NXFile(filename, mode, recursive=recursive, **kwargs) as f:
         root = f.readfile()
     return root

@@ -1,7 +1,7 @@
 import h5py as h5
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import NXfield, nxgetencoding
+from nexusformat.nexus.tree import NXfield, nxgetconfig
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def test_byte_field_creation(text, string_dtype):
     field = NXfield(text, dtype='S')
 
     assert field.nxvalue == text
-    assert field.nxdata.decode(nxgetencoding()) == text
+    assert field.nxdata.decode(nxgetconfig('encoding')) == text
     assert field.dtype != string_dtype
     assert field.is_string()
     assert len(field) == len(text)

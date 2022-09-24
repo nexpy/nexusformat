@@ -60,17 +60,17 @@ class NXLock(object):
         directory : str, optional
             Path to directory to contain lock file paths.
         """
-        from .tree import nxgetlock, nxgetlockdirectory
+        from .tree import nxgetconfig
 
         self.filename = Path(filename).resolve()
         suffix = self.filename.suffix + '.lock'
         if timeout is None:
-            timeout = nxgetlock()
+            timeout = nxgetconfig('lock')
         self.timeout = timeout
         self.check_interval = check_interval
         self.expiry = expiry
         if directory is None:
-            directory = nxgetlockdirectory()
+            directory = nxgetconfig('lockdirectory')
         if directory:
             try:
                 directory = Path(directory).resolve(strict=True)

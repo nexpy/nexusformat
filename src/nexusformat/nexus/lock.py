@@ -15,8 +15,7 @@ import os
 import socket
 import time
 import timeit
-
-from .tree import nxgetlock, nxgetlockdirectory
+from pathlib import Path
 
 
 class NXLockException(Exception):
@@ -61,7 +60,10 @@ class NXLock(object):
         directory : str, optional
             Path to directory to contain lock file paths.
         """
-        self.filename = os.path.realpath(filename)
+        from .tree import nxgetlock, nxgetlockdirectory
+
+        self.filename = Path(filename).resolve()
+        suffix = self.filename.suffix + '.lock'
         if timeout is None:
             timeout = nxgetlock()
         self.timeout = timeout
@@ -70,19 +72,22 @@ class NXLock(object):
         if directory is None:
             directory = nxgetlockdirectory()
         if directory:
-            directory = os.path.join(
-                directory, os.path.dirname(self.filename)[1:])
-            os.makedirs(self.directory)
-            self.lock_file = os.path.join(
-                directory, os.path.basename(self.filename+'.lock'))
+            try:
+                directory = Path(directory).resolve(strict=True)
+            except FileNotFoundError:
+                raise NXLockException(
+                    f"Lockfile directory '{directory}' does not exist")
+            path = self.filename.relative_to(self.filename.anchor)
+            self.lock_file = Path(directory).joinpath('_'.join(path.parts)
+                                                      ).with_suffix(suffix)
         else:
-            self.lock_file = self.filename+'.lock'
+            self.lock_file = self.filename.with_suffix(suffix)
         self.pid = os.getpid()
         self.addr = f"{self.pid}@{socket.gethostname}"
         self.fd = None
 
     def __repr__(self):
-        return f"NXLock('{os.path.basename(self.filename)}', pid={self.addr})"
+        return f"NXLock('{self.filename.name}', pid={self.addr})"
 
     def acquire(self, timeout=None, check_interval=None, expiry=None):
         """Acquire the lock.
@@ -124,7 +129,7 @@ class NXLock(object):
                 # then someone else has the lock and we need to wait
                 self.fd = os.open(self.lock_file,
                                   os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                open(self.lock_file, 'w').write(str(self.pid))
+                open(self.lock_file, 'w').write(self.addr)
                 os.chmod(self.lock_file, 0o777)
                 break
             except OSError as e:

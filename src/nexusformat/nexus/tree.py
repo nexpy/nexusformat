@@ -189,10 +189,12 @@ __all__ = ['NXFile', 'NXobject', 'NXfield', 'NXgroup', 'NXattr',
            'NXvirtualfield', 'NXlink', 'NXlinkfield', 'NXlinkgroup',
            'NeXusError',
            'nxgetcompression', 'nxsetcompression',
-           'nxgetencoding', 'nxsetencoding', 'nxgetlock', 'nxsetlock',
-           'nxgetlockdirectory', 'nxsetlockdirectory',
+           'nxgetencoding', 'nxsetencoding',
+           'nxgetlock', 'nxsetlock',
            'nxgetlockexpiry', 'nxsetlockexpiry',
-           'nxgetmaxsize', 'nxsetmaxsize', 'nxgetmemory', 'nxsetmemory',
+           'nxgetlockdirectory', 'nxsetlockdirectory',
+           'nxgetmaxsize', 'nxsetmaxsize',
+           'nxgetmemory', 'nxsetmemory',
            'nxgetrecursive', 'nxsetrecursive',
            'nxclasses', 'nxload', 'nxopen', 'nxsave', 'nxduplicate', 'nxdir',
            'nxconsolidate', 'nxdemo', 'nxversion']
@@ -4524,7 +4526,7 @@ class NXgroup(NXobject):
                 node = node.entries[name]
             except KeyError:
                 raise NeXusError("Invalid path")
-        return node            
+        return node
 
     def __setitem__(self, key, value):
         """Add or modify entries to the group dictionary.
@@ -7353,6 +7355,7 @@ def setlockdirectory(value):
         Path to the lock directory.
     """
     global NX_LOCKDIRECTORY
+    value = Path(value).resolve(strict=True)
     NX_LOCKDIRECTORY = value
 
 

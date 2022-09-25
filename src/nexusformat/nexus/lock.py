@@ -167,6 +167,8 @@ class NXLock(object):
     @property
     def locked(self):
         """Return True if the current process has locked the file."""
+        if not self.lock_file.exists():
+            self.fd = None
         return self.fd is not None
 
     def clear(self):

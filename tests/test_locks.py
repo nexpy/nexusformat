@@ -3,12 +3,12 @@ import time
 
 import pytest
 from nexusformat.nexus.tree import (NeXusError, NXentry, NXLock, NXroot,
-                                    nxload, nxsetlock, nxsetlockexpiry, text)
+                                    nxload, nxsetconfig, text)
 
 
 def test_lock_creation(tmpdir, field4):
 
-    nxsetlock(0)
+    nxsetconfig(lock=0)
     filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry(field4))
     root.save(filename)
@@ -90,7 +90,7 @@ def test_lock_interactions(tmpdir, field4):
 
 def test_lock_defaults(tmpdir, field4):
 
-    nxsetlock(20)
+    nxsetconfig(lock=20)
     filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry(field4))
     root.save(filename, "w")
@@ -105,7 +105,7 @@ def test_lock_defaults(tmpdir, field4):
     assert not root.nxfile.locked
     assert not root.nxfile.is_locked()
 
-    nxsetlock(0)
+    nxsetconfig(lock=0)
     root = NXroot(NXentry(field4))
     root.save(filename, "w")
 
@@ -150,8 +150,7 @@ def test_nested_locks(tmpdir, field4):
 
 def test_stale_locks(tmpdir):
 
-    nxsetlock(2)
-    nxsetlockexpiry(3600)
+    nxsetconfig(lock=2, lockexpiry=3600)
     filename = os.path.join(tmpdir, "file1.nxs")
     root = NXroot(NXentry())
     root.save(filename, "w")

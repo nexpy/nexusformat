@@ -12,8 +12,10 @@
 
 import errno
 import os
+import socket
 import time
 import timeit
+from pathlib import Path
 
 
 class NXLockException(Exception):
@@ -34,7 +36,8 @@ class NXLock(object):
         File descriptor of the opened lock file.
     """
 
-    def __init__(self, filename, timeout=60, check_interval=1, expiry=28800):
+    def __init__(self, filename, timeout=None, check_interval=1, expiry=28800,
+                 directory=None):
         """Create a lock to prevent file access.
 
         This creates a lock, which can be later acquired and released. It
@@ -54,19 +57,37 @@ class NXLock(object):
         expiry : int, optional
             Number of seconds after which a lock expires, by default 8*3600.
             Set to 0 or None to make the locks persist indefinitely.
+        directory : str, optional
+            Path to directory to contain lock file paths.
         """
-        self.filename = os.path.realpath(filename)
-        self.lock_file = self.filename+'.lock'
+        from .tree import nxgetconfig
+
+        self.filename = Path(filename).resolve()
+        suffix = self.filename.suffix + '.lock'
+        if timeout is None:
+            timeout = nxgetconfig('lock')
         self.timeout = timeout
         self.check_interval = check_interval
         self.expiry = expiry
+        if directory is None:
+            directory = nxgetconfig('lockdirectory')
+        if directory:
+            try:
+                directory = Path(directory).resolve(strict=True)
+            except FileNotFoundError:
+                raise NXLockException(
+                    f"Lockfile directory '{directory}' does not exist")
+            path = self.filename.relative_to(self.filename.anchor)
+            self.lock_file = Path(directory).joinpath('_'.join(path.parts)
+                                                      ).with_suffix(suffix)
+        else:
+            self.lock_file = self.filename.with_suffix(suffix)
         self.pid = os.getpid()
+        self.addr = f"{self.pid}@{socket.gethostname}"
         self.fd = None
 
     def __repr__(self):
-        return ("NXLock('"
-                + os.path.basename(self.filename)
-                + "', pid=" + str(self.pid)+")")
+        return f"NXLock('{self.filename.name}', pid={self.addr})"
 
     def acquire(self, timeout=None, check_interval=None, expiry=None):
         """Acquire the lock.
@@ -108,7 +129,7 @@ class NXLock(object):
                 # then someone else has the lock and we need to wait
                 self.fd = os.open(self.lock_file,
                                   os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                open(self.lock_file, 'w').write(str(self.pid))
+                open(self.lock_file, 'w').write(self.addr)
                 os.chmod(self.lock_file, 0o777)
                 break
             except OSError as e:
@@ -146,6 +167,8 @@ class NXLock(object):
     @property
     def locked(self):
         """Return True if the current process has locked the file."""
+        if not self.lock_file.exists():
+            self.fd = None
         return self.fd is not None
 
     def clear(self):

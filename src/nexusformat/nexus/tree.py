@@ -220,10 +220,6 @@ NX_CONFIG = {'compression': 'gzip', 'encoding': 'utf-8', 'lock': 0,
              'lockexpiry': 8 * 3600, 'lockdirectory': None,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 
-for parameter in NX_CONFIG:
-    if 'NX_' + parameter.upper() in os.environ:
-        NX_CONFIG[parameter] = os.environ['NX_'+parameter.upper()]
-
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
 
@@ -7268,14 +7264,23 @@ def setconfig(**kwargs):
                 value = int(value)
             except TypeError:
                 raise NeXusError(f"'{parameter} must be an integer")
-        elif parameter == 'lockdirectory' and value is not None:
-            value = str(value)
+        elif parameter == 'lockdirectory':
+            if value in [None, 'None', 'none', '']:
+                value = None
+            else:
+                value = str(value)
         elif parameter == 'recursive':
-            if value in ['True', 'true', 'Yes', 'yes', 'Y', 'y']:
+            if value in ['True', 'true', 'Yes', 'yes', 'Y', 'y', '1']:
                 value = True
             else:
                 value = False
         NX_CONFIG[parameter] = value
+
+
+for parameter in NX_CONFIG:
+    if 'NX_' + parameter.upper() in os.environ:
+        value = os.environ['NX_'+parameter.upper()]
+        setconfig(**{parameter: value})
 
 
 nxgetconfig = getconfig

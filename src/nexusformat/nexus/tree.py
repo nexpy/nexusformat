@@ -216,9 +216,11 @@ from .lock import NXLock, NXLockException
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
+# Default configuration parameters.
 NX_CONFIG = {'compression': 'gzip', 'encoding': 'utf-8', 'lock': 0,
              'lockexpiry': 8 * 3600, 'lockdirectory': None,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
+# These are overwritten below by environment variables if defined.
 
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
@@ -7277,10 +7279,15 @@ def setconfig(**kwargs):
         NX_CONFIG[parameter] = value
 
 
+# Update configuration parameters that are defined as environment variables.
 for parameter in NX_CONFIG:
     if 'NX_' + parameter.upper() in os.environ:
         value = os.environ['NX_'+parameter.upper()]
         setconfig(**{parameter: value})
+
+# If a lock directory is defined, locking should be turned on by default.
+if NX_CONFIG['lockdirectory'] and not NX_CONFIG['lock']:
+    NX_CONFIG['lock'] = 10
 
 
 nxgetconfig = getconfig

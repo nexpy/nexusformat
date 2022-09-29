@@ -78,7 +78,7 @@ class NXLock(object):
                 raise NXLockException(
                     f"Lockfile directory '{directory}' does not exist")
             path = self.filename.relative_to(self.filename.anchor)
-            self.lock_file = Path(directory).joinpath('_'.join(path.parts)
+            self.lock_file = Path(directory).joinpath('!!'.join(path.parts)
                                                       ).with_suffix(suffix)
         else:
             self.lock_file = self.filename.with_suffix(suffix)

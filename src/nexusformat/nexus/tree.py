@@ -7271,6 +7271,8 @@ def setconfig(**kwargs):
                 value = None
             else:
                 value = str(value)
+                if not NX_CONFIG['lock']:
+                    NX_CONFIG['lock'] = 10
         elif parameter == 'recursive':
             if value in ['True', 'true', 'Yes', 'yes', 'Y', 'y', '1']:
                 value = True

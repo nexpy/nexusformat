@@ -2402,7 +2402,7 @@ class NXobject(object):
         """
         if self._filename is not None:
             if Path(self._filename).is_absolute():
-                return self._filename
+                return str(self._filename)
             elif (self._group is not None and
                   self._group.nxfilename is not None):
                 return str(Path(self._group.nxfilename).parent.joinpath(

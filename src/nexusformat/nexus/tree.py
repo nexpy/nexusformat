@@ -209,6 +209,7 @@ from pathlib import Path
 from pathlib import PurePosixPath as PurePath
 
 import h5py as h5
+import hdf5plugin
 import numpy as np
 
 from .. import __version__ as nxversion

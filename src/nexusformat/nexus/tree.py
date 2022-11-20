@@ -227,18 +227,20 @@ np.set_printoptions(threshold=5, precision=6)
 
 # List of defined base classes (later added to __all__)
 nxclasses = [
-    'NXroot', 'NXentry', 'NXsubentry', 'NXdata', 'NXmonitor', 'NXlog',
-    'NXsample', 'NXinstrument', 'NXaperture', 'NXattenuator', 'NXbeam',
-    'NXbeam_stop', 'NXbending_magnet', 'NXcapillary', 'NXcite', 'NXcollection',
-    'NXcollimator', 'NXcrystal', 'NXdetector', 'NXdetector_group',
-    'NXdetector_module', 'NXdisk_chopper', 'NXenvironment', 'NXevent_data',
-    'NXfermi_chopper', 'NXfilter', 'NXflipper', 'NXgeometry', 'NXgrating',
-    'NXgoniometer', 'NXguide', 'NXinsertion_device', 'NXmirror', 'NXmoderator',
-    'NXmonochromator', 'NXnote', 'NXorientation', 'NXparameters', 'NXpinhole',
-    'NXpolarizer', 'NXpositioner', 'NXprocess', 'NXreflections',
-    'NXsample_component', 'NXsensor', 'NXshape', 'NXslit', 'NXsource',
-    'NXtransformations', 'NXtranslation', 'NXuser', 'NXvelocity_selector',
-    'NXxraylens']
+    'NXaperture', 'NXattenuator', 'NXbeam_stop', 'NXbeam', 'NXbending_magnet',
+    'NXcapillary', 'NXcite', 'NXcollection', 'NXcollimator', 'NXcrystal',
+    'NXcylindrical_geometry', 'NXdata', 'NXdetector_group',
+    'NXdetector_module', 'NXdetector', 'NXdisk_chopper', 'NXentry',
+    'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter',
+    'NXflipper', 'NXfresnel_zone_plate', 'NXgeometry', 'NXgrating', 'NXguide',
+    'NXinsertion_device', 'NXinstrument', 'NXlog', 'NXmirror', 'NXmoderator',
+    'NXmonitor', 'NXmonochromator', 'NXnote', 'NXobject', 'NXoff_geometry',
+    'NXorientation', 'NXparameters', 'NXpdb', 'NXpinhole', 'NXpolarizer',
+    'NXpositioner', 'NXprocess', 'NXreflections', 'NXroot',
+    'NXsample_component', 'NXsample', 'NXsensor', 'NXshape', 'NXslit',
+    'NXsource', 'NXsubentry', 'NXtransformations', 'NXtranslation', 'NXuser',
+    'NXvelocity_selector', 'NXxraylens'
+    ]
 
 
 def text(value):

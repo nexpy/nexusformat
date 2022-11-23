@@ -240,7 +240,7 @@ nxclasses = [
     'NXpositioner', 'NXprocess', 'NXreflections', 'NXroot',
     'NXsample_component', 'NXsample', 'NXsensor', 'NXshape', 'NXslit',
     'NXsource', 'NXsubentry', 'NXtransformations', 'NXtranslation', 'NXuser',
-    'NXvelocity_selector', 'NXxraylens'
+    'NXvelocity_selector', 'NXxraylens', 'NXgoniometer'
     ]
 
 

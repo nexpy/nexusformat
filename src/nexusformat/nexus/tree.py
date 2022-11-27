@@ -4039,6 +4039,16 @@ class NXfield(NXobject):
         return self.size * self.dtype.itemsize
 
     @property
+    def human_size(self):
+        """Human readable string of the number of bytes in the NXfield."""
+        import math
+        unit = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB']
+        size = self.nbytes
+        magnitude = int(math.floor(math.log(size, 1000)))
+        val = size / math.pow(1000, magnitude)
+        return f"{val:3.1f}{unit[magnitude]}"
+
+    @property
     def safe_attrs(self):
         """Attributes that can be safely copied to derived NXfields."""
         return {key: self.attrs[key] for key in self.attrs

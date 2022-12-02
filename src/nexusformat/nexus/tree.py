@@ -426,6 +426,7 @@ class NXFile(object):
         self._lock = NXLock(self._filename, timeout=NX_CONFIG['lock'],
                             expiry=NX_CONFIG['lockexpiry'],
                             directory=NX_CONFIG['lockdirectory'])
+        self._lockdir = self.lock_file.parent
         self._path = '/'
         self._root = None
         self._with_count = 0
@@ -454,6 +455,10 @@ class NXFile(object):
             elif not os.access(self._filedir, os.W_OK):
                 raise NeXusError(
                     f"Not permitted to create files in '{self._filedir}'")
+            elif (self._lock.timeout > 0 and
+                  not os.access(self._lockdir, os.W_OK)):
+                raise NeXusError(
+                  f"Not permitted to create a lock file in '{self._lockdir}'")
             try:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
@@ -475,9 +480,9 @@ class NXFile(object):
                 raise NeXusError(
                     f"Not permitted to write to '{self._filename}'")
             elif (self._lock.timeout > 0 and
-                  not os.access(self._filedir, os.W_OK)):
+                  not os.access(self._lockdir, os.W_OK)):
                 raise NeXusError(
-                  f"Not permitted to create a lock file in '{self._filedir}'")
+                  f"Not permitted to create a lock file in '{self._lockdir}'")
             try:
                 self.acquire_lock()
                 self._file = self.h5.File(self._filename, mode, **kwargs)

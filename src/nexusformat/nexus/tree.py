@@ -364,7 +364,7 @@ class NeXusError(Exception):
     pass
 
 
-class NXFile(object):
+class NXFile:
     """Interface for input/output to NeXus files using h5py.
 
     Usage::
@@ -1808,7 +1808,7 @@ class AttrDict(dict):
         return self._parent.nxpath
 
 
-class NXattr(object):
+class NXattr:
     """Class for NeXus attributes of a NXfield or NXgroup object.
 
     Attributes
@@ -1932,7 +1932,7 @@ class NXattr(object):
 _npattrs = list(filter(lambda x: not x.startswith('_'), np.ndarray.__dict__))
 
 
-class NXobject(object):
+class NXobject:
 
     """Abstract base class for elements in NeXus files.
 

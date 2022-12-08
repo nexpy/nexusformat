@@ -22,7 +22,7 @@ class NXLockException(Exception):
     LOCK_FAILED = 1
 
 
-class NXLock(object):
+class NXLock:
     """Class for acquiring and releasing file-based locks.
 
     Attributes

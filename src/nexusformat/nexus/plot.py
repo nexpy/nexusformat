@@ -96,7 +96,7 @@ def label(field):
         return field.nxname
 
 
-class PylabPlotter:
+class PyplotPlotter:
     """Matplotlib plotter class for 1D or 2D NeXus data.
 
     When the nexusformat package is used within NeXpy, plots are produced by
@@ -326,4 +326,4 @@ class PylabPlotter:
                 plt.ion()
 
 
-plotview = PylabPlotter()
+plotview = PyplotPlotter()

@@ -199,7 +199,8 @@ def test_external_group_links(tmpdir, field1a, save):
     assert root["entry/g1_link"].path_exists()
 
     assert "f1" in root["entry/g1_link"]
-    assert root["entry/g1_link/f1"].nxfilename == root["entry/g1_link"].nxfilename
+    assert root["entry/g1_link/f1"].nxfilename == (
+        root["entry/g1_link"].nxfilename)
     assert root["entry/g1_link/f1"].nxfilepath == "/entry/g1/f1"
     assert root["entry/g1_link/f1"].nxroot == root
     assert root["entry/g1_link/f1"].nxgroup is root["entry/g1_link"]

@@ -1502,6 +1502,8 @@ def _getvalue(value, dtype=None, shape=None):
     dtype, shape = _getdtype(dtype), _getshape(shape)
     if isinstance(value, NXfield) or isinstance(value, NXattr):
         value = value.nxvalue
+    elif isinstance(value, Path):
+        value = str(value)
     if value is None:
         return None, dtype, shape
     elif is_text(value):
@@ -2223,9 +2225,9 @@ class NXobject:
         >>> root.save()
         """
         if filename:
-            if Path(filename).suffix not in ['.nxs', '.nx5', '.h5', '.hdf',
-                                             '.hdf5', '.cxi']:
-                filename = filename + '.nxs'
+            filename = Path(filename)
+            if filename.suffix == '':
+                filename = filename.with_suffix('.nxs')
             if self.nxclass == 'NXroot':
                 root = self
             elif self.nxclass == 'NXentry':
@@ -5250,7 +5252,7 @@ class NXlink(NXobject):
         self._soft = soft
         self._entries = None
         if file is not None:
-            self._filename = file
+            self._filename = str(file)
             self._mode = 'r'
         else:
             self._filename = self._mode = None
@@ -7565,7 +7567,7 @@ def save(filename, group, mode='w', **kwargs):
 
     Parameters
     ----------
-    filename : str
+    filename : str or Path
         Name of the file to be saved.
     group : NXgroup
         Group containing the tree to be saved.

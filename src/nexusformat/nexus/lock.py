@@ -210,7 +210,7 @@ class NXLock:
         NXLockException
             If lock not cleared before `timeout`.
         """
-        if os.path.exists(self.lock_file):
+        if self.lock_file.exists():
             if timeout is None:
                 timeout = self.timeout
             if check_interval is None:
@@ -218,7 +218,7 @@ class NXLock:
             timeoutend = timeit.default_timer() + timeout
             while timeoutend > timeit.default_timer():
                 time.sleep(check_interval)
-                if not os.path.exists(self.lock_file):
+                if not self.lock_file.exists():
                     break
             else:
                 raise NXLockException(f"'{self.filename}' is currently locked "
@@ -234,7 +234,7 @@ class NXLock:
         if expiry is None:
             expiry = self.expiry
         try:
-            return ((time.time() - os.path.getmtime(self.lock_file)) > expiry)
+            return ((time.time() - self.lock_file.stat().st_mtime) > expiry)
         except FileNotFoundError:
             return False
 

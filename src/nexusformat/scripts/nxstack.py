@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2021, NeXpy Development Team.
+# Copyright (c) 2013-2022, NeXpy Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import argparse
-import glob
-import os
 import re
 import socket
 import sys
 import timeit
+from pathlib import Path
 
 import numpy as np
 
@@ -30,9 +29,8 @@ def natural_sort(key):
 
 def get_prefixes(directory):
     prefixes = []
-    for filename in os.listdir(directory):
-        f = filename.split(os.path.extsep)[0]
-        match = prefix_pattern.match(f)
+    for filename in Path(directory).iterdir():
+        match = prefix_pattern.match(filename.stem)
         if match:
             prefixes.append(match.group(1).strip('-').strip('_'))
     return list(set(prefixes))
@@ -43,7 +41,7 @@ def get_files(directory, prefix, extension, first=None, last=None,
     if not extension.startswith('.'):
         extension = '.' + extension
     filenames = sorted(
-        glob.glob(os.path.join(directory, prefix + '*' + extension)),
+        [str(f) for f in Path(directory).glob(prefix+'*'+extension)],
         key=natural_sort, reverse=reverse)
     if len(filenames) == 0:
         print("No filenames matched!")
@@ -62,7 +60,7 @@ def get_files(directory, prefix, extension, first=None, last=None,
 
 
 def get_index(filename):
-    return int(index_pattern.match(filename).group(2))
+    return int(index_pattern.match(str(filename)).group(2))
 
 
 def read_image(filename):
@@ -70,12 +68,12 @@ def read_image(filename):
         import fabio
     except ImportError:
         raise NeXusError("Please install the 'fabio' module")
-    im = fabio.open(filename)
+    im = fabio.open(str(filename))
     return im.data
 
 
 def read_images(filenames, shape):
-    good_files = [f for f in filenames if f is not None]
+    good_files = [str(f) for f in filenames if f is not None]
     if good_files:
         v0 = read_image(good_files[0])
         if v0.shape != shape:
@@ -92,7 +90,7 @@ def read_images(filenames, shape):
     return v
 
 
-def initialize_nexus_file(directory, output_file, filenames, first):
+def initialize_nexus_file(output_file, filenames, first):
     z_size = get_index(filenames[-1]) - get_index(filenames[0]) + 1
     v0 = read_image(filenames[0])
     x = NXfield(range(v0.shape[1]), dtype=np.uint16, name='x_pixel')
@@ -142,7 +140,7 @@ def main():
 
     parser = argparse.ArgumentParser(
         description="Stack images into a single NeXus file")
-    parser.add_argument('-d', '--directory', default=os.getcwd(),
+    parser.add_argument('-d', '--directory', default=Path.cwd(),
                         help="directory containing the raw images")
     parser.add_argument('-p', '--prefix', nargs='+',
                         help="common prefix to all images")
@@ -160,13 +158,16 @@ def main():
                         version=f'nxstack v{nxversion}')
 
     args = parser.parse_args()
-    directory = args.directory
+    directory = Path(args.directory)
     extension = args.extension
     if not extension.startswith('.'):
         extension = '.' + extension
-    output = args.output
-    if output is not None and os.path.splitext(output)[1] == '':
-        output = output + '.nxs'
+    if args.output is not None:
+        output = Path(args.output)
+        if output.suffix == '':
+            output = output.with_suffix('.nxs')
+    else:
+        output = None
 
     compression = args.compression
     if compression:
@@ -189,14 +190,14 @@ def main():
         data_files = get_files(directory, prefix, extension, first, last,
                                reverse)
         if output is None:
-            output_file = prefix + '.nxs'
+            output_file = Path(prefix + '.nxs')
         else:
             output_file = output
-        root = initialize_nexus_file(directory, output_file, data_files, first)
+        root = initialize_nexus_file(output_file, data_files, first)
         write_data(root, data_files)
         note = NXnote('nxstack '+' '.join(sys.argv[1:]),
                       (f'Current machine: {socket.gethostname()}\n'
-                       f'Current working directory: {os.getcwd()}\n'
+                       f'Current working directory: {Path.cwd()}\n'
                        f'Data files: {data_files[0]} to {data_files[-1]}\n'))
         root.entry['nxstack'] = NXprocess(
             program='nxstack', sequence_index=len(root.entry.NXprocess) + 1,

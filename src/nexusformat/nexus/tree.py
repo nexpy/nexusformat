@@ -1502,6 +1502,8 @@ def _getvalue(value, dtype=None, shape=None):
     dtype, shape = _getdtype(dtype), _getshape(shape)
     if isinstance(value, NXfield) or isinstance(value, NXattr):
         value = value.nxvalue
+    elif isinstance(value, Path):
+        value = str(value)
     if value is None:
         return None, dtype, shape
     elif is_text(value):
@@ -5250,7 +5252,7 @@ class NXlink(NXobject):
         self._soft = soft
         self._entries = None
         if file is not None:
-            self._filename = file
+            self._filename = str(file)
             self._mode = 'r'
         else:
             self._filename = self._mode = None

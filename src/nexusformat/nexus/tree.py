@@ -2225,9 +2225,9 @@ class NXobject:
         >>> root.save()
         """
         if filename:
-            if Path(filename).suffix not in ['.nxs', '.nx5', '.h5', '.hdf',
-                                             '.hdf5', '.cxi']:
-                filename = filename + '.nxs'
+            filename = Path(filename)
+            if filename.suffix == '':
+                filename = filename.with_suffix('.nxs')
             if self.nxclass == 'NXroot':
                 root = self
             elif self.nxclass == 'NXentry':
@@ -7567,7 +7567,7 @@ def save(filename, group, mode='w', **kwargs):
 
     Parameters
     ----------
-    filename : str
+    filename : str or Path
         Name of the file to be saved.
     group : NXgroup
         Group containing the tree to be saved.

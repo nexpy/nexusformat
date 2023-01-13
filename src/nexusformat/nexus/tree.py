@@ -1362,6 +1362,7 @@ class NXFile:
             self._root._entries[entry]._group = self._root
         self._root._changed = True
         self._root._file_modified = False
+        self._root._mtime = self.mtime
 
     def rename(self, old_path, new_path):
         """Rename an object defined by its path to a new path.
@@ -5709,7 +5710,7 @@ class NXroot(NXgroup):
                 "to True")
         import shutil
         shutil.copy2(self._backup, filename)
-        self.nxfile = filename
+        self.reload()
 
     def close(self):
         """Close the underlying HDF5 file."""
@@ -5777,6 +5778,7 @@ class NXroot(NXgroup):
                 self._entries[entry]._group = self
             self._attrs._setattrs(root.attrs)
             self._file = NXFile(self._filename, self._mode)
+            self._mtime = self._file.mtime
             self.set_changed()
         else:
             raise NeXusError(f"'{Path(filename).resolve()}' does not exist")

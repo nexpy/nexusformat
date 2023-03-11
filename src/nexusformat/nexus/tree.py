@@ -4441,7 +4441,10 @@ class NXgroup(NXobject):
         if "entries" in kwargs:
             self._entries = {}
             for k, v in kwargs["entries"].items():
-                self._entries[k] = deepcopy(v)
+                if isinstance(v, NXobject):
+                    self._entries[k] = deepcopy(v)
+                else:
+                    self._entries[k] = NXfield(v, name=k)
             del kwargs["entries"]
         else:
             self._entries = None

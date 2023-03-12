@@ -4438,27 +4438,18 @@ class NXgroup(NXobject):
             self._class = kwargs.pop("nxclass")
         if "group" in kwargs:
             self._group = kwargs.pop("group")
+        self._entries = None
         if "entries" in kwargs:
-            self._entries = {}
             for k, v in kwargs["entries"].items():
-                if isinstance(v, NXobject):
-                    self._entries[k] = deepcopy(v)
-                else:
-                    self._entries[k] = NXfield(v, name=k)
+                self[k] = v
             del kwargs["entries"]
-        else:
-            self._entries = None
         if "attrs" in kwargs:
             self._attrs = AttrDict(self, attrs=kwargs["attrs"])
             del kwargs["attrs"]
         else:
             self._attrs = AttrDict(self)
         for k, v in kwargs.items():
-            try:
-                self[k] = v
-            except AttributeError:
-                raise NeXusError(
-                    "Keyword arguments must be valid NXobjects")
+            self[k] = v
         if self.nxclass.startswith("NX"):
             if self.nxname == "unknown" or self.nxname == "":
                 self._name = self.nxclass[2:]

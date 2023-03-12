@@ -40,6 +40,41 @@ def test_group_creation(field1, field2, field3):
     assert group3["g1"].nxgroup == group3
 
 
+def test_group_entries(field1, field2, field3, field4, arr1D, arr2D):
+
+    entries = {"f2": field2, "f3": arr1D, "s1": "string",
+               "g1": NXgroup(field3)}
+
+    group1 = NXgroup(field1, f4=field4, f5=arr2D, entries=entries)
+
+    assert "f1" in group1
+    assert "f2" in group1
+    assert "f3" in group1
+    assert "f4" in group1
+    assert "f5" in group1
+    assert "s1" in group1
+    assert "g1" in group1
+
+    assert group1["f1"] == field1
+    assert group1["f2"] == field2
+    assert group1["f3"].nxdata.sum() == arr1D.sum()
+    assert group1["f4"].nxdata == field4.nxdata
+    assert group1["f5"].nxdata.sum() == arr2D.sum()
+    assert group1["s1"].nxdata == "string"
+    assert group1["g1/f3"].nxdata[0] == field3.nxdata[0]
+
+
+def test_group_attrs():
+
+    group1 = NXgroup(attrs={"a": "b", "c": 1})
+
+    assert "a" in group1.attrs
+    assert "c" in group1.attrs
+
+    assert group1.attrs["a"] == "b"
+    assert group1.attrs["c"] == 1
+
+
 def test_group_insertion(field2):
 
     group1 = NXgroup()

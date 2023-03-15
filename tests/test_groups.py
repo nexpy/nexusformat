@@ -54,6 +54,7 @@ def test_group_entries(field1, field2, field3, field4, arr1D, arr2D):
     assert "f5" in group1
     assert "s1" in group1
     assert "g1" in group1
+    assert "g1/f3" in group1
 
     assert group1["f1"] == field1
     assert group1["f2"] == field2
@@ -61,7 +62,7 @@ def test_group_entries(field1, field2, field3, field4, arr1D, arr2D):
     assert group1["f4"].nxdata == field4.nxdata
     assert group1["f5"].nxdata.sum() == arr2D.sum()
     assert group1["s1"].nxdata == "string"
-    assert group1["g1/f3"].nxdata[0] == field3.nxdata[0]
+    assert group1["g1/f3"] == field3
 
 
 def test_group_attrs():

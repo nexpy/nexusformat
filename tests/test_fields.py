@@ -149,3 +149,18 @@ def test_field_operations(peak1D):
     assert np.isclose(peak1D.moment(2), 100.0, rtol=1e-3)
     assert np.isclose(peak1D.std(), 10.0, rtol=1e-3)
     assert np.isclose(peak1D.average(), peak1D.nxvalue.sum() / 101.0)
+
+
+@pytest.mark.parametrize(
+    "arr",
+    ["arr1D",
+     "arr2D",
+     "arr3D"])
+def test_numpy_conversion(arr, request):
+
+    arr = request.getfixturevalue(arr)
+    field = NXfield(arr)
+
+    assert np.array_equal(field, arr)
+    assert np.array_equal(np.array(field, dtype=np.float32), 
+                          arr.astype(np.float32))

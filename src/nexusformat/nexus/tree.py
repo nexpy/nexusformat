@@ -3278,11 +3278,11 @@ class NXfield(NXobject):
                 pass
         return int(np.clip(idx, 0, len(self.nxdata)-1))
 
-    def __array__(self):
+    def __array__(self, *args, **kwargs):
         """Cast the NXfield as a NumPy array."""
-        return np.asarray(self.nxdata)
+        return np.asarray(self.nxdata, *args, **kwargs)
 
-    def __array_wrap__(self, value):
+    def __array_wrap__(self, value, context=None):
         """Transform the array resulting from a ufunc to an NXfield."""
         return NXfield(value, name=self.nxname)
 

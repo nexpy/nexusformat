@@ -487,11 +487,12 @@ class NXFile:
                 self.acquire_lock()
                 self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
-                self.release_lock()
             except NeXusError as error:
                 raise error
             except Exception as error:
                 raise NeXusError(str(error))
+            finally:
+                self.release_lock()
 
     def __repr__(self):
         return (

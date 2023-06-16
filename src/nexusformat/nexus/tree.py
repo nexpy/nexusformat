@@ -4868,8 +4868,8 @@ class NXgroup(NXobject):
 
         Parameters
         ----------
-        target : str
-            Path to the parent object.
+        target : NXobject
+            Target object of the link.
         name : str, optional
             The name of the linked object, by default the same as the target.
         abspath : bool, optional

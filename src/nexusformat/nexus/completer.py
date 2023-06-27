@@ -189,7 +189,11 @@ def nxcompleter(shell, event):
     except Exception:
         raise TryNext
 
-    if not isinstance(shell._ofind(base)['obj'], NXobject):
+    try:
+        obj = shell._ofind(base).obj
+    except AttributeError:
+        obj = shell._ofind(base).get('obj')
+    if not isinstance(obj, NXobject):
         raise TryNext
 
     try:

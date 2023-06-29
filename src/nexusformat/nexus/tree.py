@@ -4488,7 +4488,7 @@ class NXgroup(NXobject):
             return self.entries[name]
         elif name in self.attrs:
             return self.attrs[name]
-        raise NeXusError("'"+name+"' not in "+self.nxpath)
+        raise AttributeError("'"+name+"' not in "+self.nxpath)
 
     def __setattr__(self, name, value):
         """Set an attribute as an object or regular Python attribute.
@@ -5285,7 +5285,8 @@ class NXlink(NXobject):
         try:
             return getattr(self.nxlink, name)
         except Exception:
-            raise NeXusError(f"Cannot resolve the link to '{self._target}'")
+            raise AttributeError(
+                f"Cannot resolve the link to '{self._target}'")
 
     def __setattr__(self, name, value):
         """Set an attribute of the link target.

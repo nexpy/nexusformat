@@ -485,7 +485,7 @@ class NXFile:
                   f"Not permitted to create a lock file in '{self._lockdir}'")
             try:
                 self.acquire_lock()
-                self._file = self.h5.File(self._filename, mode, **kwargs)
+                self._file = self.h5.File(self._filename, 'r', **kwargs)
                 self._file.close()
             except NeXusError as error:
                 raise error

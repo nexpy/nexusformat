@@ -485,7 +485,7 @@ class NXFile:
                   f"Not permitted to create a lock file in '{self._lockdir}'")
             try:
                 self.acquire_lock()
-                self._file = self.h5.File(self._filename, 'r', **kwargs)
+                self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
             except NeXusError as error:
                 raise error
@@ -5285,7 +5285,8 @@ class NXlink(NXobject):
         try:
             return getattr(self.nxlink, name)
         except Exception:
-            raise AttributeError(f"Cannot resolve the link to '{self._target}'")
+            raise AttributeError(
+                f"Cannot resolve the link to '{self._target}'")
 
     def __setattr__(self, name, value):
         """Set an attribute of the link target.

@@ -460,7 +460,10 @@ class NXFile:
                 raise NeXusError(
                   f"Not permitted to create a lock file in '{self._lockdir}'")
             try:
-                self._file = self.h5.File(self._filename, mode, **kwargs)
+                if mode == 'a':
+                    self._file = self.h5.File(self._filename, 'r', **kwargs)
+                else:
+                    self._file = self.h5.File(self._filename, mode, **kwargs)
                 self._file.close()
             except Exception:
                 raise NeXusError(

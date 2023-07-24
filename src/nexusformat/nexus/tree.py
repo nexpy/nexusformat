@@ -434,68 +434,62 @@ class NXFile:
             self.recursive = NX_CONFIG['recursive']
         else:
             self.recursive = recursive
+
         if mode is None:
             mode = 'r'
-        if mode == 'w4' or mode == 'wx':
+        elif mode == 'w5':
+            mode = 'w'
+        elif mode == 'w4' or mode == 'wx':
             raise NeXusError("Only HDF5 files supported")
-        elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x', 'w5']:
+        elif mode not in ['r', 'rw', 'r+', 'w', 'a', 'w-', 'x']:
             raise NeXusError("Invalid file mode")
-        elif not os.access(self._filedir, os.R_OK):
+
+        if not os.access(self._filedir, os.R_OK):
             raise NeXusError(f"'{self._filedir}/' is not accessible")
-        elif (mode == 'w' or mode == 'w-' or mode == 'w5' or mode == 'a' or
-              mode == 'x'):
-            if mode == 'w5':
-                mode = 'w'
+        elif (self._lock.timeout > 0 and
+              not os.access(self._lockdir, os.W_OK)):
+            raise NeXusError(
+                f"Not permitted to create a lock file in '{self._lockdir}'")
+
+        if mode in ['w', 'a', 'w-', 'x']:
             if Path(self._filename).exists():
                 if mode == 'w-' or mode == 'x':
                     raise NeXusError(f"'{self._filename}' already exists")
                 elif not os.access(self._filename, os.W_OK):
                     raise NeXusError(
                         f"Not permitted to write to '{self._filename}'")
+                elif mode == 'a':
+                    mode = 'rw'
             elif not os.access(self._filedir, os.W_OK):
                 raise NeXusError(
                     f"Not permitted to create files in '{self._filedir}'")
-            elif (self._lock.timeout > 0 and
-                  not os.access(self._lockdir, os.W_OK)):
-                raise NeXusError(
-                  f"Not permitted to create a lock file in '{self._lockdir}'")
-            try:
-                if mode == 'a':
-                    self._file = self.h5.File(self._filename, 'r', **kwargs)
-                else:
-                    self._file = self.h5.File(self._filename, mode, **kwargs)
-                self._file.close()
-            except Exception:
-                raise NeXusError(
-                    f"'{self._filename}' cannot be opened by h5py")
-            self._mode = 'rw'
         else:
-            if mode == 'rw' or mode == 'r+':
-                self._mode = 'rw'
-                mode = 'r+'
-            else:
-                self._mode = 'r'
             if not Path(self._filename).exists():
                 raise NeXusError(f"'{self._filename}' does not exist")
             elif not os.access(self._filename, os.R_OK):
-                raise NeXusError(f"Not permitted to open '{self._filename}'")
-            elif (self.mode != 'r' and not os.access(self._filename, os.W_OK)):
+                raise NeXusError(f"Not permitted to read '{self._filename}'")
+            elif (mode != 'r' and not os.access(self._filename, os.W_OK)):
                 raise NeXusError(
                     f"Not permitted to write to '{self._filename}'")
-            elif (self._lock.timeout > 0 and
-                  not os.access(self._lockdir, os.W_OK)):
-                raise NeXusError(
-                  f"Not permitted to create a lock file in '{self._lockdir}'")
-            try:
-                self.acquire_lock()
+
+        try:
+            self.acquire_lock()
+            if mode in ['r', 'r+', 'rw']:
                 self._file = self.h5.File(self._filename, 'r', **kwargs)
-                self._file.close()
-            except NeXusError as error:
-                raise error
-            except Exception as error:
-                raise NeXusError(str(error))
-            finally:
-                self.release_lock()
+            else:
+                self._file = self.h5.File(self._filename, mode, **kwargs)
+            self._file.close()
+        except NeXusError as error:
+            raise error
+        except Exception as error:
+            raise NeXusError(str(error))
+        finally:
+            self.release_lock()
+
+        if mode == 'r':
+            self._mode = 'r'
+        else:
+            self._mode = 'rw'
 
     def __repr__(self):
         return (

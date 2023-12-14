@@ -845,7 +845,7 @@ class NXFile:
         else:
             field = self.get(self.nxpath)
             # Read in the data if it's not too large
-            if np.prod(field.shape) < 1000:  # i.e., less than 1k dims
+            if _getsize(field.shape) < 1000:  # i.e., less than 1k dims
                 try:
                     value = self.readvalue(self.nxpath)
                 except Exception:
@@ -1204,7 +1204,7 @@ class NXFile:
             return None, None, None, {}
         shape, dtype = field.shape, field.dtype
         # Read in the data if it's not too large
-        if np.prod(shape) < 1000:  # i.e., less than 1k dims
+        if _getsize(shape) < 1000:  # i.e., less than 1k dims
             try:
                 value = self.readvalue(self.nxpath)
             except Exception:
@@ -1706,7 +1706,7 @@ def _getsize(shape):
         return 1
     else:
         try:
-            return np.prod(shape)
+            return np.prod(shape, dtype=np.int64)
         except Exception:
             return 1
 
@@ -3129,7 +3129,7 @@ class NXfield(NXobject):
                     self._create_memfile()
                     f.copy(_path, self._memfile, name='data')
                 self._uncopied_data = None
-                if (np.prod(self.shape) * np.dtype(self.dtype).itemsize
+                if (_getsize(self.shape) * np.dtype(self.dtype).itemsize
                         <= NX_CONFIG['memory']*1000*1000):
                     return f.readvalue(_path)
                 else:
@@ -3744,7 +3744,7 @@ class NXfield(NXobject):
         if self._value is None:
             if self.dtype is None or self.shape is None:
                 return None
-            if (np.prod(self.shape) * np.dtype(self.dtype).itemsize
+            if (_getsize(self.shape) * np.dtype(self.dtype).itemsize
                     <= NX_CONFIG['memory']*1000*1000):
                 try:
                     if self.nxfilemode:
@@ -4037,7 +4037,7 @@ class NXfield(NXobject):
     @property
     def size(self):
         """Total size of the NXfield."""
-        return int(np.prod(self.shape))
+        return _getsize(self.shape)
 
     @property
     def nbytes(self):

@@ -230,9 +230,9 @@ np.set_printoptions(threshold=5, precision=6)
 nxclasses = [
     'NXaperture', 'NXattenuator', 'NXbeam_stop', 'NXbeam', 'NXbending_magnet',
     'NXcapillary', 'NXcite', 'NXcollection', 'NXcollimator', 'NXcrystal',
-    'NXcylindrical_geometry', 'NXdata', 'NXdetector_group',
-    'NXdetector_module', 'NXdetector', 'NXdisk_chopper', 'NXentry',
-    'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter',
+    'NXcylindrical_geometry', 'NXdata', 'NXdetector_channel',
+    'NXdetector_group', 'NXdetector_module', 'NXdetector', 'NXdisk_chopper',
+    'NXentry', 'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter',
     'NXflipper', 'NXfresnel_zone_plate', 'NXgeometry', 'NXgrating', 'NXguide',
     'NXinsertion_device', 'NXinstrument', 'NXlog', 'NXmirror', 'NXmoderator',
     'NXmonitor', 'NXmonochromator', 'NXnote', 'NXobject', 'NXoff_geometry',

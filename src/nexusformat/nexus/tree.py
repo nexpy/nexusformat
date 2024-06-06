@@ -6395,6 +6395,7 @@ class NXdata(NXgroup):
             raise NeXusError("No signal defined for this NXdata group")
         elif weights is None:
             raise NeXusError("No weights defined for this NXdata group")
+        result._group = self._group
         return result
 
     def prepare_smoothing(self):

@@ -1864,7 +1864,7 @@ class NXattr:
     def __repr__(self):
         if (self.dtype is not None and
             (self.shape == () or self.shape == (1,)) and
-            (self.dtype.type == np.string_ or self.dtype.type == np.str_ or
+            (self.dtype.type == np.bytes_ or self.dtype.type == np.str_ or
              self.dtype == string_dtype)):
             return f"NXattr('{self}')"
         else:
@@ -1898,7 +1898,7 @@ class NXattr:
         if self._value is None:
             return ''
         elif (self.dtype is not None and
-              (self.dtype.type == np.string_ or self.dtype.type == np.str_ or
+              (self.dtype.type == np.bytes_ or self.dtype.type == np.str_ or
                self.dtype == string_dtype)):
             if self.shape == ():
                 return text(self._value)
@@ -3721,7 +3721,7 @@ class NXfield(NXobject):
         if _value is None:
             return None
         elif (self.dtype is not None and
-              (self.dtype.type == np.string_ or self.dtype.type == np.str_ or
+              (self.dtype.type == np.bytes_ or self.dtype.type == np.str_ or
                self.dtype == string_dtype)):
             if self.shape == ():
                 return text(_value)

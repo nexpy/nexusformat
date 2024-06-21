@@ -3280,7 +3280,7 @@ class NXfield(NXobject):
         """Cast the NXfield as a NumPy array."""
         return np.asarray(self.nxdata, *args, **kwargs)
 
-    def __array_wrap__(self, value, context=None):
+    def __array_wrap__(self, value, context=None, return_scalar=False):
         """Transform the array resulting from a ufunc to an NXfield."""
         return NXfield(value, name=self.nxname)
 

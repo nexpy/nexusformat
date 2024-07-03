@@ -1803,6 +1803,12 @@ class AttrDict(dict):
                     f.nxpath = self._parent.nxpath
                     del f[f.nxpath].attrs[key]
 
+    def get(self, key, default=None):
+        if key in self:
+            return super().get(key).nxvalue
+        else:
+            return default
+
     @property
     def nxpath(self):
         """The path to the NeXus field or group containin the attributes."""
@@ -1906,10 +1912,12 @@ class NXattr:
                 return text(self._value[0])
             else:
                 return [text(value) for value in self._value[()]]
+        elif self.shape == ():
+            return self._value
         elif self.shape == (1,):
             return self._value.item()
         else:
-            return self._value
+            return self._value.tolist()
 
     @property
     def nxdata(self):

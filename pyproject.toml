@@ -1,6 +1,56 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools >= 61.0.0", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "nexusformat"
+dynamic = ["version"]
+description = "Python API to access NeXus data"
+readme = "README.md"
+license = {file = "COPYING"}
+authors = [{name = "Raymond Osborn", email = "rayosborn@mac.com"}]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Modified BSD License",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+keywords = ["data format", "HDF5", "neutron scattering", "x-ray scattering"]
+requires-python = ">=3.6"
+dependencies = [
+    "numpy",
+    "scipy",
+    "h5py >=2.9",
+    "hdf5plugin"]
+
+[project.optional-dependencies]
+testing = ["pytest"]
+
+[project.urls]
+Homepage = "https://nexpy.github.io/nexpy"
+Repository = "https://github.com/nexpy/nexusformat.git"
+Issues = "https://github.com/nexpy/nexusformat/issues"
+Documentation = "https://nexpy.github.io/nexpy/pythonshell.html"
+Changelog = "https://github.com/nexpy/nexusformat/releases"
+
+[project.scripts]
+nexusformat = "nexusformat.scripts.nexusformat:main"
+nxconsolidate = "nexusformat.scripts.nxconsolidate:main"
+nxdir = "nexusformat.scripts.nxdir:main"
+nxduplicate = "nexusformat.scripts.nxduplicate:main"
+nxstack = "nexusformat.scripts.nxstack:main"
+
 [tool.setuptools_scm]
-write_to = "src/nexusformat/_version.py"
+version_file = "nexusformat/_version.py"
+
+[tool.setuptools.package-data]
+"nexusformat.notebooks" = ["*.pnyb"]

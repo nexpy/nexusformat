@@ -50,7 +50,7 @@ nxduplicate = "nexusformat.scripts.nxduplicate:main"
 nxstack = "nexusformat.scripts.nxstack:main"
 
 [tool.setuptools_scm]
-version_file = "nexusformat/_version.py"
+version_file = "src/nexusformat/_version.py"
 
 [tool.setuptools.package-data]
 "nexusformat.notebooks" = ["*.pnyb"]

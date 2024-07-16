@@ -16,8 +16,6 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.6",
-  "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -25,11 +23,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 keywords = ["data format", "HDF5", "neutron scattering", "x-ray scattering"]
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 dependencies = [
     "numpy",
     "scipy",
-    "h5py >=2.9",
+    "h5py",
     "hdf5plugin"]
 
 [project.optional-dependencies]

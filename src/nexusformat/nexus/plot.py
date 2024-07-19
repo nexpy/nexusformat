@@ -252,7 +252,7 @@ class PyplotPlotter:
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
 
-                    from pkg_resources import parse_version as pv
+                    from packaging.version import parse as pv
                     if pv(mplversion) >= pv('3.5.0'):
                         from matplotlib import colormaps
                         cm = copy.copy(colormaps[cmap])

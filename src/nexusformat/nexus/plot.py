@@ -142,8 +142,6 @@ class PyplotPlotter:
             raise NeXusError(
                 "Default plotting package (matplotlib) not available.")
 
-        from matplotlib import __version__ as mplversion
-
         over = kwargs.pop("over", False)
         image = kwargs.pop("image", False)
         log = kwargs.pop("log", False)
@@ -245,6 +243,9 @@ class PyplotPlotter:
                     im = ax.imshow(data, origin='upper', **kwargs)
                     ax.set_aspect('equal')
                 else:
+                    from packaging.version import Version
+                    from matplotlib import __version__ as mplversion
+
                     if log:
                         vmin = max(vmin, 0.01)
                         vmax = max(vmax, 0.01)
@@ -252,7 +253,6 @@ class PyplotPlotter:
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
 
-                    from packaging.version import Version
                     if Version(mplversion) >= Version('3.5.0'):
                         from matplotlib import colormaps
                         cm = copy.copy(colormaps[cmap])

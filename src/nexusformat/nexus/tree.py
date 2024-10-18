@@ -5271,8 +5271,6 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
-            if not self._target.startswith('/'):
-                self._target = '/' + self._target
         self._link = None
 
     def __repr__(self):
@@ -5422,7 +5420,13 @@ class NXlink(NXobject):
     @property
     def internal_link(self):
         """Return NXfield or NXgroup targeted by an internal link."""
-        return self.nxroot[self._target]
+        if Path(self._target).is_absolute():
+            return self.nxroot[self._target]
+        else:
+            try:
+                return self.nxgroup[self._target]
+            except NeXusError:
+                return self.nxroot[self._target]
 
     @property
     def external_link(self):

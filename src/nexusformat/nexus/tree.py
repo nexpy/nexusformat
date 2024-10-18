@@ -1303,8 +1303,9 @@ class NXFile:
         self.file.attrs['file_time'] = datetime.now().isoformat()
         self.file.attrs['HDF5_Version'] = self.h5.version.hdf5_version
         self.file.attrs['h5py_version'] = self.h5.version.version
+        self.file.attrs['creator'] = 'nexusformat'
         from .. import __version__
-        self.file.attrs['nexusformat_version'] = __version__
+        self.file.attrs['creator_version'] = __version__
         if self._root:
             self._root._setattrs(self.file.attrs)
 

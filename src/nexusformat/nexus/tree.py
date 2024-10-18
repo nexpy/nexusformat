@@ -33,7 +33,7 @@ functions returned by the wildcard import in the example start with 'NX' or
 
     >>> from nexusformat.nexus import *
     >>> a=nxload('sns/data/ARCS_7326.nxs')
-    >>> print a.tree
+    >>> print(a.tree)
     root:NXroot
       @HDF5_Version = 1.8.2
       @NeXus_version = 4.2.1
@@ -87,7 +87,7 @@ Then, a NeXus data group is created and the data inserted to produce a
 NeXus-compliant structure that can be saved to a file
 
     >>> root=NXroot(NXentry())
-    >>> print root.tree
+    >>> print(root.tree)
     root:NXroot
       entry:NXentry
     >>> root.entry.data=NXdata(z,[x,y])
@@ -171,8 +171,8 @@ The default group name will be the class name following the 'NX', so the above
 group will have an nxname of 'sample'. However, this is overridden by the
 attribute name when it is assigned as a group attribute, e.g.,
 
-    >>> entry.sample1 = NXsample()
-    >>> entry.sample1.nxname
+    >>> entry['sample1'] = NXsample()
+    >>> entry['sample1'].nxname
     sample1
 
 You can traverse the tree by component class instead of component name. Since
@@ -451,8 +451,9 @@ class NXFile:
             raise NeXusError(
                 f"Not permitted to create a lock file in '{self._lockdir}'")
 
+        file_exists = Path(self._filename).exists()
         if mode in ['w', 'a', 'w-', 'x']:
-            if Path(self._filename).exists():
+            if file_exists:
                 if mode == 'w-' or mode == 'x':
                     raise NeXusError(f"'{self._filename}' already exists")
                 elif not os.access(self._filename, os.W_OK):
@@ -464,7 +465,7 @@ class NXFile:
                 raise NeXusError(
                     f"Not permitted to create files in '{self._filedir}'")
         else:
-            if not Path(self._filename).exists():
+            if not file_exists:
                 raise NeXusError(f"'{self._filename}' does not exist")
             elif not os.access(self._filename, os.R_OK):
                 raise NeXusError(f"Not permitted to read '{self._filename}'")
@@ -478,6 +479,8 @@ class NXFile:
                 self._file = self.h5.File(self._filename, 'r', **kwargs)
             else:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
+            if not file_exists:
+                self._rootattrs()
             self._file.close()
         except NeXusError as error:
             raise error
@@ -957,7 +960,6 @@ class NXFile:
             self._writeattrs(root.attrs)
         root._filename = self._filename
         self._root = root
-        self._rootattrs()
 
     def _writeattrs(self, attrs):
         """Write the attributes for the group or field with the current path.
@@ -1301,8 +1303,9 @@ class NXFile:
         self.file.attrs['file_time'] = datetime.now().isoformat()
         self.file.attrs['HDF5_Version'] = self.h5.version.hdf5_version
         self.file.attrs['h5py_version'] = self.h5.version.version
+        self.file.attrs['creator'] = 'nexusformat'
         from .. import __version__
-        self.file.attrs['nexusformat_version'] = __version__
+        self.file.attrs['creator_version'] = __version__
         if self._root:
             self._root._setattrs(self.file.attrs)
 
@@ -2216,7 +2219,7 @@ class NXobject:
         -------
         >>> data = NXdata(sin(x), x)
         >>> data.save('file.nxs')
-        >>> print data.nxroot.tree
+        >>> print(data.nxroot.tree)
         root:NXroot
           @HDF5_Version = 1.8.2
           @NeXus_version = 4.2.1
@@ -2663,26 +2666,26 @@ class NXfield(NXobject):
     The following examples show how fields can usually be treated like NumPy
     arrays.
 
-        >>> x=NXfield((1.0,2.0,3.0,4.0))
-        >>> print x+1
+        >>> x = NXfield((1.0,2.0,3.0,4.0))
+        >>> print(x+1)
         [ 2.  3.  4.  5.]
-        >>> print 2*x
+        >>> print(2*x)
         [ 2.  4.  6.  8.]
-        >>> print x/2
+        >>> print(x/2)
         [ 0.5  1.   1.5  2. ]
-        >>> print x**2
+        >>> print(x**2)
         [  1.   4.   9.  16.]
-        >>> print x.reshape((2,2))
+        >>> print(x.reshape((2,2)))
         [[ 1.  2.]
          [ 3.  4.]]
-        >>> y=NXfield((0.5,1.5,2.5,3.5))
-        >>> x+y
+        >>> y = NXfield((0.5,1.5,2.5,3.5))
+        >>> x + y
         NXfield(array([1.5, 3.5, 5.5, 7.5]))
-        >>> x*y
+        >>> x * y
         NXfield(array([ 0.5,  3. ,  7.5, 14. ]))
-        >>> (x+y).shape
+        >>> (x + y).shape
         (4,)
-        >>> (x+y).dtype
+        >>> (x + y).dtype
         dtype('float64')
 
     All these operations return valid NXfield objects containing the same
@@ -2778,8 +2781,8 @@ class NXfield(NXobject):
                       + list(self.attrs), key=natural_sort)
 
     def __repr__(self):
-        if self._value is not None:
-            return f"NXfield({repr(self.nxvalue)})"
+        if self._name != "unknown":
+            return f"NXfield('{self.nxname}')"
         else:
             return f"NXfield(shape={self.shape}, dtype={self.dtype})"
 
@@ -4388,7 +4391,7 @@ class NXgroup(NXobject):
         names using the group dictionary, i.e.,
 
         >>> entry.sample.temperature = 100.0
-        >>> print entry.sample.temperature
+        >>> print(entry.sample.temperature)
         sample:NXsample
           temperature = 100.0
         >>> entry.sample['temperature']
@@ -4417,8 +4420,8 @@ class NXgroup(NXobject):
         >>> x = NXfield(np.linspace(0,2*np.pi,101), units='degree')
         >>> entry = NXgroup(x, name='entry', nxclass='NXentry')
         >>> entry.sample = NXgroup(temperature=NXfield(40.0,units='K'),
-                               nxclass='NXsample')
-        >>> print entry.sample.tree
+                                   nxclass='NXsample')
+        >>> print(entry.sample.tree)
         sample:NXsample
           temperature = 40.0
             @units = K

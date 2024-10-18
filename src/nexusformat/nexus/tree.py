@@ -451,8 +451,9 @@ class NXFile:
             raise NeXusError(
                 f"Not permitted to create a lock file in '{self._lockdir}'")
 
+        file_exists = Path(self._filename).exists()
         if mode in ['w', 'a', 'w-', 'x']:
-            if Path(self._filename).exists():
+            if file_exists:
                 if mode == 'w-' or mode == 'x':
                     raise NeXusError(f"'{self._filename}' already exists")
                 elif not os.access(self._filename, os.W_OK):
@@ -464,7 +465,7 @@ class NXFile:
                 raise NeXusError(
                     f"Not permitted to create files in '{self._filedir}'")
         else:
-            if not Path(self._filename).exists():
+            if not file_exists:
                 raise NeXusError(f"'{self._filename}' does not exist")
             elif not os.access(self._filename, os.R_OK):
                 raise NeXusError(f"Not permitted to read '{self._filename}'")
@@ -478,6 +479,8 @@ class NXFile:
                 self._file = self.h5.File(self._filename, 'r', **kwargs)
             else:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
+            if not file_exists:
+                self._rootattrs()
             self._file.close()
         except NeXusError as error:
             raise error
@@ -957,7 +960,6 @@ class NXFile:
             self._writeattrs(root.attrs)
         root._filename = self._filename
         self._root = root
-        self._rootattrs()
 
     def _writeattrs(self, attrs):
         """Write the attributes for the group or field with the current path.

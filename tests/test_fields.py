@@ -83,6 +83,7 @@ def test_field_methods(arr, request):
     arr = request.getfixturevalue(arr)
     field = NXfield(arr)
 
+    assert np.array_equal(field**2, arr**2)
     assert field.min() == np.min(arr)
     assert field.min(keepdims=True) == np.min(arr, keepdims=True)
     assert field.max() == np.max(arr)

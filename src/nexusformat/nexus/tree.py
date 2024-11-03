@@ -3446,15 +3446,15 @@ class NXfield(NXobject):
         return NXfield(value=pow(self.nxdata, power), name=self.nxname,
                        attrs=self.safe_attrs)
 
-    def min(self, axis=None):
+    def min(self, axis=None, **kwargs):
         """Return the minimum value of the array ignoring NaNs."""
-        return np.nanmin(self.nxdata[self.nxdata > -np.inf], axis)
+        return np.nanmin(self.nxdata[self.nxdata > -np.inf], axis, **kwargs)
 
-    def max(self, axis=None):
+    def max(self, axis=None, **kwargs):
         """Return the maximum value of the array ignoring NaNs."""
-        return np.nanmax(self.nxdata[self.nxdata < np.inf], axis)
+        return np.nanmax(self.nxdata[self.nxdata < np.inf], axis, **kwargs)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, **kwargs):
         """Return the sum of NXfield values.
 
         Parameters
@@ -3468,9 +3468,9 @@ class NXfield(NXobject):
             Summed values.
         """
         return NXfield(np.sum(self.nxdata, axis), name=self.nxname,
-                       attrs=self.safe_attrs)
+                       attrs=self.safe_attrs, **kwargs)
 
-    def average(self, axis=None):
+    def average(self, axis=None, **kwargs):
         """Return the average of NXfield values.
 
         Parameters
@@ -3483,8 +3483,8 @@ class NXfield(NXobject):
         NXfield
             Averaged values.
         """
-        return NXfield(np.average(self.nxdata, axis), name=self.nxname,
-                       attrs=self.safe_attrs)
+        return NXfield(np.average(self.nxdata, axis, **kwargs),
+                       name=self.nxname, attrs=self.safe_attrs)
 
     def moment(self, order=1, center=None):
         """Return the central moments of a one-dimensional field.

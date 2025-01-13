@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2021, NeXpy Development Team.
+# Copyright (c) 2013-2025, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -12,6 +12,7 @@
 import copy
 
 import numpy as np
+from packaging.version import Version
 
 from . import NeXusError, NXfield
 
@@ -252,8 +253,7 @@ class PyplotPlotter:
                     else:
                         kwargs["norm"] = Normalize(vmin, vmax)
 
-                    from pkg_resources import parse_version as pv
-                    if pv(mplversion) >= pv('3.5.0'):
+                    if Version(mplversion) >= Version('3.5.0'):
                         from matplotlib import colormaps
                         cm = copy.copy(colormaps[cmap])
                     else:
@@ -292,7 +292,7 @@ class PyplotPlotter:
                                     im.set_clim(-0.5, 9.5)
                                 elif cmin == 1:
                                     im.set_clim(0.5, 10.5)
-                                if pv(mplversion) >= pv('3.5.0'):
+                                if Version(mplversion) >= Version('3.5.0'):
                                     cb.ax.set_ylim(cmin-0.5, cmax+0.5)
                                     cb.set_ticks(range(int(cmin), int(cmax)+1))
 

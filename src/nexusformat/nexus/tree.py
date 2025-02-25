@@ -1125,6 +1125,7 @@ class NXFile:
                     and target in self['/']):
                 if soft:
                     self[path] = h5.SoftLink(target)
+                    self[target].attrs['target'] = target
                 else:
                     if 'target' not in self[target].attrs:
                         self[target].attrs['target'] = target

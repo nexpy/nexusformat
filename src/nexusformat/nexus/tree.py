@@ -2782,8 +2782,8 @@ class NXfield(NXobject):
                       + list(self.attrs), key=natural_sort)
 
     def __repr__(self):
-        if self._name != "unknown":
-            return f"NXfield('{self.nxname}')"
+        if self._value is not None:
+            return f"NXfield({repr(self._value)})"
         else:
             return f"NXfield(shape={self.shape}, dtype={self.dtype})"
 

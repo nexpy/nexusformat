@@ -3471,20 +3471,9 @@ class NXfield(NXobject):
         return NXfield(np.sum(self.nxdata, axis), name=self.nxname,
                        attrs=self.safe_attrs, **kwargs)
 
-    def average(self, axis=None, **kwargs):
-        """Return the average of NXfield values.
-
-        Parameters
-        ----------
-        axis : int or tuple of ints, optional
-            Axis or axes to be averaged, by default all axes.
-
-        Returns
-        -------
-        NXfield
-            Averaged values.
-        """
-        return NXfield(np.average(self.nxdata, axis, **kwargs),
+    def average(self, **kwargs):
+        """Return the average of NXfield values."""
+        return NXfield(np.average(self.nxdata, **kwargs),
                        name=self.nxname, attrs=self.safe_attrs)
 
     def moment(self, order=1, center=None):
@@ -3521,35 +3510,38 @@ class NXfield(NXobject):
         else:
             return (y * (x - c)**order).sum()
 
-    def mean(self):
-        """Return the mean value of a one-dimensional field.
+    def mean(self, **kwargs):
+        """Return the mean value.
 
         Returns
         -------
         NXfield
-            The mean of the group signal.
+            The mean of the field.
         """
-        return self.moment(1)
+        return NXfield(np.mean(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
 
-    def var(self):
+    def var(self, **kwargs):
         """Return the variance of a one-dimensional field.
 
         Returns
         -------
         NXfield
-            The variance of the group signal.
+            The variance of the field.
         """
-        return np.abs(self.moment(2))
+        return NXfield(np.var(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
 
-    def std(self):
+    def std(self, **kwargs):
         """Return the standard deviation of a one-dimensional field.
 
         Returns
         -------
         NXfield
-            The standard deviation of the group signal.
+            The standard deviation of the field.
         """
-        return np.sqrt(self.var())
+        return NXfield(np.std(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
 
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""

@@ -33,7 +33,7 @@ functions returned by the wildcard import in the example start with 'NX' or
 
     >>> from nexusformat.nexus import *
     >>> a=nxload('sns/data/ARCS_7326.nxs')
-    >>> print a.tree
+    >>> print(a.tree)
     root:NXroot
       @HDF5_Version = 1.8.2
       @NeXus_version = 4.2.1
@@ -87,7 +87,7 @@ Then, a NeXus data group is created and the data inserted to produce a
 NeXus-compliant structure that can be saved to a file
 
     >>> root=NXroot(NXentry())
-    >>> print root.tree
+    >>> print(root.tree)
     root:NXroot
       entry:NXentry
     >>> root.entry.data=NXdata(z,[x,y])
@@ -171,8 +171,8 @@ The default group name will be the class name following the 'NX', so the above
 group will have an nxname of 'sample'. However, this is overridden by the
 attribute name when it is assigned as a group attribute, e.g.,
 
-    >>> entry.sample1 = NXsample()
-    >>> entry.sample1.nxname
+    >>> entry['sample1'] = NXsample()
+    >>> entry['sample1'].nxname
     sample1
 
 You can traverse the tree by component class instead of component name. Since
@@ -451,8 +451,9 @@ class NXFile:
             raise NeXusError(
                 f"Not permitted to create a lock file in '{self._lockdir}'")
 
+        file_exists = Path(self._filename).exists()
         if mode in ['w', 'a', 'w-', 'x']:
-            if Path(self._filename).exists():
+            if file_exists:
                 if mode == 'w-' or mode == 'x':
                     raise NeXusError(f"'{self._filename}' already exists")
                 elif not os.access(self._filename, os.W_OK):
@@ -464,7 +465,7 @@ class NXFile:
                 raise NeXusError(
                     f"Not permitted to create files in '{self._filedir}'")
         else:
-            if not Path(self._filename).exists():
+            if not file_exists:
                 raise NeXusError(f"'{self._filename}' does not exist")
             elif not os.access(self._filename, os.R_OK):
                 raise NeXusError(f"Not permitted to read '{self._filename}'")
@@ -478,6 +479,8 @@ class NXFile:
                 self._file = self.h5.File(self._filename, 'r', **kwargs)
             else:
                 self._file = self.h5.File(self._filename, mode, **kwargs)
+            if not file_exists:
+                self._rootattrs()
             self._file.close()
         except NeXusError as error:
             raise error
@@ -957,7 +960,6 @@ class NXFile:
             self._writeattrs(root.attrs)
         root._filename = self._filename
         self._root = root
-        self._rootattrs()
 
     def _writeattrs(self, attrs):
         """Write the attributes for the group or field with the current path.
@@ -1123,6 +1125,7 @@ class NXFile:
                     and target in self['/']):
                 if soft:
                     self[path] = h5.SoftLink(target)
+                    self[target].attrs['target'] = target
                 else:
                     if 'target' not in self[target].attrs:
                         self[target].attrs['target'] = target
@@ -1301,8 +1304,9 @@ class NXFile:
         self.file.attrs['file_time'] = datetime.now().isoformat()
         self.file.attrs['HDF5_Version'] = self.h5.version.hdf5_version
         self.file.attrs['h5py_version'] = self.h5.version.version
+        self.file.attrs['creator'] = 'nexusformat'
         from .. import __version__
-        self.file.attrs['nexusformat_version'] = __version__
+        self.file.attrs['creator_version'] = __version__
         if self._root:
             self._root._setattrs(self.file.attrs)
 
@@ -2216,7 +2220,7 @@ class NXobject:
         -------
         >>> data = NXdata(sin(x), x)
         >>> data.save('file.nxs')
-        >>> print data.nxroot.tree
+        >>> print(data.nxroot.tree)
         root:NXroot
           @HDF5_Version = 1.8.2
           @NeXus_version = 4.2.1
@@ -2663,26 +2667,26 @@ class NXfield(NXobject):
     The following examples show how fields can usually be treated like NumPy
     arrays.
 
-        >>> x=NXfield((1.0,2.0,3.0,4.0))
-        >>> print x+1
+        >>> x = NXfield((1.0,2.0,3.0,4.0))
+        >>> print(x+1)
         [ 2.  3.  4.  5.]
-        >>> print 2*x
+        >>> print(2*x)
         [ 2.  4.  6.  8.]
-        >>> print x/2
+        >>> print(x/2)
         [ 0.5  1.   1.5  2. ]
-        >>> print x**2
+        >>> print(x**2)
         [  1.   4.   9.  16.]
-        >>> print x.reshape((2,2))
+        >>> print(x.reshape((2,2)))
         [[ 1.  2.]
          [ 3.  4.]]
-        >>> y=NXfield((0.5,1.5,2.5,3.5))
-        >>> x+y
+        >>> y = NXfield((0.5,1.5,2.5,3.5))
+        >>> x + y
         NXfield(array([1.5, 3.5, 5.5, 7.5]))
-        >>> x*y
+        >>> x * y
         NXfield(array([ 0.5,  3. ,  7.5, 14. ]))
-        >>> (x+y).shape
+        >>> (x + y).shape
         (4,)
-        >>> (x+y).dtype
+        >>> (x + y).dtype
         dtype('float64')
 
     All these operations return valid NXfield objects containing the same
@@ -2779,7 +2783,7 @@ class NXfield(NXobject):
 
     def __repr__(self):
         if self._value is not None:
-            return f"NXfield({repr(self.nxvalue)})"
+            return f"NXfield({repr(self._value)})"
         else:
             return f"NXfield(shape={self.shape}, dtype={self.dtype})"
 
@@ -3443,15 +3447,15 @@ class NXfield(NXobject):
         return NXfield(value=pow(self.nxdata, power), name=self.nxname,
                        attrs=self.safe_attrs)
 
-    def min(self, axis=None):
+    def min(self, axis=None, **kwargs):
         """Return the minimum value of the array ignoring NaNs."""
-        return np.nanmin(self.nxdata[self.nxdata > -np.inf], axis)
+        return np.nanmin(self.nxdata[self.nxdata > -np.inf], axis, **kwargs)
 
-    def max(self, axis=None):
+    def max(self, axis=None, **kwargs):
         """Return the maximum value of the array ignoring NaNs."""
-        return np.nanmax(self.nxdata[self.nxdata < np.inf], axis)
+        return np.nanmax(self.nxdata[self.nxdata < np.inf], axis, **kwargs)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, **kwargs):
         """Return the sum of NXfield values.
 
         Parameters
@@ -3465,87 +3469,74 @@ class NXfield(NXobject):
             Summed values.
         """
         return NXfield(np.sum(self.nxdata, axis), name=self.nxname,
-                       attrs=self.safe_attrs)
+                       attrs=self.safe_attrs, **kwargs)
 
-    def average(self, axis=None):
+    def average(self, **kwargs):
         """Return the average of NXfield values.
-
-        Parameters
-        ----------
-        axis : int or tuple of ints, optional
-            Axis or axes to be averaged, by default all axes.
 
         Returns
         -------
         NXfield
-            Averaged values.
+            The average of the field.        
         """
-        return NXfield(np.average(self.nxdata, axis), name=self.nxname,
+        return NXfield(np.average(self.nxdata, **kwargs),
+                       name=self.nxname, attrs=self.safe_attrs)
+
+    def mean(self, **kwargs):
+        """Return the mean value of a field.
+
+        Returns
+        -------
+        NXfield
+            The mean of the field.
+        """
+        return NXfield(np.mean(self.nxdata, **kwargs), name=self.nxname,
                        attrs=self.safe_attrs)
 
-    def moment(self, order=1, center=None):
-        """Return the central moments of a one-dimensional field.
+    def var(self, **kwargs):
+        """Return the variance of a field.
 
-        This uses the array indices as the x-values.
+        Returns
+        -------
+        NXfield
+            The variance of the field.
+        """
+        return NXfield(np.var(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
+
+    def std(self, **kwargs):
+        """Return the standard deviation of a field.
+
+        Returns
+        -------
+        NXfield
+            The standard deviation of the field.
+        """
+        return NXfield(np.std(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
+
+    def moment(self, order=1, **kwargs):
+        """Return the moments about the mean of a field.
+        
+        Other parameters are passed to `scipy.stats.moment`
 
         Parameters
         ----------
         order : int, optional
             Order of the calculated moment, by default 1.
-        center : float, optional
-            Center if defined externally for use by higher order moments,
-            by default None.
 
         Returns
         -------
         NXfield
-            Value of moment.
+            Value of field moment.
         """
-        if is_string_dtype(self.dtype):
-            raise NeXusError("Cannot calculate moments for a string")
-        elif self.ndim > 1:
-            raise NeXusError(
-                "Operation only possible on one-dimensional fields")
-        y = self / self.sum()
-        x = np.arange(self.shape[0])
-        if center:
-            c = center
-        else:
-            c = (y * x).sum()
-        if order == 1:
-            return c
-        else:
-            return (y * (x - c)**order).sum()
-
-    def mean(self):
-        """Return the mean value of a one-dimensional field.
-
-        Returns
-        -------
-        NXfield
-            The mean of the group signal.
-        """
-        return self.moment(1)
-
-    def var(self):
-        """Return the variance of a one-dimensional field.
-
-        Returns
-        -------
-        NXfield
-            The variance of the group signal.
-        """
-        return np.abs(self.moment(2))
-
-    def std(self):
-        """Return the standard deviation of a one-dimensional field.
-
-        Returns
-        -------
-        NXfield
-            The standard deviation of the group signal.
-        """
-        return np.sqrt(self.var())
+        from scipy.stats import moment
+        try:
+            return NXfield(moment(self.nxdata, order=order, **kwargs),
+                           name=self.nxname, attrs=self.safe_attrs)
+        except TypeError:
+            return NXfield(moment(self.nxdata, order, **kwargs),
+                           name=self.nxname, attrs=self.safe_attrs)
 
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""
@@ -4388,7 +4379,7 @@ class NXgroup(NXobject):
         names using the group dictionary, i.e.,
 
         >>> entry.sample.temperature = 100.0
-        >>> print entry.sample.temperature
+        >>> print(entry.sample.temperature)
         sample:NXsample
           temperature = 100.0
         >>> entry.sample['temperature']
@@ -4417,8 +4408,8 @@ class NXgroup(NXobject):
         >>> x = NXfield(np.linspace(0,2*np.pi,101), units='degree')
         >>> entry = NXgroup(x, name='entry', nxclass='NXentry')
         >>> entry.sample = NXgroup(temperature=NXfield(40.0,units='K'),
-                               nxclass='NXsample')
-        >>> print entry.sample.tree
+                                   nxclass='NXsample')
+        >>> print(entry.sample.tree)
         sample:NXsample
           temperature = 40.0
             @units = K
@@ -5271,8 +5262,6 @@ class NXlink(NXobject):
             if name is None and is_text(target):
                 self._name = target.rsplit('/', 1)[1]
             self._target = text(target)
-            if not self._target.startswith('/'):
-                self._target = '/' + self._target
         self._link = None
 
     def __repr__(self):
@@ -5422,7 +5411,13 @@ class NXlink(NXobject):
     @property
     def internal_link(self):
         """Return NXfield or NXgroup targeted by an internal link."""
-        return self.nxroot[self._target]
+        if Path(self._target).is_absolute():
+            return self.nxroot[self._target]
+        else:
+            try:
+                return self.nxgroup[self._target]
+            except NeXusError:
+                return self.nxroot[self._target]
 
     @property
     def external_link(self):

@@ -154,14 +154,17 @@ def test_field_printing(arr1D):
     assert f"{NXfield(arr1D)[10]:g}" == f"{arr1D[10]:g}"
 
 
-def test_field_operations(peak1D):
+def test_field_operations(arr1D):
 
-    assert peak1D.sum() == peak1D.nxvalue.sum()
-    assert np.isclose(peak1D.moment(1), 50.0, rtol=1e-3)
-    assert np.isclose(peak1D.moment(2), 100.0, rtol=1e-3)
-    assert np.isclose(peak1D.std(), 10.0, rtol=1e-3)
-    assert np.isclose(peak1D.average(), peak1D.nxvalue.sum() / 101.0)
+    from scipy.stats import moment
 
+    assert arr1D.sum() == arr1D.nxvalue.sum()
+    assert np.isclose(arr1D.average(), np.average(arr1D.nxvalue), rtol=1e-3)
+    assert np.isclose(arr1D.mean(), np.mean(arr1D.nxvalue), rtol=1e-3)
+    assert np.isclose(arr1D.var(), np.var(arr1D.nxvalue), rtol=1e-3)
+    assert np.isclose(arr1D.std(), np.std(arr1D.nxvalue), rtol=1e-3)
+    assert np.isclose(arr1D.moment(1), moment(arr1D.nxvalue, 1), rtol=1e-3)
+    assert np.isclose(arr1D.moment(2), moment(arr1D.nxvalue, 2), rtol=1e-3)
 
 @pytest.mark.parametrize(
     "arr",

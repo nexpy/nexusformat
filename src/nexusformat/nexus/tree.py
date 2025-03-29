@@ -3472,14 +3472,51 @@ class NXfield(NXobject):
                        attrs=self.safe_attrs, **kwargs)
 
     def average(self, **kwargs):
-        """Return the average of NXfield values."""
+        """Return the average of NXfield values.
+
+        Returns
+        -------
+        NXfield
+            The average of the field.        
+        """
         return NXfield(np.average(self.nxdata, **kwargs),
                        name=self.nxname, attrs=self.safe_attrs)
 
-    def moment(self, order=1, center=None):
-        """Return the central moments of a one-dimensional field.
+    def mean(self, **kwargs):
+        """Return the mean value of a field.
 
-        This uses the array indices as the x-values.
+        Returns
+        -------
+        NXfield
+            The mean of the field.
+        """
+        return NXfield(np.mean(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
+
+    def var(self, **kwargs):
+        """Return the variance of a field.
+
+        Returns
+        -------
+        NXfield
+            The variance of the field.
+        """
+        return NXfield(np.var(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
+
+    def std(self, **kwargs):
+        """Return the standard deviation of a field.
+
+        Returns
+        -------
+        NXfield
+            The standard deviation of the field.
+        """
+        return NXfield(np.std(self.nxdata, **kwargs), name=self.nxname,
+                       attrs=self.safe_attrs)
+
+    def moment(self, order=1, center=None, **kwargs):
+        """Return the moments about the mean of a field.
 
         Parameters
         ----------
@@ -3492,56 +3529,12 @@ class NXfield(NXobject):
         Returns
         -------
         NXfield
-            Value of moment.
+            Value of field moment.
         """
-        if is_string_dtype(self.dtype):
-            raise NeXusError("Cannot calculate moments for a string")
-        elif self.ndim > 1:
-            raise NeXusError(
-                "Operation only possible on one-dimensional fields")
-        y = self / self.sum()
-        x = np.arange(self.shape[0])
-        if center:
-            c = center
-        else:
-            c = (y * x).sum()
-        if order == 1:
-            return c
-        else:
-            return (y * (x - c)**order).sum()
-
-    def mean(self, **kwargs):
-        """Return the mean value.
-
-        Returns
-        -------
-        NXfield
-            The mean of the field.
-        """
-        return NXfield(np.mean(self.nxdata, **kwargs), name=self.nxname,
-                       attrs=self.safe_attrs)
-
-    def var(self, **kwargs):
-        """Return the variance of a one-dimensional field.
-
-        Returns
-        -------
-        NXfield
-            The variance of the field.
-        """
-        return NXfield(np.var(self.nxdata, **kwargs), name=self.nxname,
-                       attrs=self.safe_attrs)
-
-    def std(self, **kwargs):
-        """Return the standard deviation of a one-dimensional field.
-
-        Returns
-        -------
-        NXfield
-            The standard deviation of the field.
-        """
-        return NXfield(np.std(self.nxdata, **kwargs), name=self.nxname,
-                       attrs=self.safe_attrs)
+        from scipy.stats import moment
+        return NXfield(moment(self.nxdata, order=order, center=center,
+                              **kwargs),
+                       name=self.nxname, attrs=self.safe_attrs)
 
     def reshape(self, shape):
         """Return an NXfield with the specified shape."""

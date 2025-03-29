@@ -238,3 +238,37 @@ def test_external_group_files(tmpdir, field1a):
         assert not root["entry/g1_link"].nxfile.locked
 
     assert not root.nxfile.locked
+
+
+@pytest.mark.parametrize("save", ["False", "True"])
+def test_soft_field_links(tmpdir, field1a, field2a, save):
+
+    root = NXroot()
+    root["g1"] = NXgroup()
+    root["g1/g2"] = NXgroup(f1=field1a, f2=field2a)
+    root["g1/f1_link"] = NXlink(target="g1/g2/f1", soft=True)
+    root["g1/f2_link"] = NXlink(target="g1/g2/f2", soft=True)
+
+    if save:
+        filename = os.path.join(tmpdir, "file1.nxs")
+        root.save(filename, mode="w")
+
+    assert root["g1/f1_link"].shape == (2,)
+    assert root["g1/f1_link"].dtype == np.float32
+
+    root["g1/g2/f1"].attrs["a1"] = 1
+
+    assert "a1" in root["g1/f1_link"].attrs
+    assert root["g1/f1_link"].a1 == 1
+
+    assert root["g1/f1_link"].nxdata[0] == root["g1/g2/f1"].nxdata[0]
+
+    assert root["g1/f2_link"].shape == (2,)
+    assert root["g1/f2_link"].dtype == np.int16
+
+    root["g1/g2/f2"].attrs["a2"] = 2
+
+    assert "a2" in root["g1/f2_link"].attrs
+    assert root["g1/f2_link"].a2 == 2
+
+    assert root["g1/f2_link"].nxdata[0] == root["g1/g2/f2"].nxdata[0]

@@ -239,13 +239,14 @@ def test_external_group_files(tmpdir, field1a):
 
     assert not root.nxfile.locked
 
+
 @pytest.mark.parametrize("save", ["False", "True"])
-def test_soft_field_links(tmpdir, field1a, field2a,save):
+def test_soft_field_links(tmpdir, field1a, field2a, save):
 
     root = NXroot()
     root["g1"] = NXgroup()
     root["g1/g2"] = NXgroup(f1=field1a, f2=field2a)
-    root["g1/f1_link"] = NXlink(target="g2/f1", soft=True)
+    root["g1/f1_link"] = NXlink(target="g1/g2/f1", soft=True)
     root["g1/f2_link"] = NXlink(target="g1/g2/f2", soft=True)
 
     if save:

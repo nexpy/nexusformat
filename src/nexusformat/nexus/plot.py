@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2025, NeXpy Development Team.
+# Copyright (c) 2013-2021, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -12,7 +12,6 @@
 import copy
 
 import numpy as np
-from packaging.version import Version
 
 from . import NeXusError, NXfield
 
@@ -143,8 +142,6 @@ class PyplotPlotter:
             raise NeXusError(
                 "Default plotting package (matplotlib) not available.")
 
-        from matplotlib import __version__ as mplversion
-
         over = kwargs.pop("over", False)
         image = kwargs.pop("image", False)
         log = kwargs.pop("log", False)
@@ -246,6 +243,9 @@ class PyplotPlotter:
                     im = ax.imshow(data, origin='upper', **kwargs)
                     ax.set_aspect('equal')
                 else:
+                    from packaging.version import Version
+                    from matplotlib import __version__ as mplversion
+
                     if log:
                         vmin = max(vmin, 0.01)
                         vmax = max(vmax, 0.01)

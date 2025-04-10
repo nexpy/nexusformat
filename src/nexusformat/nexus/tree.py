@@ -7089,16 +7089,23 @@ class NXdata(NXgroup):
         signals = []
         if self.nxsignal is not None:
             signals.append(self.nxsignal.nxname)
+        signals.extend([signal.nxname for signal in self.nxauxiliary_signals])
+        return [self[signal] for signal in set(sorted(signals))]
+
+    @property
+    def nxauxiliary_signals(self):
+        """List of auxiliary signals in the NXdata group."""
+        signals = []
         if 'auxiliary_signals' in self.attrs:
             if isinstance(self.attrs['auxiliary_signals'], str):
                 signals.append(self.attrs['auxiliary_signals'])
             else:
                 signals.extend([signal for signal
                                 in sorted(self.attrs['auxiliary_signals'])])
-        return [self[signal] for signal in set(signals)]
+        return [self[signal] for signal in signals]
 
-    @nxsignals.setter
-    def nxsignals(self, signals):
+    @nxauxiliary_signals.setter
+    def nxauxiliary_signals(self, signals):
         if isinstance(signals, str):
             self.attrs['auxiliary_signals'] = signals
         else:

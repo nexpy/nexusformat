@@ -7125,7 +7125,13 @@ class NXdata(NXgroup):
 
     @property
     def nxcoordinates(self):
-        """List of NXfields defined as signal coordinates."""
+        """List of NXfields defined as signal coordinates.
+        
+        Note that the use of the coordinates attribute is under
+        discussion and has not been formally approved by the NeXus
+        standard. However, the attribute can be added to NeXus files
+        without violating the existing standard.
+        """
         if 'coordinates' in self.attrs:
             return [self[coordinate] for coordinate
                     in self.attrs['coordinates']]

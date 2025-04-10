@@ -163,10 +163,14 @@ class PyplotPlotter:
                 "Can only plot 1D and 2D data - please select a slice")
         errors = data_group.nxerrors
         title = data_group.nxtitle
+        coordinates = data_group.nxcoordinates
 
         # Provide a new view of the data if there is a dimension of length 1
-        data, axes = (signal.nxdata.reshape(data_group.plot_shape),
-                      data_group.plot_axes)
+        if len(coordinates) > 0:
+            data = signal.nxdata
+        else:
+            data, axes = (signal.nxdata.reshape(data_group.plot_shape),
+                          data_group.plot_axes)
 
         if weights and data_group.nxweights:
             with np.errstate(divide='ignore'):
@@ -189,7 +193,7 @@ class PyplotPlotter:
                 ax = plt.gca()
 
             # One-dimensional Plot
-            if len(data.shape) == 1:
+            if len(data.shape) == 1 and len(coordinates) == 0:
                 if 'marker' in kwargs:
                     fmt = kwargs.pop('marker')
                 else:
@@ -219,6 +223,41 @@ class PyplotPlotter:
                         ax.set_yscale('log')
                     plt.xlabel(label(axes[0]))
                     plt.ylabel(label(signal))
+                    plt.title(title)
+
+            if len(data.shape) == 1 and len(coordinates) > 0:
+                if 'size' in kwargs:
+                    s = kwargs.pop('size')
+                else:
+                    s = 50
+                if len(coordinates) == 1:
+                    x = coordinates[0].nxdata
+                    ax.scatter(x, data, s=s, **kwargs)
+                elif len(coordinates) == 2:
+                    y = coordinates[0].nxdata
+                    x = coordinates[1].nxdata
+                    ax.scatter(x, y, c=data, s=s, **kwargs)
+                else:
+                    raise NeXusError("Cannot plot more than two coordinates.")
+                if not over:
+                    if xmin is not None:
+                        ax.set_xlim(left=xmin)
+                    if xmax is not None:
+                        ax.set_xlim(right=xmax)
+                    if ymin is not None:
+                        ax.set_ylim(bottom=ymin)
+                    if ymax is not None:
+                        ax.set_ylim(top=ymax)
+                    if logx:
+                        ax.set_xscale('log')
+                    if log or logy:
+                        ax.set_yscale('log')
+                    if len(coordinates) == 1:
+                        plt.xlabel(label(coordinates[0]))
+                        plt.ylabel(label(signal))
+                    else:
+                        plt.xlabel(label(coordinates[1]))
+                        plt.ylabel(label(coordinates[0]))
                     plt.title(title)
 
             # Two dimensional plot

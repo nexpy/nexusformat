@@ -458,3 +458,50 @@ def test_virtual_fields(tmpdir, path, v):
     assert vds3["entry/data/v"].dtype == v.dtype
     assert vds3["entry/data/v"].sum() == 6 * v.sum()
     assert vds3.nxfile["entry/data/v"].is_virtual
+
+
+def test_data_signals(arr1D):
+
+    x = NXfield(arr1D, dtype=np.float64, name="x")
+    y = NXfield(2 * arr1D, dtype=np.float64, name="y")
+    y1 = NXfield(3 * arr1D, dtype=np.float64, name="y1")
+    y2 = NXfield(4 * arr1D, dtype=np.float64, name="y2")
+    data = NXdata(y, [x], y1=y1, y2=y2)
+    data.nxauxiliary_signals = ["y1", "y2"]
+
+    assert data.nxauxiliary_signals == [data["y1"], data["y2"]]
+    assert data.nxsignals == [data["y"], data["y1"], data["y2"]]
+
+    data = NXdata(y, [x], y1=y1, y2=y2)
+    data.nxauxiliary_signals = [data["y1"], data["y2"]]
+
+    assert data.nxauxiliary_signals == [data["y1"], data["y2"]]
+    assert data.nxsignals == [data["y"], data["y1"], data["y2"]]
+
+
+def test_data_indices(arr2D):
+
+    v = NXfield(arr2D, dtype=np.float64, name="v")
+    x = NXfield(arr2D[1], dtype=np.float64, name="x")
+    y = NXfield(arr2D[0], dtype=np.float64, name="y")
+    z = NXfield(arr2D, dtype=np.float64, name="z")
+    data = NXdata(v, (y, x), z=z)
+    data.nxindices = {"x": 0, "z": [0, 1]}
+
+    assert data.nxindices == {"x": 0, "z": [0, 1]}
+
+
+def test_data_coordinates(arr1D):
+
+    x = NXfield(arr1D, dtype=np.float64, name="x")
+    y = NXfield(arr1D, dtype=np.float64, name="y")
+    z = NXfield(arr1D, dtype=np.float64, name="z")
+    data = NXdata(z, x=x, y=y)
+    data.nxcoordinates = ["y", "x"]
+
+    assert data.nxcoordinates == [data["y"], data["x"]]
+
+    data = NXdata(z, x=x, y=y)
+    data.nxcoordinates = [data["y"], data["x"]]
+
+    assert data.nxcoordinates == [data["y"], data["x"]]

@@ -7089,8 +7089,9 @@ class NXdata(NXgroup):
         signals = []
         if self.nxsignal is not None:
             signals.append(self.nxsignal.nxname)
-        signals.extend([signal.nxname for signal in self.nxauxiliary_signals])
-        return [self[signal] for signal in set(sorted(signals))]
+        signals.extend([signal.nxname for signal in self.nxauxiliary_signals
+                        if signal.nxname != self.nxsignal.nxname])
+        return [self[signal] for signal in signals]
 
     @property
     def nxauxiliary_signals(self):
@@ -7101,7 +7102,7 @@ class NXdata(NXgroup):
                 signals.append(self.attrs['auxiliary_signals'])
             else:
                 signals.extend([signal for signal
-                                in sorted(self.attrs['auxiliary_signals'])])
+                                in self.attrs['auxiliary_signals']])
         return [self[signal] for signal in signals]
 
     @nxauxiliary_signals.setter

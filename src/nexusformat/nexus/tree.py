@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2022, NeXpy Development Team.
+# Copyright (c) 2013-2025, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -7060,7 +7060,8 @@ class NXdata(NXgroup):
     def mask(self):
         """NXfield containing the signal mask if one exists.
 
-        This is set to a value of None or np.ma.nomask to remove the mask.
+        This is set to a value of None or np.ma.nomask to remove the
+        mask.
         """
         signal = self.nxsignal
         if signal is not None:
@@ -7081,6 +7082,81 @@ class NXdata(NXgroup):
                 del self[signal.mask.nxname]
             if 'mask' in signal.attrs:
                 del signal.attrs['mask']
+
+    @property
+    def nxsignals(self):
+        """List of all signals in the NXdata group."""
+        signals = []
+        if self.nxsignal is not None:
+            signals.append(self.nxsignal.nxname)
+        signals.extend([signal.nxname for signal in self.nxauxiliary_signals
+                        if signal.nxname != self.nxsignal.nxname])
+        return [self[signal] for signal in signals]
+
+    @property
+    def nxauxiliary_signals(self):
+        """List of auxiliary signals in the NXdata group."""
+        signals = []
+        if 'auxiliary_signals' in self.attrs:
+            if isinstance(self.attrs['auxiliary_signals'], str):
+                signals.append(self.attrs['auxiliary_signals'])
+            else:
+                signals.extend([signal for signal
+                                in self.attrs['auxiliary_signals']])
+        return [self[signal] for signal in signals]
+
+    @nxauxiliary_signals.setter
+    def nxauxiliary_signals(self, signals):
+        if isinstance(signals, str):
+            self.attrs['auxiliary_signals'] = signals
+        else:
+            signals = list(signals)
+            if all(isinstance(signal, str) for signal in signals):
+                self.attrs['auxiliary_signals'] = signals
+            elif all(isinstance(signal, NXfield) for signal in signals):
+                self.attrs['auxiliary_signals'] = [signal.nxname for signal
+                                                   in signals]
+            else:
+                raise NeXusError(
+                    "Signals must be a list of strings or NXfields")
+
+    @property
+    def nxindices(self):
+        """Dictionary of NXfields defined with axis indices."""
+        indices = [axis for axis in self.attrs if axis.endswith('_indices')]
+        return {axis.strip('_indices'): self.attrs[axis] for axis in indices}
+
+    @nxindices.setter
+    def nxindices(self, indices):
+        for axis, index in indices.items():
+            self.attrs[axis+'_indices'] = index
+
+    @property
+    def nxcoordinates(self):
+        """List of NXfields defined as signal coordinates.
+        
+        Note that the use of the coordinates attribute is under
+        discussion and has not been formally approved by the NeXus
+        standard. However, the attribute can be added to NeXus files
+        without violating the existing standard.
+        """
+        if 'coordinates' in self.attrs:
+            return [self[coordinate] for coordinate
+                    in self.attrs['coordinates']]
+        else:
+            return []
+
+    @nxcoordinates.setter
+    def nxcoordinates(self, coordinates):
+        if all(isinstance(coordinate, str) for coordinate in coordinates):
+            self.attrs['coordinates'] = coordinates
+        elif all(isinstance(coordinate, NXfield)
+                 for coordinate in coordinates):
+            self.attrs['coordinates'] = [coordinate.nxname for coordinate
+                                         in coordinates]
+        else:
+            raise NeXusError(
+                "Coordinates must be a list of strings or NXfields")
 
 
 class NXmonitor(NXdata):

@@ -5081,6 +5081,12 @@ class NXgroup(NXobject):
         raise NeXusError(
             "Can only set the default for NXentry and NXdata groups")
 
+    def validate(self, level='warning', definitions=None):
+        from .validate import GroupValidator, log_summary
+        validator = GroupValidator(self.nxclass, definitions=definitions)
+        validator.validate(self, level=level)
+        return log_summary()
+
     def is_plottable(self):
         """Return True if the group contains plottable data."""
         plottable = False

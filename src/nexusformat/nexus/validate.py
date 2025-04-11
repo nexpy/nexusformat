@@ -10,11 +10,9 @@ import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from . import (NeXusError, NXentry, NXfield, NXgroup, NXlink, NXsubentry,
-               nxopen)
-
+from . import NeXusError, NXentry, NXfield, NXgroup, NXlink, NXsubentry, nxopen
 from .utils import (check_dimension_sizes, check_nametype, definitions_path,
-                    get_logger, is_valid_bool, is_valid_char,
+                    get_log_level, get_logger, is_valid_bool, is_valid_char,
                     is_valid_char_or_number, is_valid_complex, is_valid_float,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
@@ -25,7 +23,6 @@ from .utils import (check_dimension_sizes, check_nametype, definitions_path,
 logger = get_logger()
 
 
-# Global dictionary of validators 
 validators = {}
 
 
@@ -482,7 +479,7 @@ class GroupValidator(Validator):
                              level='warning')
                 self.indent -= 1
             
-    def validate(self, group, parent=None, indent=0): 
+    def validate(self, group, parent=None, indent=0, level=None): 
         """
         Validates a given group against the NeXus standard.
 
@@ -498,6 +495,8 @@ class GroupValidator(Validator):
         """
         self.parent = parent
         self.indent = indent
+        if level is not None:
+            logger.setLevel(get_log_level(level))
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
 
@@ -524,7 +523,8 @@ class GroupValidator(Validator):
             return
 
         parent_group = group.nxgroup
-        if parent_group:
+        if group.nxclass != 'NXroot' and group.nxgroup is not None:
+            parent_group = group.nxgroup
             parent_validator = get_validator(parent_group.nxclass,
                                              definitions=self.definitions)
             parsed = False
@@ -965,15 +965,7 @@ def validate_file(filename, path=None, definitions=None):
 
     validator.validate(path)
 
-    if logger.level <= logging.WARNING:
-        log(f'\nTotal number of warnings: {logger.total["warning"]}',
-            level='all')
-        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
-    else:
-        log(f'\nTotal number of errors: {logger.total["error"]}\n',
-            level='all')
-    
-    return (logger.total['warning'], logger.total['error'])
+    return log_summary()
 
 
 
@@ -1219,15 +1211,7 @@ def validate_application(filename, path=None, application=None,
 
         validator.validate(entry)
 
-    if logger.level <= logging.WARNING:
-        log(f'\nTotal number of warnings: {logger.total["warning"]}',
-            level='all')
-        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
-    else:
-        log(f'\nTotal number of errors: {logger.total["error"]}\n',
-            level='all')
-
-    return (logger.total['warning'], logger.total['error'])
+    return log_summary()
 
 
 def inspect_base_class(base_class, definitions=None):
@@ -1319,3 +1303,15 @@ def log(message, level='info', indent=0):
         logger.total['error'] += 1
     elif level == 'all':
         logger.critical(f'{4*indent*" "}{message}')
+
+def log_summary():
+    if logger.level <= logging.WARNING:
+        log(f'\nTotal number of warnings: {logger.total["warning"]}',
+            level='all')
+        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
+    else:
+        log(f'\nTotal number of errors: {logger.total["error"]}\n',
+            level='all')
+    
+    return (logger.total['warning'], logger.total['error'])
+

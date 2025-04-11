@@ -1305,6 +1305,15 @@ def log(message, level='info', indent=0):
         logger.critical(f'{4*indent*" "}{message}')
 
 def log_summary():
+    """
+    Prints a summary of the total number of warnings and errors encountered
+    during validation and returns the total counts.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the total number of warnings and errors.
+    """
     if logger.level <= logging.WARNING:
         log(f'\nTotal number of warnings: {logger.total["warning"]}',
             level='all')

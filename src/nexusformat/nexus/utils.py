@@ -6,8 +6,8 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
-import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -43,6 +43,33 @@ def get_logger():
     logger.setLevel(logging.WARNING)
     logger.total = {'warning': 0, 'error': 0}
     return logger
+
+
+def get_log_level(level='warning'):
+    """
+    Converts a given log level to its corresponding logging constant.
+
+    Parameters
+    ----------
+    level : str or int
+        The log level to be converted. Can be 'info', 'debug',
+        'warning', or 'error', or the corresponding logging constants.
+
+    Returns
+    -------
+    log_level : int
+        The converted log level.
+
+    """
+    if level == 'info' or level == logging.INFO:
+        return logging.INFO
+    elif level == 'debug' or level == logging.DEBUG:
+        return logging.DEBUG
+    elif level == 'warning' or level == logging.WARNING:
+        return logging.WARNING
+    elif level == 'error' or level == logging.ERROR:
+        return logging.ERROR
+
 
 def is_valid_name(name):
     """
@@ -495,7 +522,10 @@ class StreamHandler(logging.StreamHandler):
     def __init__(self, stream=None, max_width=None):
         super().__init__(stream)
         if max_width is None:
-            self.max_width = os.get_terminal_size().columns - 3
+            try:
+                self.max_width = shutil.get_terminal_size().columns - 3
+            except OSError:
+                self.max_width = 80
         else:
             self.max_width = max_width
         self.terminator = '\n'

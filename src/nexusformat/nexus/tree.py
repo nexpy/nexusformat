@@ -5082,10 +5082,32 @@ class NXgroup(NXobject):
             "Can only set the default for NXentry and NXdata groups")
 
     def validate(self, level='warning', definitions=None):
+        """
+        Validate the group against the NeXus standard.
+
+        Parameters
+        ----------
+        level : str, optional
+            The minimum level of warnings to be reported. Can be one of
+            'warning', 'error', or 'all'. Default is 'warning'.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        tuple
+            A tuple containing the total number of warnings and errors
+            encountered while validating the file.
+        """
         from .validate import GroupValidator, log_summary
         validator = GroupValidator(self.nxclass, definitions=definitions)
         validator.validate(self, level=level)
         return log_summary()
+
+    def check(self, level='warning', definitions=None):
+        """Equivalent to validate() for compatibility with scripts."""
+        return self.validate(level=level, definitions=definitions)
 
     def is_plottable(self):
         """Return True if the group contains plottable data."""

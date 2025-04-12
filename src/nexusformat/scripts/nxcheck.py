@@ -17,8 +17,8 @@ from nexusformat.nexus.validate import (logger, validate_application,
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="nxvalidate",
-        description="Validates NeXus files against the NeXus standard.")
+        prog="nxcheck",
+        description="Check NeXus files against the NeXus standard.")
     parser.add_argument("filename", nargs = 1,
         help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,

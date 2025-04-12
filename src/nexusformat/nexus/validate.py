@@ -492,6 +492,8 @@ class GroupValidator(Validator):
             The group to be validated.
         indent : int, optional
             The indentation level for logging (default is 0).
+        level : str, optional
+            The logging level (default is None).
         """
         self.parent = parent
         self.indent = indent
@@ -1128,7 +1130,7 @@ class ApplicationValidator(Validator):
         group_validator.check_symbols(indent=self.indent)
         self.output_log()
     
-    def validate(self, entry):
+    def validate(self, entry, level=None):
         """
         Validates a NeXus entry against an XML definition.
 
@@ -1142,9 +1144,13 @@ class ApplicationValidator(Validator):
         ----------
         entry : object
             The NeXus entry to be validated.
+        level : str, optional
+            The logging level (default is None).
         """
         root = entry.nxroot
         nxpath = entry.nxpath
+        if level is not None:
+            logger.setLevel(get_log_level(level))
         self.validate_group(self.xml_dict, root[nxpath])
         self.output_log()
 

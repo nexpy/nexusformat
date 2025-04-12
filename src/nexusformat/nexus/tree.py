@@ -5081,9 +5081,9 @@ class NXgroup(NXobject):
         raise NeXusError(
             "Can only set the default for NXentry and NXdata groups")
 
-    def validate(self, level='warning', definitions=None):
+    def check(self, level='warning', definitions=None):
         """
-        Validate the group against the NeXus standard.
+        Checks the group for compliance with the NeXus base classes.
 
         Parameters
         ----------
@@ -5091,8 +5091,8 @@ class NXgroup(NXobject):
             The minimum level of warnings to be reported. Can be one of
             'warning', 'error', or 'all'. Default is 'warning'.
         definitions : str, optional
-            The path to the directory containing the NeXus base class
-            definitions (default is None).
+            The path to the directory containing the NeXus definitions
+            (default is None).
 
         Returns
         -------
@@ -5105,9 +5105,46 @@ class NXgroup(NXobject):
         validator.validate(self, level=level)
         return log_summary()
 
-    def check(self, level='warning', definitions=None):
-        """Equivalent to validate() for compatibility with scripts."""
-        return self.validate(level=level, definitions=definitions)
+    def validate(self, level='warning', application=None, definitions=None):
+        """
+        Validate the group against a NeXus application definition.
+        
+        Note that this can only be used on NXroot and NXentry groups.
+
+        Parameters
+        ----------
+        level : str, optional
+            The minimum level of warnings to be reported. Can be one of
+            'warning', 'error', or 'all'. Default is 'warning'.
+        application : str, optional
+            The name of the application definition validating the group
+            (default is None). If not specified
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        tuple
+            A tuple containing the total number of warnings and errors
+            encountered while validating the file.
+        """
+        if not isinstance(self, NXroot) and not isinstance(self, NXentry):
+            raise NeXusError(
+                "Validation can only be used on NXroot and NXentry groups")
+        if isinstance(self, NXroot):
+            entry = self.NXentry[0]
+        else:
+            entry = self
+        if application is None and 'definition' in entry:
+            application = entry['definition'].nxvalue
+        elif application is None:
+            raise NeXusError(f'No application definition is defined in "{entry.nxpath}"')
+
+        from .validate import ApplicationValidator, log_summary
+        validator = ApplicationValidator(application, definitions=definitions)
+        validator.validate(entry, level=level)
+        return log_summary()
 
     def is_plottable(self):
         """Return True if the group contains plottable data."""

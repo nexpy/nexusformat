@@ -1226,6 +1226,8 @@ def inspect_base_class(base_class, definitions=None):
         The path to the directory containing the NeXus base class
         definitions (default is None).
     """
+    logger.setLevel(logging.INFO)
+
     validator = get_validator(base_class, definitions=definitions)
 
     log("\nNXValidate\n----------")

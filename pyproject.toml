@@ -54,6 +54,7 @@ nxdir = "nexusformat.scripts.nxdir:main"
 nxduplicate = "nexusformat.scripts.nxduplicate:main"
 nxinspect = "nexusformat.scripts.nxinspect:main"
 nxstack = "nexusformat.scripts.nxstack:main"
+nxvalidate = "nexusformat.scripts.nxvalidate:main"
 
 [tool.setuptools_scm]
 version_file = "src/nexusformat/_version.py"

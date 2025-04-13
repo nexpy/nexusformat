@@ -5153,6 +5153,12 @@ class NXgroup(NXobject):
         validator.validate(entry, level=level)
         return log_summary()
 
+    def inspect(self, definitions=None):
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
+        from .validate import inspect_base_class
+        inspect_base_class(self.nxclass, definitions=definitions)
+
     def is_plottable(self):
         """Return True if the group contains plottable data."""
         plottable = False

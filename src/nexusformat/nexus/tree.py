@@ -218,8 +218,8 @@ from .lock import NXLock, NXLockException
 warnings.simplefilter('ignore', category=FutureWarning)
 
 # Default configuration parameters.
-NX_CONFIG = {'compression': 'gzip', 'encoding': 'utf-8', 'lock': 0,
-             'lockexpiry': 8 * 3600, 'lockdirectory': None,
+NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8', 
+             'lock': 0, 'lockdirectory': None, 'lockexpiry': 8 * 3600,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 # These are overwritten below by environment variables if defined.
 
@@ -5100,7 +5100,8 @@ class NXgroup(NXobject):
             A tuple containing the total number of warnings and errors
             encountered while validating the file.
         """
-        from .validate import GroupValidator, log_summary
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
         validator = GroupValidator(self.nxclass, definitions=definitions)
         validator.validate(self, level=level)
         return log_summary()
@@ -5136,6 +5137,8 @@ class NXgroup(NXobject):
             entry = self.NXentry[0]
         else:
             entry = self
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
         if application is None and 'definition' in entry:
             application = entry['definition'].nxvalue
         elif application is None:

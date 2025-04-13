@@ -66,7 +66,7 @@ class Validator():
         elif 'NX_DEFINITIONS' in os.environ:
             self.definitions = Path(os.environ['NX_DEFINITIONS']).resolve()
         else:
-            self.definitions = package_files('nxvalidate.definitions')
+            self.definitions = package_files('nexusformat.definitions')
         self.baseclasses = self.definitions / 'base_classes'
         if not self.baseclasses.exists():
             raise NeXusError(f'"{self.baseclasses}" does not exist')
@@ -960,15 +960,11 @@ def validate_file(filename, path=None, definitions=None):
         logger.error(e)
         return
 
-    log("\nNXValidate\n----------", level='all')
-    log(f"Filename: {Path(filename).resolve()}", level='all')
-    log(f"Path: {path}", level='all')
-    log(f"Definitions: {validator.definitions}\n", level='all')
+    log_header(validator, filename=filename, path=path)
 
     validator.validate(path)
 
     return log_summary()
-
 
 
 class ApplicationValidator(Validator):
@@ -1209,11 +1205,7 @@ def validate_application(filename, path=None, application=None,
             logger.error(e)
             return
 
-        log("\nNXValidate\n----------", level='all')
-        log(f"Filename: {Path(filename).resolve()}", level='all')
-        log(f"Entry: {nxpath}", level='all')
-        log(f"Application Definition: {application}", level='all')
-        log(f"NXDL File: {validator.filepath}\n", level='all')
+        log_header(validator, filename, nxpath, application)
 
         validator.validate(entry)
 
@@ -1311,6 +1303,19 @@ def log(message, level='info', indent=0):
         logger.total['error'] += 1
     elif level == 'all':
         logger.critical(f'{4*indent*" "}{message}')
+
+
+def log_header(validator, filename=None, path=None, application=None):  
+    log("\nNXValidate\n----------", level='all')
+    if filename is not None:
+        log(f"Filename: {Path(filename).resolve()}", level='all')
+    if path is not None:
+        log(f"Path: {path}", level='all')
+    log(f"Definitions: {validator.definitions}\n", level='all')
+    if application is not None:
+        log(f"Application Definition: {application}", level='all')
+        log(f"NXDL File: {validator.filepath}\n", level='all')
+
 
 def log_summary():
     """

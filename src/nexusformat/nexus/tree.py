@@ -5102,7 +5102,9 @@ class NXgroup(NXobject):
         """
         if definitions is None and NX_CONFIG['definitions'] is not None:
             definitions = NX_CONFIG['definitions']
+        from .validate import GroupValidator, log_header, log_summary
         validator = GroupValidator(self.nxclass, definitions=definitions)
+        log_header(validator, path=self.nxpath)
         validator.validate(self, level=level)
         return log_summary()
 
@@ -5119,7 +5121,8 @@ class NXgroup(NXobject):
             'warning', 'error', or 'all'. Default is 'warning'.
         application : str, optional
             The name of the application definition validating the group
-            (default is None). If not specified
+            (default is None). If not specified, the value in the
+            entry's 'definition' attribute will be used.
         definitions : str, optional
             The path to the directory containing the NeXus base class
             definitions (default is None).
@@ -5144,8 +5147,9 @@ class NXgroup(NXobject):
         elif application is None:
             raise NeXusError(f'No application definition is defined in "{entry.nxpath}"')
 
-        from .validate import ApplicationValidator, log_summary
+        from .validate import ApplicationValidator, log_header, log_summary
         validator = ApplicationValidator(application, definitions=definitions)
+        log_header(validator, path=entry.nxpath, application=application)
         validator.validate(entry, level=level)
         return log_summary()
 

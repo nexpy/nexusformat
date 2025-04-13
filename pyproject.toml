@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Visualization",
 ]
@@ -32,6 +33,8 @@ dependencies = [
     "h5py",
     "hdf5plugin",
     "packaging",
+    "colored >= 2.0.0",
+    "importlib_resources; python_version <= '3.9'",
 ]
 
 [project.optional-dependencies]
@@ -46,13 +49,18 @@ Changelog = "https://github.com/nexpy/nexusformat/releases"
 
 [project.scripts]
 nexusformat = "nexusformat.scripts.nexusformat:main"
+nxcheck = "nexusformat.scripts.nxcheck:main"
 nxconsolidate = "nexusformat.scripts.nxconsolidate:main"
 nxdir = "nexusformat.scripts.nxdir:main"
 nxduplicate = "nexusformat.scripts.nxduplicate:main"
+nxinspect = "nexusformat.scripts.nxinspect:main"
 nxstack = "nexusformat.scripts.nxstack:main"
 
 [tool.setuptools_scm]
 version_file = "src/nexusformat/_version.py"
 
 [tool.setuptools.package-data]
+"nexusformat.definitions.applications" = ["*.nxdl.xml"]
+"nexusformat.definitions.base_classes" = ["*.nxdl.xml"]
+"nexusformat.examples" = ["*.nxs", "*.h5"]
 "nexusformat.notebooks" = ["*.pnyb"]

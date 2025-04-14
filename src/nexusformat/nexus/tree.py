@@ -5075,8 +5075,8 @@ class NXgroup(NXobject):
     def set_default(self, over=False):
         """Set the current group as the default for plotting.
 
-        This function is overridden by the NXentry and NXdata classes. For all
-        other groups, it raises an error.
+        This function is overridden by the NXentry and NXdata classes.
+        For all other groups, it raises an error.
         """
         raise NeXusError(
             "Can only set the default for NXentry and NXdata groups")
@@ -5145,7 +5145,8 @@ class NXgroup(NXobject):
         if application is None and 'definition' in entry:
             application = entry['definition'].nxvalue
         elif application is None:
-            raise NeXusError(f'No application definition is defined in "{entry.nxpath}"')
+            raise NeXusError(
+                f'No application definition is defined in "{entry.nxpath}"')
 
         from .validate import ApplicationValidator, log_header, log_summary
         validator = ApplicationValidator(application, definitions=definitions)

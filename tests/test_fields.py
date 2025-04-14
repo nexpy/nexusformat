@@ -92,10 +92,9 @@ def test_field_methods(arr, request):
     assert field.sum() == np.sum(arr)
     assert field.sum(dtype=np.float32) == np.sum(arr, dtype=np.float32)
     assert field.average() == np.average(arr)
-    if sys.version_info >= (3, 8):
-        assert field.min(keepdims=True) == np.min(arr, keepdims=True)
-        assert field.max(keepdims=True) == np.max(arr, keepdims=True)
-        assert field.average(keepdims=True) == np.average(arr, keepdims=True)
+    assert field.min(keepdims=True) == np.min(arr, keepdims=True)
+    assert field.max(keepdims=True) == np.max(arr, keepdims=True)
+    assert field.average(keepdims=True) == np.average(arr, keepdims=True)
 
 
 @pytest.mark.parametrize(

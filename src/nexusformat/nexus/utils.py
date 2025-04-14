@@ -474,6 +474,42 @@ def definitions_path(path):
     return Path(re.sub(r"MultiplexedPath\('(.*)'\)", r"\1", str(path)))
 
 
+def truncate_path(path, max_width=None):
+    """Truncate a file path to fit within max_width characters."""
+    if max_width is None:
+        max_width = terminal_width() - 20
+    path = Path(path)
+    full_path = path.resolve()
+    site_packages = None
+    for parent in full_path.parents:
+        if parent.name == "site-packages" or parent.name == "src":
+            site_packages = parent
+            break
+    if site_packages:
+        full_path = str(full_path.relative_to(site_packages))
+    else:
+        full_path = str(full_path)
+    if len(full_path) > max_width:
+        return "..." + full_path[-max_width:]
+    return full_path
+
+def terminal_width():
+    """
+    Returns the width of the terminal in characters.
+
+    Returns
+    -------
+    int
+        The width of the terminal in characters.
+    """
+
+    try:
+        terminal_width = shutil.get_terminal_size().columns
+    except OSError:
+        terminal_width = 80
+    return terminal_width
+
+
 def check_nametype(item_value):
     """
     Return the value of the 'nameType' attribute for a given item.
@@ -522,10 +558,7 @@ class StreamHandler(logging.StreamHandler):
     def __init__(self, stream=None, max_width=None):
         super().__init__(stream)
         if max_width is None:
-            try:
-                self.max_width = shutil.get_terminal_size().columns - 3
-            except OSError:
-                self.max_width = 80
+            self.max_width = terminal_width()
         else:
             self.max_width = max_width
         self.terminator = '\n'

@@ -17,8 +17,7 @@ from .utils import (check_dimension_sizes, check_nametype, definitions_path,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
                     match_strings, merge_dicts, package_files, readaxes,
-                    strip_namespace, xml_to_dict)
-
+                    strip_namespace, truncate_path, xml_to_dict)
 
 logger = get_logger()
 
@@ -1308,13 +1307,14 @@ def log(message, level='info', indent=0):
 def log_header(validator, filename=None, path=None, application=None):  
     log("\nNXValidate\n----------", level='all')
     if filename is not None:
-        log(f"Filename: {Path(filename).resolve()}", level='all')
+        log(f"Filename: {filename}", level='all')
     if path is not None:
         log(f"Path: {path}", level='all')
-    log(f"Definitions: {validator.definitions}\n", level='all')
+    log(f"Definitions: {truncate_path(validator.definitions)}", level='all')
     if application is not None:
         log(f"Application Definition: {application}", level='all')
-        log(f"NXDL File: {validator.filepath}\n", level='all')
+        log(f"NXDL File: {truncate_path(validator.filepath)}", level='all')
+    log("\n", level='all')
 
 
 def log_summary():

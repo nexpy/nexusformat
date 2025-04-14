@@ -17,8 +17,7 @@ from .utils import (check_dimension_sizes, check_nametype, definitions_path,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
                     match_strings, merge_dicts, package_files, readaxes,
-                    strip_namespace, xml_to_dict)
-
+                    strip_namespace, truncate_path, xml_to_dict)
 
 logger = get_logger()
 
@@ -66,7 +65,7 @@ class Validator():
         elif 'NX_DEFINITIONS' in os.environ:
             self.definitions = Path(os.environ['NX_DEFINITIONS']).resolve()
         else:
-            self.definitions = package_files('nxvalidate.definitions')
+            self.definitions = package_files('nexusformat.definitions')
         self.baseclasses = self.definitions / 'base_classes'
         if not self.baseclasses.exists():
             raise NeXusError(f'"{self.baseclasses}" does not exist')
@@ -492,6 +491,8 @@ class GroupValidator(Validator):
             The group to be validated.
         indent : int, optional
             The indentation level for logging (default is 0).
+        level : str, optional
+            The logging level (default is None).
         """
         self.parent = parent
         self.indent = indent
@@ -958,15 +959,11 @@ def validate_file(filename, path=None, definitions=None):
         logger.error(e)
         return
 
-    log("\nNXValidate\n----------", level='all')
-    log(f"Filename: {Path(filename).resolve()}", level='all')
-    log(f"Path: {path}", level='all')
-    log(f"Definitions: {validator.definitions}\n", level='all')
+    log_header(validator, filename=filename, path=path)
 
     validator.validate(path)
 
     return log_summary()
-
 
 
 class ApplicationValidator(Validator):
@@ -1128,7 +1125,7 @@ class ApplicationValidator(Validator):
         group_validator.check_symbols(indent=self.indent)
         self.output_log()
     
-    def validate(self, entry):
+    def validate(self, entry, level=None):
         """
         Validates a NeXus entry against an XML definition.
 
@@ -1142,9 +1139,13 @@ class ApplicationValidator(Validator):
         ----------
         entry : object
             The NeXus entry to be validated.
+        level : str, optional
+            The logging level (default is None).
         """
         root = entry.nxroot
         nxpath = entry.nxpath
+        if level is not None:
+            logger.setLevel(get_log_level(level))
         self.validate_group(self.xml_dict, root[nxpath])
         self.output_log()
 
@@ -1203,11 +1204,7 @@ def validate_application(filename, path=None, application=None,
             logger.error(e)
             return
 
-        log("\nNXValidate\n----------", level='all')
-        log(f"Filename: {Path(filename).resolve()}", level='all')
-        log(f"Entry: {nxpath}", level='all')
-        log(f"Application Definition: {application}", level='all')
-        log(f"NXDL File: {validator.filepath}\n", level='all')
+        log_header(validator, filename, nxpath, application)
 
         validator.validate(entry)
 
@@ -1226,6 +1223,8 @@ def inspect_base_class(base_class, definitions=None):
         The path to the directory containing the NeXus base class
         definitions (default is None).
     """
+    logger.setLevel(logging.INFO)
+
     validator = get_validator(base_class, definitions=definitions)
 
     log("\nNXValidate\n----------")
@@ -1303,6 +1302,20 @@ def log(message, level='info', indent=0):
         logger.total['error'] += 1
     elif level == 'all':
         logger.critical(f'{4*indent*" "}{message}')
+
+
+def log_header(validator, filename=None, path=None, application=None):  
+    log("\nNXValidate\n----------", level='all')
+    if filename is not None:
+        log(f"Filename: {filename}", level='all')
+    if path is not None:
+        log(f"Path: {path}", level='all')
+    log(f"Definitions: {truncate_path(validator.definitions)}", level='all')
+    if application is not None:
+        log(f"Application Definition: {application}", level='all')
+        log(f"NXDL File: {truncate_path(validator.filepath)}", level='all')
+    log("\n", level='all')
+
 
 def log_summary():
     """

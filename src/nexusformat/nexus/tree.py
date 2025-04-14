@@ -218,8 +218,8 @@ from .lock import NXLock, NXLockException
 warnings.simplefilter('ignore', category=FutureWarning)
 
 # Default configuration parameters.
-NX_CONFIG = {'compression': 'gzip', 'encoding': 'utf-8', 'lock': 0,
-             'lockexpiry': 8 * 3600, 'lockdirectory': None,
+NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8', 
+             'lock': 0, 'lockdirectory': None, 'lockexpiry': 8 * 3600,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 # These are overwritten below by environment variables if defined.
 
@@ -5081,11 +5081,83 @@ class NXgroup(NXobject):
         raise NeXusError(
             "Can only set the default for NXentry and NXdata groups")
 
-    def validate(self, level='warning', definitions=None):
-        from .validate import GroupValidator, log_summary
+    def check(self, level='warning', definitions=None):
+        """
+        Checks the group for compliance with the NeXus base classes.
+
+        Parameters
+        ----------
+        level : str, optional
+            The minimum level of warnings to be reported. Can be one of
+            'warning', 'error', or 'all'. Default is 'warning'.
+        definitions : str, optional
+            The path to the directory containing the NeXus definitions
+            (default is None).
+
+        Returns
+        -------
+        tuple
+            A tuple containing the total number of warnings and errors
+            encountered while validating the file.
+        """
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
+        from .validate import GroupValidator, log_header, log_summary
         validator = GroupValidator(self.nxclass, definitions=definitions)
+        log_header(validator, path=self.nxpath)
         validator.validate(self, level=level)
         return log_summary()
+
+    def validate(self, level='warning', application=None, definitions=None):
+        """
+        Validate the group against a NeXus application definition.
+        
+        Note that this can only be used on NXroot and NXentry groups.
+
+        Parameters
+        ----------
+        level : str, optional
+            The minimum level of warnings to be reported. Can be one of
+            'warning', 'error', or 'all'. Default is 'warning'.
+        application : str, optional
+            The name of the application definition validating the group
+            (default is None). If not specified, the value in the
+            entry's 'definition' attribute will be used.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        tuple
+            A tuple containing the total number of warnings and errors
+            encountered while validating the file.
+        """
+        if not isinstance(self, NXroot) and not isinstance(self, NXentry):
+            raise NeXusError(
+                "Validation can only be used on NXroot and NXentry groups")
+        if isinstance(self, NXroot):
+            entry = self.NXentry[0]
+        else:
+            entry = self
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
+        if application is None and 'definition' in entry:
+            application = entry['definition'].nxvalue
+        elif application is None:
+            raise NeXusError(f'No application definition is defined in "{entry.nxpath}"')
+
+        from .validate import ApplicationValidator, log_header, log_summary
+        validator = ApplicationValidator(application, definitions=definitions)
+        log_header(validator, path=entry.nxpath, application=application)
+        validator.validate(entry, level=level)
+        return log_summary()
+
+    def inspect(self, definitions=None):
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
+        from .validate import inspect_base_class
+        inspect_base_class(self.nxclass, definitions=definitions)
 
     def is_plottable(self):
         """Return True if the group contains plottable data."""

@@ -19,7 +19,6 @@ else:
 
 import numpy as np
 from colored import Fore, Style
-from dateutil.parser import parse
 
 
 name_pattern = re.compile(r'^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')

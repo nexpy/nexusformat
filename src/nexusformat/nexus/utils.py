@@ -347,7 +347,7 @@ def xml_to_dict(element):
 
     for child in element:
         if child.tag == 'doc':
-            continue
+            result[child.tag] = re.sub(r'[\t\n]+', ' ', child.text.strip())
         elif child.tag == 'enumeration':
             result[child.tag] = [item.attrib['value'] for item in child]
         elif child.tag == 'dimensions':

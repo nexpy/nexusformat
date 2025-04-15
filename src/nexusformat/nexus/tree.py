@@ -209,11 +209,11 @@ from pathlib import Path
 from pathlib import PurePosixPath as PurePath
 
 import h5py as h5
-import hdf5plugin
 import numpy as np
 
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
+from .utils import get_classes
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
@@ -223,25 +223,12 @@ NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8',
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 # These are overwritten below by environment variables if defined.
 
+# List of NeXus base classes
+nxclasses = get_classes()
+
+
 string_dtype = h5.special_dtype(vlen=str)
 np.set_printoptions(threshold=5, precision=6)
-
-# List of defined base classes (later added to __all__)
-nxclasses = [
-    'NXaperture', 'NXattenuator', 'NXbeam_stop', 'NXbeam', 'NXbending_magnet',
-    'NXcapillary', 'NXcite', 'NXcollection', 'NXcollimator', 'NXcrystal',
-    'NXcylindrical_geometry', 'NXdata', 'NXdetector_channel',
-    'NXdetector_group', 'NXdetector_module', 'NXdetector', 'NXdisk_chopper',
-    'NXentry', 'NXenvironment', 'NXevent_data', 'NXfermi_chopper', 'NXfilter',
-    'NXflipper', 'NXfresnel_zone_plate', 'NXgeometry', 'NXgrating', 'NXguide',
-    'NXinsertion_device', 'NXinstrument', 'NXlog', 'NXmirror', 'NXmoderator',
-    'NXmonitor', 'NXmonochromator', 'NXnote', 'NXobject', 'NXoff_geometry',
-    'NXorientation', 'NXparameters', 'NXpdb', 'NXpinhole', 'NXpolarizer',
-    'NXpositioner', 'NXprocess', 'NXreflections', 'NXroot',
-    'NXsample_component', 'NXsample', 'NXsensor', 'NXshape', 'NXslit',
-    'NXsource', 'NXsubentry', 'NXtransformations', 'NXtranslation', 'NXuser',
-    'NXvelocity_selector', 'NXxraylens', 'NXgoniometer'
-    ]
 
 
 def text(value):
@@ -7302,7 +7289,6 @@ class NXnote(NXgroup):
 
 # -------------------------------------------------------------------------
 # Add remaining base classes as subclasses of NXgroup and append to __all__
-
 for cls in nxclasses:
     if cls not in globals():
         globals()[cls] = _makeclass(cls)

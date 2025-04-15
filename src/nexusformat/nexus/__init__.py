@@ -44,3 +44,4 @@ of the NeXus data file, see `nx.tree`.
 from .completer import nxcompleter
 from .lock import NXLock, NXLockException
 from .tree import *
+import hdf5plugin

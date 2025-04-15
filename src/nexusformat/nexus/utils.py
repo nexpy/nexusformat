@@ -6,6 +6,7 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import os
 import re
 import shutil
 import sys
@@ -20,7 +21,6 @@ import numpy as np
 from colored import Fore, Style
 from dateutil.parser import parse
 
-from .tree import string_dtype
 
 name_pattern = re.compile(r'^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
@@ -65,9 +65,9 @@ def get_log_level(level='warning'):
         return logging.INFO
     elif level == 'debug' or level == logging.DEBUG:
         return logging.DEBUG
-    elif level == 'warning' or level == logging.WARNING:
+    elif level == 'warning' or level == 'warnings' or level == logging.WARNING:
         return logging.WARNING
-    elif level == 'error' or level == logging.ERROR:
+    elif level == 'error' or level == 'errors' or level == logging.ERROR:
         return logging.ERROR
 
 
@@ -179,6 +179,7 @@ def is_valid_char(dtype):
         True if the data type is a valid character type, False
         otherwise.
     """
+    from .tree import string_dtype
     return (np.issubdtype(dtype, np.str_) or  np.issubdtype(dtype, np.bytes_)
             or dtype == string_dtype)
 
@@ -453,23 +454,69 @@ def match_strings(pattern_string, target_string):
     return False
 
 
-def definitions_path(path):
+def get_classes(definitions=None):
     """
-    Return the path to the NeXus definitions directory.
-
-    The path is derived from a given path, which may be a string or a
-    MultiplexedPath object. If the given path is a MultiplexedPath
-    object, extract the path from it and return it as a string.
+    Return a list of all base class names.
 
     Parameters
     ----------
-    path : str or MultiplexedPath
-        The path to the NeXus definitions directory.
+    definitions : str or Path or None
+        The path to the NeXus definitions directory (default is None).
+
+    Returns
+    -------
+    list of str
+        A list of NeXus base class names.
+    """
+    definitions = get_definitions(definitions=definitions)
+    base_class_path = definitions.joinpath('base_classes')
+    return sorted(
+        [str(c.stem[:-5]) for c in base_class_path.glob('*.nxdl.xml')])
+
+
+def get_definitions(definitions=None):
+    """
+    Return the path to the NeXus definitions directory.
+
+    If the input argument is given, it is converted to a Path object. If it
+    is a string, it is resolved to a full path. If it is None, the path is
+    determined from the 'NX_DEFINITIONS' environment variable or, if that
+    variable is not set, from the location of the nexusformat package.
+
+    Parameters
+    ----------
+    definitions : str or Path or None
+        The path to the NeXus definitions directory (default is None).
 
     Returns
     -------
     Path
         The path to the NeXus definitions directory.
+    """
+    if definitions is not None:
+        if isinstance(definitions, str):
+            definitions = Path(definitions).resolve()
+        elif isinstance(definitions, Path):
+            definitions = definitions.resolve()
+    elif 'NX_DEFINITIONS' in os.environ:
+        definitions = Path(os.environ['NX_DEFINITIONS']).resolve()
+    else:
+        definitions = multiplex_path(package_files('nexusformat.definitions'))
+    return definitions
+
+def multiplex_path(path):
+    """
+    Convert a MultiplexedPath object to a Path object.
+
+    Parameters
+    ----------
+    path : str or MultiplexedPath
+        The path to be converted.
+
+    Returns
+    -------
+    Path
+        The converted path.
     """
     return Path(re.sub(r"MultiplexedPath\('(.*)'\)", r"\1", str(path)))
 

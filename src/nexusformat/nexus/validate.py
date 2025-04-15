@@ -6,18 +6,17 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
-import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from . import NeXusError, NXentry, NXfield, NXgroup, NXlink, NXsubentry, nxopen
-from .utils import (check_dimension_sizes, check_nametype, definitions_path,
+from .utils import (check_dimension_sizes, check_nametype, get_definitions,
                     get_log_level, get_logger, is_valid_bool, is_valid_char,
                     is_valid_char_or_number, is_valid_complex, is_valid_float,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
-                    match_strings, merge_dicts, package_files, readaxes,
-                    strip_namespace, truncate_path, xml_to_dict)
+                    match_strings, merge_dicts, readaxes, strip_namespace,
+                    truncate_path, xml_to_dict)
 
 logger = get_logger()
 
@@ -55,17 +54,7 @@ class Validator():
         """
         Initializes a new Validator instance.
         """
-        if definitions is not None:
-            if isinstance(definitions, str):
-                self.definitions = Path(definitions).resolve()
-            elif isinstance(definitions, Path):
-                self.definitions = definitions.resolve()
-            else:
-                self.definitions = definitions
-        elif 'NX_DEFINITIONS' in os.environ:
-            self.definitions = Path(os.environ['NX_DEFINITIONS']).resolve()
-        else:
-            self.definitions = package_files('nexusformat.definitions')
+        self.definitions = get_definitions(definitions=definitions)
         self.baseclasses = self.definitions / 'base_classes'
         if not self.baseclasses.exists():
             raise NeXusError(f'"{self.baseclasses}" does not exist')
@@ -75,7 +64,6 @@ class Validator():
         self.contributions = self.definitions / 'contributed_definitions'
         if not self.contributions.exists():
             self.contributions = None
-        self.definitions = definitions_path(self.definitions)
         self.filepath = None
         self.parent = None
         self.logged_messages = []

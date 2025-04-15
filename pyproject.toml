@@ -33,6 +33,7 @@ dependencies = [
     "hdf5plugin",
     "packaging",
     "colored",
+    "dateutil",
     "importlib_resources; python_version <= '3.9'",
 ]
 

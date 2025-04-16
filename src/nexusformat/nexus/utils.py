@@ -454,7 +454,7 @@ def match_strings(pattern_string, target_string):
     return False
 
 
-def get_classes(definitions=None):
+def get_base_classes(definitions=None):
     """
     Return a list of all base class names.
 

@@ -346,8 +346,8 @@ def xml_to_dict(element):
             result[f"@{attr}"] = attrs[attr]
 
     for child in element:
-        if child.tag == 'doc':
-            continue
+        if child.tag == 'doc' and child.text:
+            result[child.tag] = re.sub(r'[\t\n]+', ' ', child.text.strip())
         elif child.tag == 'enumeration':
             result[child.tag] = [item.attrib['value'] for item in child]
         elif child.tag == 'dimensions':
@@ -454,7 +454,7 @@ def match_strings(pattern_string, target_string):
     return False
 
 
-def get_classes(definitions=None):
+def get_base_classes(definitions=None):
     """
     Return a list of all base class names.
 

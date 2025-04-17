@@ -441,7 +441,7 @@ class GroupValidator(Validator):
             self.indent = indent
         for symbol in self.symbols:
             values = []
-            for entry in self.symbols[symbol]:
+            for entry in [e for e in self.symbols[symbol] if e != 'doc']:
                 values.append(self.symbols[symbol][entry])
             if not values:
                 continue

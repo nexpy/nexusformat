@@ -213,7 +213,7 @@ import numpy as np
 
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
-from .utils import get_classes
+from .utils import get_base_classes
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
@@ -224,7 +224,7 @@ NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8',
 # These are overwritten below by environment variables if defined.
 
 # List of NeXus base classes
-nxclasses = get_classes()
+nxclasses = get_base_classes()
 
 
 string_dtype = h5.special_dtype(vlen=str)

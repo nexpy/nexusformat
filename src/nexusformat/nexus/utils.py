@@ -37,10 +37,24 @@ def get_logger():
         A logger instance.
     """
     logger = logging.getLogger("NXValidate")
-    stream_handler = StreamHandler(stream=sys.stdout)
-    stream_handler.setFormatter(ColorFormatter('%(message)s'))    
-    logger.addHandler(stream_handler)
     logger.setLevel(logging.WARNING)
+    nexpy_running = False
+    try:
+        from nexpy.gui.pyqt import QtWidgets
+        app = QtWidgets.QApplication.instance()
+        if app and app.applicationName() == "nexpy":
+            nexpy_running = True
+    except Exception:
+        pass
+    if nexpy_running:
+        from nexpy.gui.utils import NXValidationHandler
+        gui_handler = NXValidationHandler()
+        gui_handler.setFormatter(NXFormatter('%(message)s'))
+        logger.addHandler(gui_handler)
+    else:
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
+        stream_handler.setFormatter(NXFormatter('%(message)s'))    
+        logger.addHandler(stream_handler)
     logger.total = {'warning': 0, 'error': 0}
     return logger
 
@@ -600,28 +614,8 @@ def check_dimension_sizes(dimensions):
     return max_dimension - min_dimension <= 1
 
 
-class StreamHandler(logging.StreamHandler):
+class NXFormatter(logging.Formatter):
 
-    def __init__(self, stream=None, max_width=None):
-        super().__init__(stream)
-        if max_width is None:
-            self.max_width = terminal_width()
-        else:
-            self.max_width = max_width
-        self.terminator = '\n'
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            truncated_msg = msg[:self.max_width]
-            stream = self.stream
-            stream.write(truncated_msg + self.terminator)
-            self.flush()
-        except Exception:
-            self.handleError(record)
-
-
-class ColorFormatter(logging.Formatter):
     COLORS = {
         'DEBUG': Fore.blue,
         'INFO': Style.reset,
@@ -631,6 +625,7 @@ class ColorFormatter(logging.Formatter):
     }
     
     def format(self, record):
+        """Format the specified record as text."""
         log_color = self.COLORS.get(record.levelname, Style.reset)
         message = super().format(record)
         return f"{log_color}{message}{Style.reset}"

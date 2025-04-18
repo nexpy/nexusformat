@@ -38,6 +38,7 @@ def get_logger():
     """
     logger = logging.getLogger("NXValidate")
     logger.setLevel(logging.WARNING)
+    logger.propagate = False
     nexpy_running = False
     try:
         from nexpy.gui.pyqt import QtWidgets
@@ -48,7 +49,7 @@ def get_logger():
         pass
     if nexpy_running:
         from nexpy.gui.utils import NXValidationHandler
-        gui_handler = NXValidationHandler()
+        gui_handler = NXValidationHandler(capacity=1000)
         gui_handler.setFormatter(NXFormatter('%(message)s'))
         logger.addHandler(gui_handler)
     else:

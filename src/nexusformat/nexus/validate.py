@@ -45,6 +45,9 @@ def get_validator(nxclass, definitions=None):
         validator = GroupValidator(nxclass, definitions=definitions)
         nxclass = validator.nxclass
         validators[nxclass] = validator
+    elif (definitions is not None and
+          Path(definitions).resolve() != validators[nxclass].definitions):
+        validators[nxclass] = GroupValidator(nxclass, definitions=definitions)
     return validators[nxclass]
 
 

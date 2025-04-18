@@ -45,6 +45,9 @@ def get_validator(nxclass, definitions=None):
         validator = GroupValidator(nxclass, definitions=definitions)
         nxclass = validator.nxclass
         validators[nxclass] = validator
+    elif (definitions is not None and
+          Path(definitions).resolve() != validators[nxclass].definitions):
+        validators[nxclass] = GroupValidator(nxclass, definitions=definitions)
     return validators[nxclass]
 
 
@@ -1218,51 +1221,22 @@ def inspect_base_class(base_class, definitions=None):
     log("\nNXValidate\n----------")
     if validator.filepath is not None:
         log(f"Valid components of the {base_class} base class")
-        log(f"NXDL File: {validator.filepath}\n")
+        log(f"NXDL File: {truncate_path(validator.filepath)}\n")
     else:
         log(f'NXDL file for "{base_class}" does not exist')
-        log(f"Definitions: {validator.definitions}\n")
+        log(f"Definitions: {truncate_path(validator.filepath)}\n")
         return
 
-    if validator.valid_attributes or validator.partial_attributes:
-        log('Allowed Attributes')
-        attributes = validator.valid_attributes
-        attributes.update(validator.partial_attributes)
-        for attribute in attributes:
-            log(f"@{attribute}", indent=1)
-    if validator.valid_groups or validator.partial_groups:
-        log('Allowed Groups')
-        groups = validator.valid_groups
-        groups.update(validator.partial_groups)
-        for group in groups:
-            items = {k: v for k, v in groups[group].items() if v != group}
-            if '@name' in groups[group]:
-                name = groups[group]['@name']
-                group = groups[group]['@type']
-                attrs = {k: v for k, v in items.items() if v != group
-                         and k.startswith('@')}
-                log(f"{name}[{group}]: {attrs}", indent=1)
-                tags = {k: v for k, v in items.items()
-                        if not k.startswith('@')}
-                if tags:
-                    log(f"{tags}", indent=2)
-            else:
-                log(f"{group}: {items}", indent=1)
-                tags = {k: v for k, v in items.items()
-                        if not k.startswith('@')}
-                for tag in tags:
-                    log(f"{tag}: {tags[tag]}", indent=2)
-    if validator.valid_fields or validator.partial_fields:
-        log('Allowed Fields')
-        fields = validator.valid_fields
-        fields.update(validator.partial_fields)
-        for field in fields:
-            items = {k: v for k, v in fields[field].items() if v != field}
-            attrs = {k: v for k, v in items.items() if k.startswith('@')}
-            log(f"{field}: {attrs}", indent=1)
-            tags = {k: v for k, v in items.items() if not k.startswith('@')}
-            for tag in tags:
-                log(f"{tag}: {tags[tag]}", indent=2)
+    tree = ET.parse(validator.filepath)
+    root = tree.getroot()
+    strip_namespace(root)
+
+    from pygments import highlight
+    from pygments.lexers import XmlLexer
+    from pygments.formatters import TerminalFormatter
+
+    log(highlight(ET.tostring(root, encoding='unicode'), XmlLexer(),
+                  TerminalFormatter()))
 
 
 def log(message, level='info', indent=0):
@@ -1303,6 +1277,8 @@ def log_header(validator, filename=None, path=None, application=None):
         log(f"Application Definition: {application}", level='all')
         log(f"NXDL File: {truncate_path(validator.filepath)}", level='all')
     log("\n", level='all')
+    logger.total = {'warning': 0, 'error': 0}
+
 
 
 def log_summary():

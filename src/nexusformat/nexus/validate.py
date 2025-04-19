@@ -1218,9 +1218,8 @@ def inspect_base_class(base_class, definitions=None):
 
     validator = get_validator(base_class, definitions=definitions)
 
-    log("\nNXValidate\n----------")
     if validator.filepath is not None:
-        log(f"Valid components of the {base_class} base class")
+        log(f"\nValid components of the {base_class} base class")
         log(f"NXDL File: {truncate_path(validator.filepath)}\n")
     else:
         log(f'NXDL file for "{base_class}" does not exist')
@@ -1267,18 +1266,19 @@ def log(message, level='info', indent=0):
 
 
 def log_header(validator, filename=None, path=None, application=None):  
-    log("\nNXValidate\n----------", level='all')
+    log("\n", level='all')
     if filename is not None:
         log(f"Filename: {filename}", level='all')
     if path is not None:
         log(f"Path: {path}", level='all')
     log(f"Definitions: {truncate_path(validator.definitions)}", level='all')
+    if application and Path(application).exists():
+        application = Path(application).stem[:-5]
     if application is not None:
         log(f"Application Definition: {application}", level='all')
         log(f"NXDL File: {truncate_path(validator.filepath)}", level='all')
     log("\n", level='all')
     logger.total = {'warning': 0, 'error': 0}
-
 
 
 def log_summary():

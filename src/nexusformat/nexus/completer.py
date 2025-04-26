@@ -92,11 +92,12 @@ def nxitem_completer(shell, command):
     except Exception:
         return []
 
-    import posixpath
-    path, _ = posixpath.split(item)
+    from pathlib import PurePosixPath as PosixPath
+    item_path = PosixPath(item)
+    path = str(item_path.parent) if str(item_path.parent) != '.' else ''
     try:
         if path:
-            items = (posixpath.join(path, name) for name in obj[path].keys())
+            items = (str(PosixPath(path) / name) for name in obj[path].keys())
         else:
             items = obj.keys()
     except Exception:

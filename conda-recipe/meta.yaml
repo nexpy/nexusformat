@@ -9,24 +9,30 @@ source:
 build:
   entry_points:
     - nexusformat = nexusformat.scripts.nexusformat:main
-    - nxstack = nexusformat.scripts.nxstack:main
-    - nxduplicate = nexusformat.scripts.nxduplicate:main
+    - nxcheck = nexusformat.scripts.nxcheck:main
     - nxconsolidate = nexusformat.scripts.nxconsolidate:main
     - nxdir = nexusformat.scripts.nxdir:main
+    - nxduplicate = nexusformat.scripts.nxduplicate:main
+    - nxinspect = nexusformat.scripts.nxinspect:main
+    - nxstack = nexusformat.scripts.nxstack:main
 number: 0
 
 requirements:
   build:
-    - python >=3.8
+    - python >=3.9
     - setuptools
     - setuptools_scm
 
   run:
-    - python >=3.8
-    - numpy
-    - scipy
+    - python >=3.9
+    - colored
     - h5py
     - hdf5plugin
+    - numpy
+    - packaging
+    - pygments
+    - python-dateutil
+    - scipy
 
 test:
   commands:

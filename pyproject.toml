@@ -27,14 +27,14 @@ classifiers = [
 keywords = ["data format", "HDF5", "neutron scattering", "x-ray scattering"]
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
-    "scipy",
+    "colored",
     "h5py",
     "hdf5plugin",
+    "numpy",
     "packaging",
-    "colored",
     "pygments",
     "python-dateutil",
+    "scipy",
     "importlib_resources; python_version <= '3.9'",
 ]
 
@@ -63,5 +63,6 @@ version_file = "src/nexusformat/_version.py"
 [tool.setuptools.package-data]
 "nexusformat.definitions.applications" = ["*.nxdl.xml"]
 "nexusformat.definitions.base_classes" = ["*.nxdl.xml"]
+"nexusformat.definitions.contributed_definitions" = ["*.nxdl.xml"]
 "nexusformat.examples" = ["*.nxs", "*.h5"]
 "nexusformat.notebooks" = ["*.pnyb"]

@@ -4686,8 +4686,6 @@ class NXgroup(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._changed = True
         for k, v in obj.items():
-            if isinstance(v, NXlink):
-                v = v.nxlink
             dpcpy.entries[k] = deepcopy(v, memo)
             dpcpy.entries[k]._group = dpcpy
         for k, v in obj.attrs.items():

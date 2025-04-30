@@ -5068,13 +5068,31 @@ class NXgroup(NXobject):
             return None
 
     def set_default(self, over=False):
-        """Set the current group as the default for plotting.
+        """Set group as the default for plotting.
 
-        This function is overridden by the NXentry and NXdata classes.
-        For all other groups, it raises an error.
+        This will set defaults for parents of the parent group unless
+        they have already been set previously.
+
+        Parameters
+        ==========
+        over : bool
+            True if previous default should be overwritten
         """
-        raise NeXusError(
-            "Can only set the default for NXentry and NXdata groups")
+        group = self.nxgroup
+        if group is None:
+            raise NeXusError(
+                "The default cannot be defined without a parent group")
+        else:
+            default = self.attrs.get('default', None)
+            if default and default in self:
+                group.attrs['default'] = self.nxname
+                parent_group = group.nxgroup
+                if parent_group:
+                    if over or parent_group.get_default() is None:
+                        group.set_default(over=over)
+            else:
+                raise NeXusError(
+                    f"The default group has not been defined in {self.nxpath}")
 
     def check(self, level='warning', definitions=None):
         """
@@ -5167,7 +5185,11 @@ class NXgroup(NXobject):
     @property
     def plottable_data(self):
         """Return the first NXdata group within the group's tree."""
-        return None
+        default = self.get_default()
+        if default is not None:
+            return self[default]
+        else:
+            return None
 
     def plot(self, **kwargs):
         """Plot data contained within the group.
@@ -5787,16 +5809,6 @@ class NXroot(NXgroup):
         if self.nxfile:
             self.nxfile.close()
 
-    def set_default(self, over=False):
-        """Override function to set default for plotting.
-
-        Parameters
-        ==========
-        over : bool
-            True if previous default should be overwritten
-        """
-        pass
-
     @property
     def plottable_data(self):
         """The default data group to be plotted in this tree.
@@ -5933,31 +5945,6 @@ class NXentry(NXgroup):
             return result
         except KeyError:
             raise NeXusError("Inconsistency between two NXentry groups")
-
-    def set_default(self, over=False):
-        """Set group as the default for plotting.
-
-        This will set defaults for parents of the parent group unless they have
-        been set previously.
-
-        Parameters
-        ==========
-        over : bool
-            True if previous default should be overwritten
-        """
-        group = self.nxgroup
-        if group is None:
-            raise NeXusError(
-                "The default cannot be defined without a parent group")
-        elif isinstance(group, NXentry) or isinstance(group, NXroot):
-            group.attrs['default'] = self.nxname
-            parent_group = group.nxgroup
-            if parent_group:
-                if over or parent_group.get_default() is None:
-                    group.set_default(over=over)
-        else:
-            raise NeXusError(
-                "The default can only be defined in a NXentry or NXroot group")
 
     @property
     def plottable_data(self):
@@ -6786,15 +6773,12 @@ class NXdata(NXgroup):
         if group is None:
             raise NeXusError(
                 "The default cannot be defined without a parent group")
-        elif isinstance(group, NXentry) or isinstance(group, NXroot):
+        else:
             group.attrs['default'] = self.nxname
             parent_group = group.nxgroup
             if parent_group:
                 if over or parent_group.get_default() is None:
                     group.set_default(over=over)
-        else:
-            raise NeXusError(
-                "The default can only be defined in a NXentry or NXroot group")
 
     @property
     def plottable_data(self):

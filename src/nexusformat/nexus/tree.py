@@ -4780,8 +4780,16 @@ class NXgroup(NXobject):
         list of NXfields or NXgroups
             List of fields or groups of the same class.
         """
-        return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
-                if self.entries[i].nxclass == nxclass]
+        if nxclass == 'NXfield':
+            return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
+                    if isinstance(self.entries[i], NXfield)]
+        elif nxclass == 'NXgroup':
+            return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
+                    if isinstance(self.entries[i], NXgroup)]
+        else:
+            return [self.entries[i] for i in
+                    sorted(self.entries, key=natural_sort)
+                    if self.entries[i].nxclass == nxclass]
 
     def move(self, item, group, name=None):
         """Move an item in the group to another group within the same tree.

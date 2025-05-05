@@ -3,7 +3,7 @@
 <!--
 # NeXus - Neutron and X-ray Common Data Format
 # 
-# Copyright (C) 2008-2024 NeXus International Advisory Committee (NIAC)
+# Copyright (C) 2008-2025 NeXus International Advisory Committee (NIAC)
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -29,14 +29,46 @@
 	>
 
 	<doc>
-		Angles set by a goniometer. 
+		Goniometer rotation angles and sample translations used during a
+		measurement. The goniometers used at neutron and x-ray
+		facilities are typically four-circle or six-circle goniometers,
+		or variants of either one. There is no universally recognized
+		naming convention for angles and translations, so the group
+		should contain a :ref:`NXcite` group, which describes how the
+		angles are defined.
 	</doc>
-	<field name="chi" type="NX_FLOAT" units="NX_ANGLE" />
-	<field name="omega" type="NX_FLOAT" units="NX_ANGLE" />
-	<field name="phi" type="NX_FLOAT" units="NX_ANGLE" />
-	<field name="theta" type="NX_FLOAT" units="NX_ANGLE" />
-	<field name="xs" type="NX_FLOAT" units="NX_LENGTH" />
-	<field name="ys" type="NX_FLOAT" units="NX_LENGTH" />
-	<field name="zs" type="NX_FLOAT" units="NX_LENGTH" />
-</definition>
 
+    <group name="convention" type="NXcite">
+        <doc>
+            A reference to a publication or online documentation that
+            describe the convention used in this group to define the
+            names of angles and sample translations.
+        </doc>
+    </group>
+    <group type="NXcoordinate_system">
+        <doc>
+            The coordinate system used by the translation fields. This
+            group should be present if these fields do not use the
+            default NeXus Coordinate System.
+        </doc>
+    </group>
+    <field name="goniometer">
+        <doc>
+            The common name for the type of goniometer used in these
+            measurements.
+        </doc>
+    </field>
+	<field name="ROTATION_ANGLE" type="NX_FLOAT" units="NX_ANGLE" nameType="any">
+        <doc>
+            One of the goniometer rotation angles defined by the
+            specified convention.
+        </doc>
+    </field>
+    <field name="SAMPLE_TRANSLATION" type="NX_FLOAT" units="NX_LENGTH" nameType="any">
+        <doc>
+            The translation of the sample from the centre of rotation of the
+            goniometer angles along one of the coordinate axes.
+        </doc>
+    </field>
+
+</definition>

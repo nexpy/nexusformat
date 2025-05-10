@@ -3786,6 +3786,22 @@ class NXfield(NXobject):
                 return self.nxpath
 
     @property
+    def nxunits(self):
+        """Units of the field."""        
+        if 'units' in self.attrs:
+            return self.attrs['units']
+        else:
+            return ''
+
+    @nxunits.setter
+    def nxunits(self, value):
+        if self.nxfilemode == 'r':
+            raise NeXusError("NeXus file opened as readonly")
+        elif self.is_linked():
+            raise NeXusError("Cannot modify an item in a linked group")
+        self.attrs['units'] = value
+
+    @property
     def mask(self):
         """NXfield's mask as an array.
 

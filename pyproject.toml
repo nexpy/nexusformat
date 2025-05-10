@@ -32,6 +32,7 @@ dependencies = [
     "hdf5plugin",
     "numpy",
     "packaging",
+    "pickleshare",
     "pygments",
     "python-dateutil",
     "scipy",

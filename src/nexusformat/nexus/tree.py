@@ -6175,7 +6175,7 @@ class NXentry(NXgroup):
 
 class NXsubentry(NXentry):
 
-    """NXsubentry group, a subclass of the NXsubentry class."""
+    """NXsubentry group, a subclass of the NXentry class."""
 
     def __init__(self, *args, **kwargs):
         self._class = 'NXsubentry'

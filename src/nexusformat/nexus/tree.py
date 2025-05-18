@@ -938,7 +938,7 @@ class NXFile:
         else:
             return nxclass
 
-    def _getlink(self):
+    def _getlink(self, path=None):
         """
         Return the link target path and filename.
 
@@ -948,9 +948,11 @@ class NXFile:
             Link path, filename, and boolean that is True if an absolute
             file path is given.
         """
+        if path is None:
+            path = self.nxpath
         _target, _filename, _abspath, _soft = None, None, False, False
-        if self.nxpath != '/':
-            _link = self.get(self.nxpath, getlink=True)
+        if path != '/':
+            _link = self.get(path, getlink=True)
             if isinstance(_link, h5.ExternalLink):
                 _target, _filename = _link.path, _link.filename
                 _abspath = Path(_filename).is_absolute()
@@ -961,7 +963,7 @@ class NXFile:
                 _target = text(self.attrs['target'])
                 if not _target.startswith('/'):
                     _target = '/' + _target
-                if _target == self.nxpath:
+                if _target == path:
                     _target = None
         return _target, _filename, _abspath, _soft
 
@@ -1127,6 +1129,8 @@ class NXFile:
             NeXus group or field containing the link target and
             filename.
         """
+        if self._getlink(item.nxpath)[0] is not None:
+            del self[item.nxpath]
         self.nxpath = self.nxpath + '/' + item.nxname
         if item._abspath:
             filename = item.nxfilename
@@ -1152,8 +1156,9 @@ class NXFile:
         links : list ot tuples
             List of tuples containing the link path, target, and type.
         """
-        # link sources to targets
         for path, target, soft in links:
+            if self._getlink(path)[0] is not None:
+                del self[path]
             if (path != target and path not in self['/']
                     and target in self['/']):
                 if soft:
@@ -2556,7 +2561,7 @@ class NXobject:
 
     @property
     def nxtarget(self):
-        """Target path of an NXlink."""
+        """Property of NXlink objects."""
         return self._target
 
     @property
@@ -5576,7 +5581,7 @@ class NXlink(NXobject):
         value : NXfield or NXgroup or NXattr or str or array-like
             Value to be assigned to the attribute.
         """
-        if name.startswith('_'):
+        if name.startswith('_') or name == 'nxtarget':
             object.__setattr__(self, name, value)
         elif self.is_external():
             raise NeXusError("Cannot modify an external link")
@@ -5648,6 +5653,36 @@ class NXlink(NXobject):
             with root.nxfile as f:
                 f.update(self)
         self.set_changed()
+
+    @property
+    def nxtarget(self):
+        return self._target
+
+    @nxtarget.setter
+    def nxtarget(self, value):
+        if self.nxroot.nxfilemode != 'rw':
+            raise NeXusError("NeXus file opened as readonly") 
+        elif isinstance(value, NXlink):
+            raise NeXusError("Cannot link to another NXlink object")
+        elif is_text(value):
+            self._target = value
+        elif isinstance(value, NXfield) or isinstance(value, NXgroup):
+            if value.nxfilename == self.nxroot.nxfilename:
+                self._target = value.nxpath
+            else:
+                self._target = value.nxpath
+                self._filename = value.nxfilename
+        elif ((isinstance(value, tuple) or isinstance(value, list)) and
+                len(value) == 2):
+            self._target = value[0]
+            self._filename = value[1]
+        else:
+            raise NeXusError("Invalid link target")
+        if not self.is_external():
+            self.attrs['target'] = self._target
+        self._file = None
+        self._link = None
+        self.update()
 
     @property
     def nxlink(self):

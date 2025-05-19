@@ -948,11 +948,12 @@ class NXFile:
             Link path, filename, and boolean that is True if an absolute
             file path is given.
         """
-        if path is None:
-            path = self.nxpath
+        current_path = self.nxpath
+        if path is not None:
+            self.nxpath = path
         _target, _filename, _abspath, _soft = None, None, False, False
-        if path != '/':
-            _link = self.get(path, getlink=True)
+        if self.nxpath != '/':
+            _link = self.get(self.nxpath, getlink=True)
             if isinstance(_link, h5.ExternalLink):
                 _target, _filename = _link.path, _link.filename
                 _abspath = Path(_filename).is_absolute()
@@ -963,8 +964,9 @@ class NXFile:
                 _target = text(self.attrs['target'])
                 if not _target.startswith('/'):
                     _target = '/' + _target
-                if _target == path:
+                if _target == self.nxpath:
                     _target = None
+        self.nxpath = current_path
         return _target, _filename, _abspath, _soft
 
     def writefile(self, root):
@@ -5678,8 +5680,6 @@ class NXlink(NXobject):
             self._filename = value[1]
         else:
             raise NeXusError("Invalid link target")
-        if not self.is_external():
-            self.attrs['target'] = self._target
         self._file = None
         self._link = None
         self.update()

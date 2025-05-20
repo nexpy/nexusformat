@@ -2532,7 +2532,10 @@ class NXobject:
         if self.nxclass == 'NXroot':
             return "/"
         elif self.nxtarget:
-            return self.nxtarget
+            if self.is_external():
+                return self.nxtarget
+            else:
+                return self.nxlink.nxfilepath
         elif self.nxgroup is None:
             return ""
         elif isinstance(self.nxgroup, NXroot):

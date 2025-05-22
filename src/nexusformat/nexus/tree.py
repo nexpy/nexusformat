@@ -4953,16 +4953,17 @@ class NXgroup(NXobject):
         list of NXfields or NXgroups
             List of fields or groups of the same class.
         """
-        if nxclass == 'NXfield':
-            return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
-                    if isinstance(self.entries[i], NXfield)]
-        elif nxclass == 'NXgroup':
-            return [self.entries[i] for i in sorted(self.entries, key=natural_sort)
-                    if isinstance(self.entries[i], NXgroup)]
-        else:
-            return [self.entries[i] for i in
-                    sorted(self.entries, key=natural_sort)
+        def class_list(nxclass):
+            return [self.entries[i] for i in self.entries
                     if self.entries[i].nxclass == nxclass]
+        if nxclass == 'NXfield':
+            return class_list('NXfield')
+        elif nxclass == 'NXgroup':
+            return class_list('NXgroup')
+        elif nxclass == 'NXlink':
+            return class_list('NXlink')
+        else:
+            return class_list(nxclass)
 
     def move(self, item, group, name=None):
         """

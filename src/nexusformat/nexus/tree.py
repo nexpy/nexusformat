@@ -5746,7 +5746,7 @@ class NXlink(NXobject):
     @property
     def internal_link(self):
         """Return NXfield or NXgroup targeted by an internal link."""
-        if Path(self._target).is_absolute():
+        if PurePath(self._target).is_absolute():
             return self.nxroot[self._target]
         else:
             try:
@@ -6089,6 +6089,13 @@ class NXroot(NXgroup):
                 if data is not None:
                     return data
         return None
+
+    def targets(self):
+        targets = []
+        for node in self.walk():
+            if node.nxtarget is not None and node.nxtarget != node.nxpath:
+                targets.append(node.nxtarget)
+        return targets
 
     @property
     def nxfile(self):

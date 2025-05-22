@@ -5500,7 +5500,7 @@ class NXgroup(NXobject):
 
     @property
     def entries_loaded(self):
-        """True if the NXgroup entriees have been initialized."""
+        """True if the NXgroup entries have been initialized."""
         return self._entries is not None
 
     nxsignal = None
@@ -5614,6 +5614,9 @@ class NXlink(NXobject):
             raise NeXusError("Cannot modify an externally linked file")
         else:
             self.nxlink.__setitem__(idx, value)
+
+    def __contains__(self, key):
+        return self.nxlink.__contains__(key)
 
     def __eq__(self, other):
         """Return True if two linked objects share the same target."""

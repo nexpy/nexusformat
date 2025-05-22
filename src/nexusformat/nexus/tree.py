@@ -5674,22 +5674,30 @@ class NXlink(NXobject):
         elif isinstance(value, NXlink):
             raise NeXusError("Cannot link to another NXlink object")
         elif is_text(value):
-            self._target = value
+            _target = value
+            _filename = self._filename
         elif isinstance(value, NXfield) or isinstance(value, NXgroup):
             if value.nxfilename == self.nxroot.nxfilename:
-                self._target = value.nxpath
+                _target = value.nxpath
+                _filename = None
             else:
-                self._target = value.nxpath
-                self._filename = value.nxfilename
+                _target = value.nxpath
+                _filename = value.nxfilename
         elif ((isinstance(value, tuple) or isinstance(value, list)) and
                 len(value) == 2):
-            self._target = value[0]
-            self._filename = value[1]
+            _target = value[0]
+            _filename = value[1]
         else:
             raise NeXusError("Invalid link target")
-        self._file = None
-        self._link = None
-        self.update()
+        if (not self.is_external() and
+                self.nxroot.targets().count(self._target) == 1):
+            del self.nxroot[self._target].attrs['target']
+        if _target != self._target or _filename != self._filename:
+            self._target = _target
+            self._filename = _filename
+            self._file = None
+            self._link = None
+            self.update()
 
     @property
     def nxlink(self):

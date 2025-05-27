@@ -290,6 +290,42 @@ def is_valid_uint(dtype):
     return np.issubdtype(dtype, np.unsignedinteger) 
 
 
+def map_dtype(nexus_type):
+    """
+    Maps a given NeXus data type to a string representation.
+
+    Parameters
+    ----------
+    nexus_type : str
+        The NeXus data type .
+
+    Returns
+    -------
+    str
+        The string representation of the data type.
+    """
+    nexus_dtypes = {"NX_BINARY": ["uint8"],
+                    "NX_BOOLEAN": ["uint8"],
+                    "NX_CHAR": ["str", "bytes"],
+                    "NX_COMPLEX": ["complex64", "complex128"],
+                    "NX_DATE_TIME": ["char"],
+                    "NX_FLOAT": ["float64", "float32"],
+                    "NX_INT": ["int64", "int32", "int16", "int8", "uint64",
+                               "uint32", "uint16", "uint8"],
+                    "NX_NUMBER": ["float64", "float32", "int64", "int32",
+                                  "int16", "int8", "uint64", "uint32",
+                                  "uint16", "uint8"],
+                    "NX_PCOMPLEX": ["complex128", "complex64"],
+                    "NX_POSINT": ["uint64", "uint32", "uint16", "uint8"],
+                    "NX_QUATERNION": ["complex128", "complex64"], 
+                    "NX_UINT": ["uint8", "uint16", "uint32", "uint64"],
+                    "NX_CHAR_OR_NUMBER": ["str", "bytes", "float64", "float32",
+                                          "int64", "int32", "int16", "int8",
+                                          "uint64", "uint32", "uint16",
+                                          "uint8"]}
+    return nexus_dtypes[nexus_type]
+
+
 def strip_namespace(element):
     """
     Recursively strips namespace from an XML element and its children.

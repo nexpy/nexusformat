@@ -5284,6 +5284,73 @@ class NXgroup(NXobject):
                 raise NeXusError(
                     f"The default group has not been defined in {self.nxpath}")
 
+    def get_validator(self, definitions=None):
+        if definitions is None and NX_CONFIG['definitions'] is not None:
+            definitions = NX_CONFIG['definitions']
+        from .validate import get_validator
+        return get_validator(self.nxclass, definitions=definitions)
+
+    def valid_fields(self, definitions=None):
+        """
+        Return the valid fields of the group.
+
+        Parameters
+        ----------
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        dict
+            A dictionary containing the valid fields of the group.
+        """
+        validator = self.get_validator(definitions=definitions)
+        return validator.valid_fields
+
+    def valid_groups(self, definitions=None):
+        """
+        Return the valid groups of the group.
+
+        Parameters
+        ----------
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        dict
+            A dictionary containing the valid groups of the group.
+        """
+        validator = self.get_validator(definitions=definitions)
+        return validator.valid_groups
+
+    def valid_values(self, field, definitions=None):
+        """
+        Return a list of valid enumerations for the specified field.
+
+        Parameters
+        ----------
+        field : str or NXfield
+            The name of the field or the field object itself.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        list
+            A list of valid enumerations for the specified field.
+        """
+        validator = self.get_validator(definitions=definitions)
+        if isinstance(field, NXfield):
+            field = field.nxname
+        if field in validator.valid_fields:
+            if 'enumeration' in validator.valid_fields[field]:
+                return validator.valid_fields[field]['enumeration']
+        return []
+
     def check(self, level='warning', definitions=None):
         """
         Checks the group for compliance with the NeXus base classes.
@@ -5303,10 +5370,8 @@ class NXgroup(NXobject):
             A tuple containing the total number of warnings and errors
             encountered while validating the file.
         """
-        if definitions is None and NX_CONFIG['definitions'] is not None:
-            definitions = NX_CONFIG['definitions']
-        from .validate import GroupValidator, log_header, log_summary
-        validator = GroupValidator(self.nxclass, definitions=definitions)
+        from .validate import log_header, log_summary
+        validator = self.get_validator(definitions=definitions)
         log_header(validator, path=self.nxpath)
         validator.validate(self, level=level)
         return log_summary()
@@ -5358,6 +5423,15 @@ class NXgroup(NXobject):
         return log_summary()
 
     def inspect(self, definitions=None):
+        """
+        Print the valid components of the group's base class.
+
+        Parameters
+        ----------
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+        """
         if definitions is None and NX_CONFIG['definitions'] is not None:
             definitions = NX_CONFIG['definitions']
         from .validate import inspect_base_class

@@ -655,6 +655,12 @@ class FieldValidator(Validator):
             else:
                 self.log('The field value is not a valid NX_COMPLEX value',
                          level='warning') 
+        elif dtype == 'NX_PCOMPLEX':
+            if is_valid_complex(field.dtype):
+                self.log('The field value is a valid NX_PCOMPLEX value')
+            else:
+                self.log('The field value is not a valid NX_PCOMPLEX value',
+                         level='warning') 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
                 self.log('The field value is a valid NX_NUMBER')

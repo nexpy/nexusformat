@@ -290,6 +290,20 @@ def is_valid_uint(dtype):
     return np.issubdtype(dtype, np.unsignedinteger) 
 
 
+def all_dtypes():
+    """
+    Returns a list of all valid data types.
+
+    Returns
+    -------
+    list of str
+        A list of all valid data types.
+    """
+    return ["str", "bytes", "int8", "int16", "int32", "int64", "uint8",
+            "uint16", "uint32", "uint64", "float32", "float64", "complex64",
+            "complex128"]
+
+
 def map_dtype(nexus_type):
     """
     Maps a given NeXus data type to a string representation.

@@ -3976,6 +3976,69 @@ class NXfield(NXobject):
             else:
                 self._value = np.ma.array(self._value, mask=value)
 
+    def valid_attributes(self, group=None, definitions=None):
+        """
+        Return a list of valid attribute names for the NeXus field.
+
+        Parameters
+        ----------
+        group : NXgroup, optional
+            The group containing the field. If not provided, the field's
+            parent group is used.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        list
+            A list of valid attributes for the NeXus field.
+        """
+        if group is None:
+            group = self.nxgroup
+        if group:
+            valid_fields = group.valid_fields(definitions)
+            if self.nxname in valid_fields:
+                if 'attribute' in valid_fields[self.nxname]:
+                   return valid_fields[self.nxname]['attribute']
+        return []
+
+    def valid_values(self, group=None, attribute=None, definitions=None):
+        """
+        Return a list of valid values for the NeXus field or attribute.
+
+        Parameters
+        ----------
+        group : NXgroup, optional
+            The group containing the field. If not provided, the field's
+            parent group is used.
+        attribute : str, optional
+            The attribute name. If not provided, the field's value is
+            checked.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        list
+            A list of valid values for the NeXus field or attribute.
+        """
+        if group is None:
+            group = self.nxgroup
+        if group:
+            valid_fields = group.valid_fields(definitions)
+            if attribute is not None:
+                if 'attribute' in valid_fields[self.nxname]:
+                    valid_attributes = valid_fields[self.nxname]['attribute']
+                    if (attribute in valid_attributes and
+                            'enumeration' in valid_attributes[attribute]):
+                        return valid_attributes[attribute]['enumeration']
+            elif (self.nxname in valid_fields and
+                    'enumeration' in valid_fields[self.nxname]):
+                return valid_fields[self.nxname]['enumeration']
+        return []
+
     def resize(self, shape, axis=None):
         """
         Resize the NXfield.
@@ -5290,24 +5353,6 @@ class NXgroup(NXobject):
         from .validate import get_validator
         return get_validator(self.nxclass, definitions=definitions)
 
-    def valid_fields(self, definitions=None):
-        """
-        Return the valid fields of the group.
-
-        Parameters
-        ----------
-        definitions : str, optional
-            The path to the directory containing the NeXus base class
-            definitions (default is None).
-
-        Returns
-        -------
-        dict
-            A dictionary containing the valid fields of the group.
-        """
-        validator = self.get_validator(definitions=definitions)
-        return validator.valid_fields
-
     def valid_groups(self, definitions=None):
         """
         Return the valid groups of the group.
@@ -5326,13 +5371,31 @@ class NXgroup(NXobject):
         validator = self.get_validator(definitions=definitions)
         return validator.valid_groups
 
-    def valid_values(self, field, definitions=None):
+    def valid_fields(self, definitions=None):
         """
-        Return a list of valid enumerations for the specified field.
+        Return the valid fields of the group.
 
         Parameters
         ----------
-        field : str or NXfield
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        dict
+            A dictionary containing the valid fields of the group.
+        """
+        validator = self.get_validator(definitions=definitions)
+        return validator.valid_fields
+
+    def valid_attributes(self, field=None, definitions=None):
+        """
+        Return a list of valid attributes for the group or field.
+
+        Parameters
+        ----------
+        field : str or NXfield, optional
             The name of the field or the field object itself.
         definitions : str, optional
             The path to the directory containing the NeXus base class
@@ -5341,14 +5404,56 @@ class NXgroup(NXobject):
         Returns
         -------
         list
-            A list of valid enumerations for the specified field.
+            A list of valid attributes for the specified field.
         """
         validator = self.get_validator(definitions=definitions)
-        if isinstance(field, NXfield):
-            field = field.nxname
-        if field in validator.valid_fields:
-            if 'enumeration' in validator.valid_fields[field]:
-                return validator.valid_fields[field]['enumeration']
+        if field is not None:
+            if isinstance(field, NXfield):
+                field = field.nxname
+            if field in validator.valid_fields:
+                if 'attribute' in validator.valid_fields[field]:
+                    return validator.valid_fields[field]['attribute']
+                else:
+                    return {}
+        return validator.valid_attributes
+
+    def valid_values(self, field=None, attribute=None, definitions=None):
+        """
+        Return a list of valid values for the specified field or attribute.
+
+        Parameters
+        ----------
+        field : str or NXfield, optional
+            The name of the field or the field object itself.
+        attribute : str, optional
+            The name of the attribute.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
+
+        Returns
+        -------
+        list
+            A list of valid values for the specified field or attribute.
+        """
+        validator = self.get_validator(definitions=definitions)
+        if field is not None:
+            if isinstance(field, NXfield):
+                field = field.nxname
+            if field in validator.valid_fields:
+                valid_fields = validator.valid_fields
+                if attribute is not None:
+                    if 'attribute' in valid_fields[field]:
+                        valid_attributes = valid_fields[field]['attribute']
+                        if (attribute in valid_attributes and
+                                'enumeration' in valid_attributes[attribute]):
+                            return valid_attributes[attribute]['enumeration']
+                elif 'enumeration' in valid_fields[field]:
+                    return valid_fields[field]['enumeration']
+        elif attribute is not None:
+            if (attribute in validator.valid_attributes and
+                    'enumeration' in validator.valid_attributes[attribute]):
+                return validator.valid_attributes[attribute]['enumeration']
         return []
 
     def check(self, level='warning', definitions=None):

@@ -622,13 +622,13 @@ def terminal_width():
     return terminal_width
 
 
-def check_nametype(item_value):
+def check_nametype(item):
     """
     Return the value of the 'nameType' attribute for a given item.
 
     Parameters
     ----------
-    item_value : dict
+    item : dict
         The dictionary representation of the item.
 
     Returns
@@ -636,10 +636,15 @@ def check_nametype(item_value):
     str
         The value of the 'nameType' attribute.
     """
-    if '@nameType' in item_value:
-        return item_value['@nameType']
+    if '@nameType' in item:
+        return item['@nameType']
     else:
         return 'specified'
+
+
+def check_deprecation(item):
+    """True if the item is deprecated."""
+    return '@deprecated' in item
 
 
 def check_dimension_sizes(dimensions):

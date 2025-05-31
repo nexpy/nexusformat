@@ -3,7 +3,7 @@
 <!--
 # NeXus - Neutron and X-ray Common Data Format
 # 
-# Copyright (C) 2008-2025 NeXus International Advisory Committee (NIAC)
+# Copyright (C) 2025 NeXus International Advisory Committee (NIAC)
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -25,7 +25,7 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://definition.nexusformat.org/nxdl/3.1 ../nxdl.xsd"
 	name="NXgoniometer" 
-	type="group" extends="NXobject"
+	type="group" extends="NXcomponent"
 	>
 
 	<doc>
@@ -45,13 +45,6 @@
             names of angles and sample translations.
         </doc>
     </group>
-    <group type="NXcoordinate_system">
-        <doc>
-            The coordinate system used by the translation fields. This
-            group should be present if these fields do not use the
-            default NeXus Coordinate System.
-        </doc>
-    </group>
     <field name="goniometer">
         <doc>
             The common name for the type of goniometer used in these
@@ -66,8 +59,8 @@
     </field>
     <field name="SAMPLE_TRANSLATION" type="NX_FLOAT" units="NX_LENGTH" nameType="any">
         <doc>
-            The translation of the sample from the centre of rotation of the
-            goniometer angles along one of the coordinate axes.
+            The translation of the sample from the centre of rotation of
+            the goniometer angles along one of the coordinate axes.
         </doc>
     </field>
 

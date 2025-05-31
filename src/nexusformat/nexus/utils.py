@@ -290,6 +290,56 @@ def is_valid_uint(dtype):
     return np.issubdtype(dtype, np.unsignedinteger) 
 
 
+def all_dtypes():
+    """
+    Returns a list of all valid data types.
+
+    Returns
+    -------
+    list of str
+        A list of all valid data types.
+    """
+    return ["str", "bytes", "int8", "int16", "int32", "int64", "uint8",
+            "uint16", "uint32", "uint64", "float32", "float64", "complex64",
+            "complex128"]
+
+
+def map_dtype(nexus_type):
+    """
+    Maps a given NeXus data type to a string representation.
+
+    Parameters
+    ----------
+    nexus_type : str
+        The NeXus data type .
+
+    Returns
+    -------
+    str
+        The string representation of the data type.
+    """
+    nexus_dtypes = {"NX_BINARY": ["uint8"],
+                    "NX_BOOLEAN": ["uint8"],
+                    "NX_CHAR": ["str", "bytes"],
+                    "NX_COMPLEX": ["complex64", "complex128"],
+                    "NX_DATE_TIME": ["char"],
+                    "NX_FLOAT": ["float64", "float32"],
+                    "NX_INT": ["int64", "int32", "int16", "int8", "uint64",
+                               "uint32", "uint16", "uint8"],
+                    "NX_NUMBER": ["float64", "float32", "int64", "int32",
+                                  "int16", "int8", "uint64", "uint32",
+                                  "uint16", "uint8"],
+                    "NX_PCOMPLEX": ["complex128", "complex64"],
+                    "NX_POSINT": ["uint64", "uint32", "uint16", "uint8"],
+                    "NX_QUATERNION": ["complex128", "complex64"], 
+                    "NX_UINT": ["uint8", "uint16", "uint32", "uint64"],
+                    "NX_CHAR_OR_NUMBER": ["str", "bytes", "float64", "float32",
+                                          "int64", "int32", "int16", "int8",
+                                          "uint64", "uint32", "uint16",
+                                          "uint8"]}
+    return nexus_dtypes[nexus_type]
+
+
 def strip_namespace(element):
     """
     Recursively strips namespace from an XML element and its children.
@@ -572,13 +622,13 @@ def terminal_width():
     return terminal_width
 
 
-def check_nametype(item_value):
+def check_nametype(item):
     """
     Return the value of the 'nameType' attribute for a given item.
 
     Parameters
     ----------
-    item_value : dict
+    item : dict
         The dictionary representation of the item.
 
     Returns
@@ -586,8 +636,8 @@ def check_nametype(item_value):
     str
         The value of the 'nameType' attribute.
     """
-    if '@nameType' in item_value:
-        return item_value['@nameType']
+    if '@nameType' in item:
+        return item['@nameType']
     else:
         return 'specified'
 
@@ -613,6 +663,14 @@ def check_dimension_sizes(dimensions):
     min_dimension = min(dimensions)
     max_dimension = max(dimensions)
     return max_dimension - min_dimension <= 1
+
+
+def remove_deprecations(items):
+    valid_items = {}
+    for item in items:
+        if '@deprecated' not in items[item]:
+            valid_items[item] = items[item]
+    return valid_items
 
 
 class NXFormatter(logging.Formatter):

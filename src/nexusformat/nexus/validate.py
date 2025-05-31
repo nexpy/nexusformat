@@ -20,7 +20,6 @@ from .utils import (check_dimension_sizes, check_nametype, get_definitions,
 
 logger = get_logger()
 
-
 validators = {}
 
 
@@ -35,6 +34,9 @@ def get_validator(nxclass, definitions=None):
     ----------
     nxclass : str
         The name of the NeXus class to retrieve a validator for.
+    definitions : str, optional
+        The path to the directory containing the NeXus base class
+        definitions (default is None).
 
     Returns
     -------
@@ -655,6 +657,12 @@ class FieldValidator(Validator):
             else:
                 self.log('The field value is not a valid NX_COMPLEX value',
                          level='warning') 
+        elif dtype == 'NX_PCOMPLEX':
+            if is_valid_complex(field.dtype):
+                self.log('The field value is a valid NX_PCOMPLEX value')
+            else:
+                self.log('The field value is not a valid NX_PCOMPLEX value',
+                         level='warning') 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
                 self.log('The field value is a valid NX_NUMBER')
@@ -1231,8 +1239,8 @@ def inspect_base_class(base_class, definitions=None):
     strip_namespace(root)
 
     from pygments import highlight
-    from pygments.lexers import XmlLexer
     from pygments.formatters import TerminalFormatter
+    from pygments.lexers import XmlLexer
 
     log(highlight(ET.tostring(root, encoding='unicode'), XmlLexer(),
                   TerminalFormatter()))

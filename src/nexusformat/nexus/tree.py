@@ -221,7 +221,7 @@ import numpy as np
 
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException
-from .utils import get_base_classes
+from .utils import get_base_classes, remove_deprecations
 
 warnings.simplefilter('ignore', category=FutureWarning)
 
@@ -3976,8 +3976,7 @@ class NXfield(NXobject):
             else:
                 self._value = np.ma.array(self._value, mask=value)
 
-    def valid_attributes(self, group=None, definitions=None,
-                         exclude_deprecated=True):
+    def valid_attributes(self, group=None, definitions=None, deprecated=False):
         """
         Return a list of valid attribute names for the NeXus field.
 
@@ -3989,8 +3988,8 @@ class NXfield(NXobject):
         definitions : str, optional
             The path to the directory containing the NeXus base class
             definitions (default is None).
-        exclude_deprecated : bool, optional
-            True if deprecated attributes should be excluded
+        deprecated : bool, optional
+            True if deprecated attributes should be included
 
         Returns
         -------
@@ -4004,16 +4003,10 @@ class NXfield(NXobject):
             if self.nxname in valid_fields:
                 if 'attribute' in valid_fields[self.nxname]:
                     attributes = valid_fields[self.nxname]['attribute']
-                    if exclude_deprecated:
-                        valid_attributes = {}
-                        for attribute in attributes:
-                            if '@deprecated' not in attributes[attribute]:
-                                valid_attributes[attribute] =(
-                                    attributes[attribute])
-                        return valid_attributes
-                    else:
+                    if deprecated:
                         return attributes
-                return attributes
+                    else:
+                        return remove_deprecations(attributes)
         return {}
 
     def valid_values(self, group=None, attribute=None, definitions=None):
@@ -5366,7 +5359,7 @@ class NXgroup(NXobject):
         from .validate import get_validator
         return get_validator(self.nxclass, definitions=definitions)
 
-    def valid_groups(self, definitions=None, exclude_deprecated=True):
+    def valid_groups(self, definitions=None, deprecated=False):
         """
         Return the valid groups of the group.
 
@@ -5375,8 +5368,8 @@ class NXgroup(NXobject):
         definitions : str, optional
             The path to the directory containing the NeXus base class
             definitions (default is None).
-        exclude_deprecated : bool, optional
-            True if deprecated groups should be excluded
+        deprecated : bool, optional
+            True if deprecated fields should be included
 
         Returns
         -------
@@ -5384,10 +5377,12 @@ class NXgroup(NXobject):
             A dictionary containing the valid groups of the group.
         """
         validator = self.get_validator(definitions=definitions)
-        validator.exclude_deprecated = exclude_deprecated
-        return validator.valid_groups
+        if deprecated:
+            return validator.valid_groups
+        else:
+            return remove_deprecations(validator.valid_groups)
 
-    def valid_fields(self, definitions=None, exclude_deprecated=True):
+    def valid_fields(self, definitions=None, deprecated=False):
         """
         Return the valid fields of the group.
 
@@ -5396,8 +5391,8 @@ class NXgroup(NXobject):
         definitions : str, optional
             The path to the directory containing the NeXus base class
             definitions (default is None).
-        exclude_deprecated : bool, optional
-            True if deprecated fields should be excluded
+        deprecated : bool, optional
+            True if deprecated fields should be included
 
         Returns
         -------
@@ -5405,11 +5400,12 @@ class NXgroup(NXobject):
             A dictionary containing the valid fields of the group.
         """
         validator = self.get_validator(definitions=definitions)
-        validator.exclude_deprecated = exclude_deprecated
-        return validator.valid_fields
+        if deprecated:
+            return validator.valid_fields
+        else:
+            return remove_deprecations(validator.valid_fields)
 
-    def valid_attributes(self, field=None, definitions=None,
-                         exclude_deprecated=True):
+    def valid_attributes(self, field=None, definitions=None, deprecated=False):
         """
         Return a list of valid attributes for the group or field.
 
@@ -5420,8 +5416,8 @@ class NXgroup(NXobject):
         definitions : str, optional
             The path to the directory containing the NeXus base class
             definitions (default is None).
-        exclude_deprecated : bool, optional
-            True if deprecated attributes should be excluded
+        deprecated : bool, optional
+            True if deprecated attributes should be included
 
         Returns
         -------
@@ -5429,13 +5425,16 @@ class NXgroup(NXobject):
             A list of valid attributes for the specified field.
         """
         validator = self.get_validator(definitions=definitions)
-        validator.exclude_deprecated = exclude_deprecated
         if field is not None:
             if isinstance(field, NXfield):
                 field = field.nxname
             if field in validator.valid_fields:
                 if 'attribute' in validator.valid_fields[field]:
-                    return validator.valid_fields[field]['attribute']
+                    attributes = validator.valid_fields[field]['attribute']
+                    if deprecated:
+                        return attributes
+                    else:
+                        return remove_deprecations(attributes)
                 else:
                     return {}
         return validator.valid_attributes

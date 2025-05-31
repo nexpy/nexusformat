@@ -642,11 +642,6 @@ def check_nametype(item):
         return 'specified'
 
 
-def check_deprecation(item):
-    """True if the item is deprecated."""
-    return '@deprecated' in item
-
-
 def check_dimension_sizes(dimensions):
     """
     Check if a list of values are all within one of each other.
@@ -668,6 +663,14 @@ def check_dimension_sizes(dimensions):
     min_dimension = min(dimensions)
     max_dimension = max(dimensions)
     return max_dimension - min_dimension <= 1
+
+
+def remove_deprecations(items):
+    valid_items = {}
+    for item in items:
+        if '@deprecated' not in items[item]:
+            valid_items[item] = items[item]
+    return valid_items
 
 
 class NXFormatter(logging.Formatter):

@@ -10,14 +10,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from . import NeXusError, NXentry, NXfield, NXgroup, NXlink, NXsubentry, nxopen
-from .utils import (check_deprecation, check_dimension_sizes, check_nametype,
-                    get_definitions, get_log_level, get_logger, is_valid_bool,
-                    is_valid_char, is_valid_char_or_number, is_valid_complex,
-                    is_valid_float, is_valid_int, is_valid_iso8601,
-                    is_valid_name, is_valid_number, is_valid_posint,
-                    is_valid_uint, match_strings, merge_dicts, readaxes,
-                    strip_namespace, truncate_path, xml_to_dict)
-
+from .utils import (check_dimension_sizes, check_nametype, get_definitions,
+                    get_log_level, get_logger, is_valid_bool, is_valid_char,
+                    is_valid_char_or_number, is_valid_complex, is_valid_float,
+                    is_valid_int, is_valid_iso8601, is_valid_name,
+                    is_valid_number, is_valid_posint, is_valid_uint,
+                    match_strings, merge_dicts, readaxes, strip_namespace,
+                    truncate_path, xml_to_dict)
 
 logger = get_logger()
 
@@ -35,6 +34,9 @@ def get_validator(nxclass, definitions=None):
     ----------
     nxclass : str
         The name of the NeXus class to retrieve a validator for.
+    definitions : str, optional
+        The path to the directory containing the NeXus base class
+        definitions (default is None).
 
     Returns
     -------
@@ -178,7 +180,7 @@ class Validator():
 
 class GroupValidator(Validator):
 
-    def __init__(self, nxclass, definitions=None, exclude_deprecated=False):
+    def __init__(self, nxclass, definitions=None):
         """
         Initializes the GroupValidator instance.
 
@@ -197,7 +199,6 @@ class GroupValidator(Validator):
             self.valid_class = False
         else:
             self.xml_dict = self.get_xml_dict()
-        self.exclude_deprecated = exclude_deprecated
         self.get_valid_fields()
         self.get_valid_groups()
         self.get_valid_attributes()
@@ -281,9 +282,6 @@ class GroupValidator(Validator):
                 return
             fields = self.xml_dict['field']
             for field in fields:
-                if (self.exclude_deprecated and
-                        check_deprecation(fields[field])):
-                    continue
                 nameType = check_nametype(fields[field])
                 if nameType  == 'any':
                     valid_fields[field] = fields[field]
@@ -318,9 +316,6 @@ class GroupValidator(Validator):
                 return
             groups = self.xml_dict['group']
             for group in groups:
-                if (self.exclude_deprecated and
-                        check_deprecation(groups[group])):
-                    continue
                 nameType = check_nametype(groups[group])
                 if nameType =='any':
                     valid_groups[group] = groups[group]
@@ -355,9 +350,6 @@ class GroupValidator(Validator):
                 return
             attributes = self.xml_dict['attribute']
             for attribute in attributes:
-                if (self.exclude_deprecated and
-                        check_deprecation(attributes[attribute])):
-                    continue
                 nameType = check_nametype(attributes[attribute])
                 if nameType == 'any':
                     valid_attributes[attribute] = attributes[attribute]

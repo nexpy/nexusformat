@@ -5890,9 +5890,6 @@ class NXlink(NXobject):
             _filename = value[1]
         else:
             raise NeXusError("Invalid link target")
-        if (not self.is_external() and
-                self.nxroot.targets().count(self._target) == 1):
-            del self.nxroot[self._target].attrs['target']
         if _target != self._target or _filename != self._filename:
             self._target = _target
             self._filename = _filename

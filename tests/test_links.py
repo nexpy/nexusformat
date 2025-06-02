@@ -87,7 +87,7 @@ def test_linkgroup_properties(tmpdir, field1a, save):
     root = NXroot(NXentry())
     root["entry/g1"] = NXgroup()
     root["entry/g1/g2"] = NXgroup(field1a)
-    root["entry/g2_link"] = NXlink("entry/g1/g2")
+    root["entry/g2_link"] = NXlink("/entry/g1/g2")
 
     if save:
         filename = os.path.join(tmpdir, "file1.nxs")
@@ -111,7 +111,7 @@ def test_embedded_links(tmpdir, save, field1a, field2a):
     root["entry/g1"] = NXgroup()
     root["entry/g1/g2"] = NXgroup()
     root["entry/g1/g2/g3"] = NXgroup(field1a)
-    root["entry/g2_link"] = NXlink("entry/g1/g2")
+    root["entry/g2_link"] = NXlink("/entry/g1/g2")
 
     if save:
         filename = os.path.join(tmpdir, "file1.nxs")

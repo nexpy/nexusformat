@@ -1169,6 +1169,7 @@ class NXFile:
                 else:
                     if 'target' not in self[target].attrs:
                         self[target].attrs['target'] = target
+                        self._root[target].attrs['target'] = target
                     self[path] = self[target]
 
     def readpath(self, path):

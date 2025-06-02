@@ -1161,17 +1161,17 @@ class NXFile:
         for path, target, soft in links:
             if self._getlink(path)[0] is not None:
                 del self[path]
-            if (path != target and path not in self['/']
-                    and target in self['/']):
+            target_path = str(PurePath(path).parent.joinpath(target))
+            if (path != target_path and path not in self['/']
+                    and target_path in self['/']):
                 if soft:
                     self[path] = h5.SoftLink(target)
-                    self[target].attrs['target'] = target
                 else:
-                    if 'target' not in self[target].attrs:
-                        self[target].attrs['target'] = target
-                        if self._root:
-                            self._root[target].attrs['target'] = target
-                    self[path] = self[target]
+                    self[path] = self[target_path]
+                if 'target' not in self[target_path].attrs:
+                    self[target_path].attrs['target'] = target_path
+                    if self._root:
+                        self._root[target_path].attrs['target'] = target_path
 
     def readpath(self, path):
         """
@@ -5934,15 +5934,16 @@ class NXlink(NXobject):
         else:
             raise NeXusError("Invalid link target")
         if _target != self._target or _filename != self._filename:
-            original_target = self.nxroot[self._target]
+            target_path = self.nxlink.nxpath
+            original_target = self.nxroot[target_path]
             self._target = _target
             self._filename = _filename
             self._file = None
             self._link = None
             self.update()
             if not self.is_external():
-                self.nxroot[self._target].update()
-                if original_target.rc == 1:
+                self.nxlink.update()
+                if original_target.rc == 1 and not self.is_soft():
                     del original_target.attrs['target']
                     original_target.update()
 
@@ -6016,10 +6017,15 @@ class NXlink(NXobject):
                 f"Cannot read the external link to '{self._filename}'")
 
     def is_external(self):
+        """True if the link points to an external file."""
         if self.nxroot is self and self._filename:
             return True
         else:
             return super().is_external()
+
+    def is_soft(self):
+        """True if the link is a soft link."""
+        return self._soft and not self.is_external()
 
     @property
     def attrs(self):

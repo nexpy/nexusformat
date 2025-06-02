@@ -5907,6 +5907,7 @@ class NXlink(NXobject):
 
     @property
     def nxtarget(self):
+        """Path to the target of the link."""
         return self._target
 
     @nxtarget.setter
@@ -5932,11 +5933,17 @@ class NXlink(NXobject):
         else:
             raise NeXusError("Invalid link target")
         if _target != self._target or _filename != self._filename:
+            original_target = self.nxroot[self._target]
             self._target = _target
             self._filename = _filename
             self._file = None
             self._link = None
             self.update()
+            if not self.is_external():
+                self.nxroot[self._target].update()
+                if original_target.rc == 1:
+                    del original_target.attrs['target']
+                    original_target.update()
 
     @property
     def nxlink(self):

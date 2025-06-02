@@ -2629,6 +2629,46 @@ class NXobject:
         return self.file_exists() and self.path_exists()
 
 
+    @property
+    def id(self):
+        """
+        Return the HDF5 identifier for the object in the NeXus file.
+
+        This only works for objects that within trees saved to a file.
+        Otherwise, None is returned.
+        """
+        if self.nxfilemode:
+            return self.nxfile[self.nxpath].id
+        else:
+            return None
+
+    @property
+    def addr(self):
+        """
+        Return the HDF5 address for the object in the NeXus file.
+
+        This only works for objects that within trees saved to a file.
+        Otherwise, None is returned.
+        """
+        if self.nxfilemode:
+            return h5.h5o.get_info(self.id).addr
+        else:
+            return None
+
+    @property
+    def rc(self):
+        """
+        Return the reference count for the object in the NeXus file.
+
+        This only works for objects that within trees saved to a file.
+        Otherwise, None is returned.
+        """
+        if self.nxfilemode:
+            return h5.h5o.get_info(self.id).rc
+        else:
+            return None
+
+
 class NXfield(NXobject):
 
     """

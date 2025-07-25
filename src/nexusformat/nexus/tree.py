@@ -3314,6 +3314,33 @@ class NXfield(NXobject):
         dpcpy._group = None
         return dpcpy
 
+    def serialize(self):
+        """Serialize the field to a dictionary."""
+        return {'name': self.nxname,
+                'class': self.__class__.__name__,
+                'dtype': str(self.dtype),
+                'shape': self.shape,
+                'value': self._value,
+                'h5opts': self._h5opts,
+                'attrs': {k: v._value for k, v in self.attrs.items()}}
+
+    @classmethod
+    def deserialize(cls, serialized_field):
+        """Deserialize the field from a dictionary."""
+        # target_cls = _getclass(serialized_field['class'])
+        # obj = target_cls.__new__(target_cls)
+        obj = cls.__new__(cls)
+        obj._name = serialized_field['name']
+        obj._class = serialized_field['class']
+        obj._dtype = np.dtype(serialized_field['dtype'])
+        obj._shape = serialized_field['shape']
+        obj._value = serialized_field['value']
+        obj._h5opts = serialized_field['h5opts']
+        obj._attrs = AttrDict(obj)
+        for k, v in serialized_field['attrs'].items():
+            obj.attrs[k] = v
+        return obj
+
     def __iter__(self):
         """Implement key iteration."""
         try:
@@ -4973,6 +5000,49 @@ class NXgroup(NXobject):
         dpcpy._group = None
         return dpcpy
 
+    def serialize(self):
+        """Serialize the group to a dictionary."""
+        if self._entries:
+            entries = {k: v.serialize() for k,v in self._entries.items()}
+        else:
+            entries = None
+        return {'name': self.nxname,
+                'class': self.__class__.__name__,
+                'file': self.nxfilename,
+                'entries': entries,
+                'attrs': {k: v._value for k,v in self.attrs.items()}}
+
+    @classmethod
+    def deserialize(cls, serialized_group):
+        """Deserialize the group from a dictionary."""
+        target_cls = _getclass(serialized_group['class'])
+        obj = target_cls.__new__(target_cls)
+        obj._name = serialized_group['name']
+        obj._class = serialized_group['class']
+        if serialized_group['entries'] is not None:
+            obj._entries = {}
+            for serialized_entry in serialized_group['entries']:
+                entry = serialized_group['entries'][serialized_entry]
+                if (entry['class'] == 'NXfield' or
+                        entry['class'] == 'NXlinkfield'):
+                    obj._entries[entry['name']] = NXfield.deserialize(entry)
+                else:
+                    obj._entries[entry['name']] = NXgroup.deserialize(entry)
+                obj._entries[entry['name']]._group = obj
+        else:
+            obj._entries = None
+        obj._attrs = AttrDict(obj)
+        for k, v in serialized_group['attrs'].items():
+            obj.attrs[k] = v
+        if 'file' and Path(serialized_group['file']).is_file():
+            obj._filename = serialized_group['file']
+            obj._file = NXFile(obj._filename, 'r')
+            obj._mode = 'r'
+        else:
+            obj._file = None
+            obj._mode = None
+        return obj
+
     def walk(self):
         """Walk through all the values in the group."""
         yield self
@@ -6193,6 +6263,19 @@ class NXroot(NXgroup):
         """Close the NeXus file."""
         if self.nxfile:
             self.nxfile.__exit__()
+
+    def serialize(self):
+        """Serialize the root group to a dictionary."""
+        serialized_root = super().serialize()
+        serialized_root['mtime'] = self.mtime
+        return serialized_root
+
+    @classmethod
+    def deserialize(self, serialized_root):
+        """Deserialize the root group from a dictionary."""
+        obj = NXgroup.deserialize(serialized_root)
+        obj._mtime = serialized_root['mtime']
+        return obj
 
     def reload(self):
         """Reload the NeXus file from disk."""

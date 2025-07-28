@@ -2070,8 +2070,10 @@ class NXobject:
     _filename = None
     _abspath = False
     _target = None
+    _soft = None
     _external = None
     _mode = None
+    _link = None
     _value = None
     _copyfile = None
     _copypath = None
@@ -3313,6 +3315,45 @@ class NXfield(NXobject):
             del dpcpy.attrs['target']
         dpcpy._group = None
         return dpcpy
+
+    def serialize(self):
+        """Serialize the field to a dictionary."""
+        return {'name': self.nxname,
+                'class': self.__class__.__name__,
+                'target': self._target,
+                'filename': self._filename,
+                'mode': self._mode,
+                'abspath': self._abspath,
+                'soft': self._soft,
+                'dtype': str(self.dtype),
+                'shape': self.shape,
+                'value': self._value,
+                'h5opts': self._h5opts,
+                'entries': None,
+                'attrs': {k: v._value for k, v in self.attrs.items()}}
+
+    @classmethod
+    def deserialize(cls, serialized_field):
+        """Deserialize the field from a dictionary."""
+        target_cls = _getclass(serialized_field['class'])
+        obj = super(target_cls, target_cls).__new__(target_cls)
+        obj._name = serialized_field['name']
+        obj._class = serialized_field['class']
+        obj._target = serialized_field['target']
+        obj._filename = serialized_field['filename']
+        obj._mode = serialized_field['mode']
+        obj._abspath = serialized_field['abspath']
+        obj._soft = serialized_field['soft']
+        if 'link' in serialized_field['class']:
+            obj.initialize_link()
+        else:
+            obj._dtype = np.dtype(serialized_field['dtype'])
+            obj._shape = serialized_field['shape']
+            obj._value = serialized_field['value']
+            obj._h5opts = serialized_field['h5opts']
+            obj._attrs = AttrDict(obj)
+            obj._attrs._setattrs(serialized_field['attrs'])
+        return obj
 
     def __iter__(self):
         """Implement key iteration."""
@@ -4973,6 +5014,55 @@ class NXgroup(NXobject):
         dpcpy._group = None
         return dpcpy
 
+    def serialize(self):
+        """Serialize the group to a dictionary."""
+        if self._entries:
+            entries = {k: v.serialize() for k, v in self._entries.items()}
+        else:
+            entries = None
+        return {'name': self.nxname,
+                'class': self.__class__.__name__,
+                'target': self._target,
+                'filename': self._filename,
+                'mode': self._mode,
+                'abspath': self._abspath,
+                'soft': self._soft,
+                'entries': entries,
+                'attrs': {k: v._value for k,v in self.attrs.items()}}
+
+    @classmethod
+    def deserialize(cls, serialized_group):
+        """Deserialize the group from a dictionary."""
+        target_cls = _getclass(serialized_group['class'])
+        obj = super(target_cls, target_cls).__new__(target_cls)
+        obj._name = serialized_group['name']
+        obj._class = serialized_group['class']
+        obj._target = serialized_group['target']
+        obj._filename = serialized_group['filename']
+        obj._mode = serialized_group['mode']
+        obj._abspath = serialized_group['abspath']
+        obj._soft = serialized_group['soft']
+        if 'link' in serialized_group['class']:
+            obj.initialize_link()
+            obj._entries = None
+            return obj
+        if serialized_group['entries'] is not None:
+            obj._entries = {}
+            for serialized_entry in serialized_group['entries']:
+                entry = serialized_group['entries'][serialized_entry]
+                if entry['class'] in ['NXlink', 'NXlinkfield']:
+                    obj._entries[entry['name']] = NXlink.deserialize(entry)
+                elif entry['class'] == 'NXfield':
+                    obj._entries[entry['name']] = NXfield.deserialize(entry)
+                else:
+                    obj._entries[entry['name']] = NXgroup.deserialize(entry)
+                obj._entries[entry['name']]._group = obj
+        else:
+            obj._entries = None
+        obj._attrs = AttrDict(obj)
+        obj._attrs._setattrs(serialized_group['attrs'])
+        return obj
+
     def walk(self):
         """Walk through all the values in the group."""
         yield self
@@ -5878,9 +5968,35 @@ class NXlink(NXobject):
         else:
             dpcpy._filename = None
         dpcpy._abspath = copy(obj._abspath)
+        dpcpy._soft = copy(obj._soft)
         dpcpy._link = None
         dpcpy._group = None
         return dpcpy
+
+    def serialize(self):
+        """Serialize the link to a dictionary."""
+        return {'name': self.nxname,
+                'class': self.__class__.__name__,
+                'target': self._target,
+                'filename': self._filename,
+                'mode': self._mode,
+                'abspath': self._abspath,
+                'soft': self._soft}
+
+    @classmethod
+    def deserialize(cls, serialized_link):
+        """Deserialize the link from a dictionary."""
+        target_cls = _getclass(serialized_link['class'], link=True)
+        obj = super(target_cls, target_cls).__new__(target_cls)
+        obj._name = serialized_link['name']
+        obj._class = serialized_link['class']
+        obj._target = serialized_link['target']
+        obj._filename = serialized_link['filename']
+        obj._mode = serialized_link['mode']
+        obj._abspath = serialized_link['abspath']
+        obj._soft = serialized_link['soft']
+        obj.initialize_link()
+        return obj
 
     def _str_name(self, indent=0):
         if self._filename:
@@ -6193,6 +6309,22 @@ class NXroot(NXgroup):
         """Close the NeXus file."""
         if self.nxfile:
             self.nxfile.__exit__()
+
+    def serialize(self):
+        """Serialize the root group to a dictionary."""
+        serialized_root = super().serialize()
+        serialized_root['mtime'] = self.mtime
+        return serialized_root
+
+    @classmethod
+    def deserialize(self, serialized_root):
+        """Deserialize the root group from a dictionary."""
+        obj = NXgroup.deserialize(serialized_root)
+        obj._mtime = serialized_root['mtime']
+        if ('filename' in serialized_root and
+                Path(serialized_root['filename']).is_file()):
+            obj._file = NXFile(obj._filename, 'r')
+        return obj
 
     def reload(self):
         """Reload the NeXus file from disk."""

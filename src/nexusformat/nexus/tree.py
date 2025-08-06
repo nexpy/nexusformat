@@ -2083,6 +2083,10 @@ class NXobject:
     _backup = None
     _file_modified = False
     _smoothing = None
+    _vpath = None
+    _vfiles = None
+    _vshape = None
+    _proxy = None
 
     def __init__(self, *args, **kwargs):
         self._name = kwargs.pop("name", None)
@@ -4496,9 +4500,9 @@ class NXvirtualfield(NXfield):
     defined by the file path and file names of the source files.
     """
 
-    def __init__(self, target, files, name='unknown', shape=None, dtype=None,
-                 group=None, attrs=None, abspath=False, create_vds=True,
-                 **kwargs):
+    def __init__(self, target, files, name='unknown', shape=None, idx=None,
+                 dtype=None, group=None, attrs=None, abspath=False,
+                 create_vds=True, **kwargs):
         """
         Initialize the field containing the virtual dataset.
 
@@ -4515,6 +4519,8 @@ class NXvirtualfield(NXfield):
         shape : tuple, optional
             Shape of each source field, by default None. If None, the
             shape is derived from the target, which must be a NXfield.
+        idx: slice, optional
+            Slice indices of the target field, by default None
         dtype : dtype, optional
             Data type of the virtual dataset, by default None. If None,
             the data type is derived from the target, which must be a
@@ -4533,22 +4539,27 @@ class NXvirtualfield(NXfield):
             self._vfiles = [Path(f).resolve() for f in files]
         else:
             self._vfiles = files
-        if shape:
+        if idx:
+            self._vshape = (len(self._vfiles),) + slice_shape(idx, shape)
+        elif shape:
             self._vshape = (len(self._vfiles),) + shape
         else:
             self._vshape = None
         super().__init__(name=name, shape=self._vshape, dtype=dtype,
                          group=group, attrs=attrs, **kwargs)
+        shape = (len(self._vfiles),) + shape
         if create_vds and shape and dtype:
-            self._create_virtual_data()
+            self._create_virtual_data(shape, idx=idx)
 
-    def _create_virtual_data(self):
-        source_shape = self.shape[1:]
-        maxshape = (None,) + source_shape
+    def _create_virtual_data(self, shape, idx=None):
+        maxshape = (None,) + self._vshape[1:]
+        if idx is None:
+            idx = (None,) * len(self._vshape[1:])
         layout = h5.VirtualLayout(shape=self._vshape, dtype=self.dtype,
                                   maxshape=maxshape)
         for i, f in enumerate(self._vfiles):
-            layout[i] = h5.VirtualSource(f, self._vpath, shape=source_shape)
+            vsource = h5.VirtualSource(f, self._vpath, shape=shape[1:])
+            layout[i] = vsource[idx]
         self._create_memfile()
         self._memfile.create_virtual_dataset('data', layout)
 
@@ -7982,7 +7993,9 @@ def is_real_slice(idx):
         x = np.array(x)
         return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)
 
-    if isinstance(idx, slice):
+    if idx is None or idx is Ellipsis:
+        return False
+    elif isinstance(idx, slice):
         return is_real(idx)
     elif is_iterable(idx):
         return any([is_real(i) for i in idx])
@@ -8045,6 +8058,26 @@ def convert_index(idx, axis):
           isinstance(idx, numbers.Real)):
         idx = axis.index(idx)
     return idx
+
+
+def slice_shape(idx, shape):
+    def slice_length(slc, dim_size):
+        start = slc.start if slc.start is not None else 0
+        stop = slc.stop if slc.stop is not None else dim_size
+        step = slc.step if slc.step is not None else 1
+        if start < 0:
+            start += dim_size
+        if stop < 0:
+            stop += dim_size
+        start = max(0, min(start, dim_size))
+        stop = max(0, min(stop, dim_size))
+        if step > 0:
+            length = max(0, (stop - start + step - 1) // step)
+        else:
+            length = max(0, (start - stop - (-step) - 1) // (-step))
+        return length
+    return tuple(slice_length(slc, dim) for slc, dim in zip(idx, shape))
+
 
 
 def centers(axis, dimlen):
@@ -8472,7 +8505,7 @@ def directory(filename, short=False):
 nxdir = directory
 
 
-def consolidate(files, data_path, scan_path=None):
+def consolidate(files, data_path, scan_path=None, idx=None):
     """
     Create NXdata using a virtual field to combine multiple files.
 
@@ -8481,13 +8514,15 @@ def consolidate(files, data_path, scan_path=None):
     files : list of str or NXroot
         List of files to be consolidated. If a scan variable is defined,
         the files are sorted by its values.
-    data : str or NXdata
+    data_path : str or NXdata
         Path to the NXdata group to be consolidated. If the argument is
         a NXdata group, its path within the NeXus file is used.
-    scan : str or NXfield, optional
+    scan_path : str or NXfield, optional
         Path to the scan variable in each file, by default None. If the
         argument is a NXfield, its path within the NeXus file is used.
         If not specified, the scan is constructed from file indices.
+    idx : int, optional
+        Data slice to be included in the virtual field, by default None
     """
 
     if isinstance(files[0], str):
@@ -8518,8 +8553,11 @@ def consolidate(files, data_path, scan_path=None):
                             long_name='File Index')
     signal = scan_file[data_path].nxsignal
     axes = scan_file[data_path].nxaxes
+    if idx is not None:
+        axes = [axis[s] for axis, s in zip(axes, idx)]
     sources = [f[signal.nxpath].nxfilename for f in scan_files]
-    scan_field = NXvirtualfield(signal, sources, name=signal.nxname)
+    scan_field = NXvirtualfield(signal, sources, shape=signal.shape, idx=idx,
+                                name=signal.nxname)
     scan_data = NXdata(scan_field, [scan_axis] + axes,
                        name=scan_file[data_path].nxname)
     scan_data.title = data_path

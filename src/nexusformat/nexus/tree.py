@@ -2086,6 +2086,7 @@ class NXobject:
     _vpath = None
     _vfiles = None
     _vshape = None
+    _vidx = None
     _proxy = None
 
     def __init__(self, *args, **kwargs):
@@ -3338,6 +3339,7 @@ class NXfield(NXobject):
                 'vpath': self._vpath,
                 'vfiles': self._vfiles,
                 'vshape': self._vshape,
+                'vidx': self._vidx,
                 'h5opts': self._h5opts,
                 'entries': None,
                 'attrs': {k: v._value for k, v in self.attrs.items()}}
@@ -3368,6 +3370,7 @@ class NXfield(NXobject):
             obj._vpath = serialized_field['vpath']
             obj._vfiles = serialized_field['vfiles']
             obj._vshape = serialized_field['vshape']
+            obj._vidx = serialized_field['vidx']
         return obj
 
     def __iter__(self):
@@ -4545,19 +4548,21 @@ class NXvirtualfield(NXfield):
             shape = target.shape
             dtype = target.dtype
             target = target.nxfilepath
+        elif shape is None:
+            raise NeXusError('The shape has not been specified')
+        self._vshape = shape
+        self._vidx = idx
         self._vpath = target
         if abspath:
             self._vfiles = [Path(f).resolve() for f in files]
         else:
             self._vfiles = files
         if idx:
-            self._vshape = (len(self._vfiles),) + slice_shape(idx, shape)
-        elif shape:
-            self._vshape = (len(self._vfiles),) + shape
+            shape = (len(self._vfiles),) + slice_shape(idx, self._vshape)
         else:
-            self._vshape = None
-        super().__init__(name=name, shape=self._vshape, dtype=dtype,
-                         group=group, attrs=attrs, **kwargs)
+            shape = (len(self._vfiles),) + self._vshape
+        super().__init__(name=name, shape=shape, dtype=dtype, group=group,
+                         attrs=attrs, **kwargs)
         if create_vds and shape and dtype:
             self._create_virtual_data(shape, idx=idx)
 
@@ -4567,18 +4572,22 @@ class NXvirtualfield(NXfield):
 
         Parameters
         ----------
+        files : list of str
+            Paths to the source files.
+        path : str
+            Path to the field within each source file.
         shape : tuple
-            Shape of the fields in the source files.
+            Shape of the virtual field in the source files.
         idx : tuple, optional
             Slice indices of the source fields, by default None.
         """
-        maxshape = (None,) + self._vshape[1:]
-        if idx is None:
-            idx = (None,) * len(self._vshape[1:])
-        layout = h5.VirtualLayout(shape=self._vshape, dtype=self.dtype,
+        maxshape = (None,) + shape[1:]
+        layout = h5.VirtualLayout(shape=shape, dtype=self.dtype,
                                   maxshape=maxshape)
+        if idx is None:
+            idx = Ellipsis
         for i, f in enumerate(self._vfiles):
-            vsource = h5.VirtualSource(f, self._vpath, shape=shape)
+            vsource = h5.VirtualSource(f, self._vpath, shape=self._vshape)
             layout[i] = vsource[idx]
         self._create_memfile()
         self._memfile.create_virtual_dataset('data', layout)
@@ -4586,15 +4595,19 @@ class NXvirtualfield(NXfield):
     def __deepcopy__(self, memo={}):
         """Return a deep copy of the virtual field and attributes."""
         obj = self
-        dpcpy = obj.__class__(self._vpath, self._vfiles)
+        dpcpy = obj.__class__(self._vpath, self._vfiles, shape=self._vshape,
+                              idx=self._vidx, dtype=self.dtype,
+                              create_vds=False)
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
         dpcpy._vshape = copy(obj._vshape)
+        dpcpy._vidx = copy(obj._vidx)
         dpcpy._vpath = copy(obj._vpath)
         dpcpy._vfiles = copy(obj._vfiles)
-        dpcpy._create_virtual_data()
+        shape = (len(obj._vfiles),) + slice_shape(obj._vidx, obj._vshape)
+        dpcpy._create_virtual_data(shape=shape, idx=obj._vidx)
         dpcpy._h5opts = copy(obj._h5opts)
         dpcpy._changed = True
         dpcpy._uncopied_data = None

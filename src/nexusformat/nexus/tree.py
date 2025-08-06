@@ -3004,6 +3004,8 @@ class NXfield(NXobject):
         NXfield
             Field containing the slice values.
         """
+        if idx is None or idx is Ellipsis:
+            return self
         if is_real_slice(idx):
             idx = convert_index(idx, self)
         if self._value is None:

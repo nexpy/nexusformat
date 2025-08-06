@@ -4558,18 +4558,27 @@ class NXvirtualfield(NXfield):
             self._vshape = None
         super().__init__(name=name, shape=self._vshape, dtype=dtype,
                          group=group, attrs=attrs, **kwargs)
-        shape = (len(self._vfiles),) + shape
         if create_vds and shape and dtype:
             self._create_virtual_data(shape, idx=idx)
 
     def _create_virtual_data(self, shape, idx=None):
+        """
+        Create the virtual dataset from the source files and layout.
+
+        Parameters
+        ----------
+        shape : tuple
+            Shape of the fields in the source files.
+        idx : tuple, optional
+            Slice indices of the source fields, by default None.
+        """
         maxshape = (None,) + self._vshape[1:]
         if idx is None:
             idx = (None,) * len(self._vshape[1:])
         layout = h5.VirtualLayout(shape=self._vshape, dtype=self.dtype,
                                   maxshape=maxshape)
         for i, f in enumerate(self._vfiles):
-            vsource = h5.VirtualSource(f, self._vpath, shape=shape[1:])
+            vsource = h5.VirtualSource(f, self._vpath, shape=shape)
             layout[i] = vsource[idx]
         self._create_memfile()
         self._memfile.create_virtual_dataset('data', layout)
@@ -8074,6 +8083,21 @@ def convert_index(idx, axis):
 
 
 def slice_shape(idx, shape):
+    """
+    Calculate the shape of a slice.
+
+    Parameters
+    ----------
+    idx : slice
+        Slice object.
+    shape : tuple
+        Shape of the array being sliced.
+
+    Returns
+    -------
+    tuple
+        Shape of the slice.
+    """
     def slice_length(slc, dim_size):
         start = slc.start if slc.start is not None else 0
         stop = slc.stop if slc.stop is not None else dim_size
@@ -8090,7 +8114,6 @@ def slice_shape(idx, shape):
             length = max(0, (start - stop - (-step) - 1) // (-step))
         return length
     return tuple(slice_length(slc, dim) for slc, dim in zip(idx, shape))
-
 
 
 def centers(axis, dimlen):
@@ -8535,7 +8558,7 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         argument is a NXfield, its path within the NeXus file is used.
         If not specified, the scan is constructed from file indices.
     idx : int, optional
-        Data slice to be included in the virtual field, by default None
+        Data slice to be used in the virtual field, by default None
     """
 
     if isinstance(files[0], str):

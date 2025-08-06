@@ -3329,11 +3329,15 @@ class NXfield(NXobject):
                 'target': self._target,
                 'filename': self._filename,
                 'mode': self._mode,
+                'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
                 'dtype': str(self.dtype),
                 'shape': self.shape,
                 'value': self._value,
+                'vpath': self._vpath,
+                'vfiles': self._vfiles,
+                'vshape': self._vshape,
                 'h5opts': self._h5opts,
                 'entries': None,
                 'attrs': {k: v._value for k, v in self.attrs.items()}}
@@ -3348,6 +3352,7 @@ class NXfield(NXobject):
         obj._target = serialized_field['target']
         obj._filename = serialized_field['filename']
         obj._mode = serialized_field['mode']
+        obj._proxy = serialized_field['proxy']
         obj._abspath = serialized_field['abspath']
         obj._soft = serialized_field['soft']
         if 'link' in serialized_field['class']:
@@ -3359,6 +3364,10 @@ class NXfield(NXobject):
             obj._h5opts = serialized_field['h5opts']
             obj._attrs = AttrDict(obj)
             obj._attrs._setattrs(serialized_field['attrs'])
+        if target_cls == NXvirtualfield:
+            obj._vpath = serialized_field['vpath']
+            obj._vfiles = serialized_field['vfiles']
+            obj._vshape = serialized_field['vshape']
         return obj
 
     def __iter__(self):
@@ -5038,6 +5047,7 @@ class NXgroup(NXobject):
                 'target': self._target,
                 'filename': self._filename,
                 'mode': self._mode,
+                'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
                 'entries': entries,
@@ -5053,6 +5063,7 @@ class NXgroup(NXobject):
         obj._target = serialized_group['target']
         obj._filename = serialized_group['filename']
         obj._mode = serialized_group['mode']
+        obj._proxy = serialized_group['proxy']
         obj._abspath = serialized_group['abspath']
         obj._soft = serialized_group['soft']
         if 'link' in serialized_group['class']:

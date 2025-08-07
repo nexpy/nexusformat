@@ -2083,6 +2083,11 @@ class NXobject:
     _backup = None
     _file_modified = False
     _smoothing = None
+    _vpath = None
+    _vfiles = None
+    _vshape = None
+    _vidx = None
+    _proxy = None
 
     def __init__(self, *args, **kwargs):
         self._name = kwargs.pop("name", None)
@@ -3000,6 +3005,8 @@ class NXfield(NXobject):
         NXfield
             Field containing the slice values.
         """
+        if idx is None or idx is Ellipsis:
+            return self
         if is_real_slice(idx):
             idx = convert_index(idx, self)
         if self._value is None:
@@ -3323,11 +3330,16 @@ class NXfield(NXobject):
                 'target': self._target,
                 'filename': self._filename,
                 'mode': self._mode,
+                'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
                 'dtype': str(self.dtype),
                 'shape': self.shape,
                 'value': self._value,
+                'vpath': self._vpath,
+                'vfiles': self._vfiles,
+                'vshape': self._vshape,
+                'vidx': self._vidx,
                 'h5opts': self._h5opts,
                 'entries': None,
                 'attrs': {k: v._value for k, v in self.attrs.items()}}
@@ -3342,6 +3354,7 @@ class NXfield(NXobject):
         obj._target = serialized_field['target']
         obj._filename = serialized_field['filename']
         obj._mode = serialized_field['mode']
+        obj._proxy = serialized_field['proxy']
         obj._abspath = serialized_field['abspath']
         obj._soft = serialized_field['soft']
         if 'link' in serialized_field['class']:
@@ -3353,6 +3366,11 @@ class NXfield(NXobject):
             obj._h5opts = serialized_field['h5opts']
             obj._attrs = AttrDict(obj)
             obj._attrs._setattrs(serialized_field['attrs'])
+        if target_cls == NXvirtualfield:
+            obj._vpath = serialized_field['vpath']
+            obj._vfiles = serialized_field['vfiles']
+            obj._vshape = serialized_field['vshape']
+            obj._vidx = serialized_field['vidx']
         return obj
 
     def __iter__(self):
@@ -4496,9 +4514,9 @@ class NXvirtualfield(NXfield):
     defined by the file path and file names of the source files.
     """
 
-    def __init__(self, target, files, name='unknown', shape=None, dtype=None,
-                 group=None, attrs=None, abspath=False, create_vds=True,
-                 **kwargs):
+    def __init__(self, target, files, name='unknown', shape=None, idx=None,
+                 dtype=None, group=None, attrs=None, abspath=False,
+                 create_vds=True, **kwargs):
         """
         Initialize the field containing the virtual dataset.
 
@@ -4515,6 +4533,8 @@ class NXvirtualfield(NXfield):
         shape : tuple, optional
             Shape of each source field, by default None. If None, the
             shape is derived from the target, which must be a NXfield.
+        idx: slice, optional
+            Slice indices of the target field, by default None
         dtype : dtype, optional
             Data type of the virtual dataset, by default None. If None,
             the data type is derived from the target, which must be a
@@ -4528,42 +4548,66 @@ class NXvirtualfield(NXfield):
             shape = target.shape
             dtype = target.dtype
             target = target.nxfilepath
+        elif shape is None:
+            raise NeXusError('The shape has not been specified')
+        self._vshape = shape
+        self._vidx = idx
         self._vpath = target
         if abspath:
             self._vfiles = [Path(f).resolve() for f in files]
         else:
             self._vfiles = files
-        if shape:
-            self._vshape = (len(self._vfiles),) + shape
+        if idx:
+            shape = (len(self._vfiles),) + slice_shape(idx, self._vshape)
         else:
-            self._vshape = None
-        super().__init__(name=name, shape=self._vshape, dtype=dtype,
-                         group=group, attrs=attrs, **kwargs)
+            shape = (len(self._vfiles),) + self._vshape
+        super().__init__(name=name, shape=shape, dtype=dtype, group=group,
+                         attrs=attrs, **kwargs)
         if create_vds and shape and dtype:
-            self._create_virtual_data()
+            self._create_virtual_data(shape, idx=idx)
 
-    def _create_virtual_data(self):
-        source_shape = self.shape[1:]
-        maxshape = (None,) + source_shape
-        layout = h5.VirtualLayout(shape=self._vshape, dtype=self.dtype,
+    def _create_virtual_data(self, shape, idx=None):
+        """
+        Create the virtual dataset from the source files and layout.
+
+        Parameters
+        ----------
+        files : list of str
+            Paths to the source files.
+        path : str
+            Path to the field within each source file.
+        shape : tuple
+            Shape of the virtual field in the source files.
+        idx : tuple, optional
+            Slice indices of the source fields, by default None.
+        """
+        maxshape = (None,) + shape[1:]
+        layout = h5.VirtualLayout(shape=shape, dtype=self.dtype,
                                   maxshape=maxshape)
+        if idx is None:
+            idx = Ellipsis
         for i, f in enumerate(self._vfiles):
-            layout[i] = h5.VirtualSource(f, self._vpath, shape=source_shape)
+            vsource = h5.VirtualSource(f, self._vpath, shape=self._vshape)
+            layout[i] = vsource[idx]
         self._create_memfile()
         self._memfile.create_virtual_dataset('data', layout)
 
     def __deepcopy__(self, memo={}):
         """Return a deep copy of the virtual field and attributes."""
         obj = self
-        dpcpy = obj.__class__(self._vpath, self._vfiles)
+        dpcpy = obj.__class__(self._vpath, self._vfiles, shape=self._vshape,
+                              idx=self._vidx, dtype=self.dtype,
+                              create_vds=False)
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._dtype = copy(obj.dtype)
         dpcpy._shape = copy(obj.shape)
         dpcpy._vshape = copy(obj._vshape)
+        dpcpy._vidx = copy(obj._vidx)
         dpcpy._vpath = copy(obj._vpath)
         dpcpy._vfiles = copy(obj._vfiles)
-        dpcpy._create_virtual_data()
+        shape = (len(obj._vfiles),) + slice_shape(obj._vidx, obj._vshape)
+        dpcpy._create_virtual_data(shape=shape, idx=obj._vidx)
         dpcpy._h5opts = copy(obj._h5opts)
         dpcpy._changed = True
         dpcpy._uncopied_data = None
@@ -5025,6 +5069,7 @@ class NXgroup(NXobject):
                 'target': self._target,
                 'filename': self._filename,
                 'mode': self._mode,
+                'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
                 'entries': entries,
@@ -5040,6 +5085,7 @@ class NXgroup(NXobject):
         obj._target = serialized_group['target']
         obj._filename = serialized_group['filename']
         obj._mode = serialized_group['mode']
+        obj._proxy = serialized_group['proxy']
         obj._abspath = serialized_group['abspath']
         obj._soft = serialized_group['soft']
         if 'link' in serialized_group['class']:
@@ -7982,7 +8028,9 @@ def is_real_slice(idx):
         x = np.array(x)
         return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)
 
-    if isinstance(idx, slice):
+    if idx is None or idx is Ellipsis:
+        return False
+    elif isinstance(idx, slice):
         return is_real(idx)
     elif is_iterable(idx):
         return any([is_real(i) for i in idx])
@@ -8045,6 +8093,40 @@ def convert_index(idx, axis):
           isinstance(idx, numbers.Real)):
         idx = axis.index(idx)
     return idx
+
+
+def slice_shape(idx, shape):
+    """
+    Calculate the shape of a slice.
+
+    Parameters
+    ----------
+    idx : slice
+        Slice object.
+    shape : tuple
+        Shape of the array being sliced.
+
+    Returns
+    -------
+    tuple
+        Shape of the slice.
+    """
+    def slice_length(slc, dim_size):
+        start = slc.start if slc.start is not None else 0
+        stop = slc.stop if slc.stop is not None else dim_size
+        step = slc.step if slc.step is not None else 1
+        if start < 0:
+            start += dim_size
+        if stop < 0:
+            stop += dim_size
+        start = max(0, min(start, dim_size))
+        stop = max(0, min(stop, dim_size))
+        if step > 0:
+            length = max(0, (stop - start + step - 1) // step)
+        else:
+            length = max(0, (start - stop - (-step) - 1) // (-step))
+        return length
+    return tuple(slice_length(slc, dim) for slc, dim in zip(idx, shape))
 
 
 def centers(axis, dimlen):
@@ -8472,7 +8554,7 @@ def directory(filename, short=False):
 nxdir = directory
 
 
-def consolidate(files, data_path, scan_path=None):
+def consolidate(files, data_path, scan_path=None, idx=None):
     """
     Create NXdata using a virtual field to combine multiple files.
 
@@ -8481,13 +8563,15 @@ def consolidate(files, data_path, scan_path=None):
     files : list of str or NXroot
         List of files to be consolidated. If a scan variable is defined,
         the files are sorted by its values.
-    data : str or NXdata
+    data_path : str or NXdata
         Path to the NXdata group to be consolidated. If the argument is
         a NXdata group, its path within the NeXus file is used.
-    scan : str or NXfield, optional
+    scan_path : str or NXfield, optional
         Path to the scan variable in each file, by default None. If the
         argument is a NXfield, its path within the NeXus file is used.
         If not specified, the scan is constructed from file indices.
+    idx : int, optional
+        Data slice to be used in the virtual field, by default None
     """
 
     if isinstance(files[0], str):
@@ -8518,8 +8602,11 @@ def consolidate(files, data_path, scan_path=None):
                             long_name='File Index')
     signal = scan_file[data_path].nxsignal
     axes = scan_file[data_path].nxaxes
+    if idx is not None:
+        axes = [axis[s] for axis, s in zip(axes, idx)]
     sources = [f[signal.nxpath].nxfilename for f in scan_files]
-    scan_field = NXvirtualfield(signal, sources, name=signal.nxname)
+    scan_field = NXvirtualfield(signal, sources, shape=signal.shape, idx=idx,
+                                name=signal.nxname)
     scan_data = NXdata(scan_field, [scan_axis] + axes,
                        name=scan_file[data_path].nxname)
     scan_data.title = data_path

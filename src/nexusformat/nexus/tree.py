@@ -6093,8 +6093,8 @@ class NXlink(NXobject):
         else:
             raise NeXusError("Invalid link target")
         if _target != self._target or _filename != self._filename:
-            target_path = self.nxlink.nxpath
-            original_target = self.nxroot[target_path]
+            if not self.is_external():
+                original_target = self.nxroot[self.nxlink.nxpath]
             self._target = _target
             self._filename = _filename
             self._file = None

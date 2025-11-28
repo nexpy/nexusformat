@@ -1056,8 +1056,14 @@ class ApplicationValidator(Validator):
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
+                    recommended = False
                     if '@minOccurs' in value[group]:
                         minOccurs = int(value[group]['@minOccurs'])
+                    elif value[group].get('@optional') == 'true':
+                        minOccurs = 0
+                    elif value[group].get('@recommended') == 'true':
+                        minOccurs = 0
+                        recommended = True
                     else:
                         minOccurs = 1
                     if '@type' in value[group]:
@@ -1078,7 +1084,11 @@ class ApplicationValidator(Validator):
                             f'{len(nxgroups)} {group} group(s) '
                             f'are in the NeXus file.  At least {minOccurs} '
                             'are required', level='error')
-                    elif minOccurs == 0:
+                    elif len(nxgroups) == 0 and recommended:
+                        self.log(
+                            'This recommended group is not in the NeXus file',
+                            level='warning')
+                    elif len(nxgroups) == 0:
                         self.log(
                             'This optional group is not in the NeXus file')
                     for i, nxsubgroup in enumerate(nxgroups):
@@ -1098,8 +1108,14 @@ class ApplicationValidator(Validator):
                 self.output_log()
             elif key == 'field' or key == 'link':
                 for field in value:
+                    recommended = False
                     if '@minOccurs' in value[field]:
                         minOccurs = int(value[field]['@minOccurs'])
+                    elif value[field].get('@optional') == 'true':
+                        minOccurs = 0
+                    elif value[field].get('@recommended') == 'true':
+                        minOccurs = 0
+                        recommended = True
                     else:
                         minOccurs = 1
                     if field in nxgroup.entries:
@@ -1116,6 +1132,9 @@ class ApplicationValidator(Validator):
                         if minOccurs > 0:
                             self.log(f'This required {key} is not '
                                      'in the NeXus file', level='error')
+                        elif recommended:
+                            self.log(f'This recommended {key} is not '
+                                     'in the NeXus file', level='warning')
                         else:
                             self.log(f'This optional {key}) is not '
                                      'in the NeXus file')

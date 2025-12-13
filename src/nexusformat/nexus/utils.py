@@ -176,7 +176,7 @@ def is_valid_bool(dtype):
     bool
         True if the data type is a valid boolean type, False otherwise.
     """
-    return np.issubdtype(dtype, np.bool_) 
+    return np.issubdtype(dtype, np.bool_) or is_valid_int(dtype) 
 
 
 def is_valid_char(dtype):

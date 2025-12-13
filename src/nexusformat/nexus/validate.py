@@ -805,10 +805,10 @@ class FieldValidator(Validator):
         if 'signal' in field.attrs:
             self.log(
                 'Using "signal" as a field attribute is no longer valid. '
-                'Use the group attribute "signal"', level='error')
+                'Use the group attribute "signal"', level='warning')
         elif 'axis' in field.attrs:
             self.log('Using "axis" as a field attribute is no longer valid. '
-                     'Use the group attribute "axes"', level='error')
+                     'Use the group attribute "axes"', level='warning')
         if 'units' in field.attrs:
             if units:
                 self.log(

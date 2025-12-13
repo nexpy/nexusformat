@@ -724,6 +724,10 @@ class FieldValidator(Validator):
         """
         Checks the field dimensions against the specified dimensions.
         
+        Note that inconsistencies with the NeXus definition are not
+        listed as warnings, because this aspect of the NeXus standard
+        needs to be revised.
+        
         Parameters
         ----------
         field : 
@@ -745,7 +749,7 @@ class FieldValidator(Validator):
                     self.log(f'The field has the correct rank of {rank}')
                 else:
                     self.log(f'The field has rank {field.ndim}, '
-                             f'should be {rank}', level='warning')
+                             f'should be {rank}')
         if 'dim' in dimensions:
             for i, s in dimensions['dim'].items():
                 if s in self.parent.symbols:
@@ -755,8 +759,7 @@ class FieldValidator(Validator):
                     else:
                         self.log(
                             f'The field rank is {len(field.shape)}, '
-                            f'but the dimension index of "{s}" = {i}',
-                            level='warning')
+                            f'but the dimension index of "{s}" = {i}')
                 else:
                     try:
                         s = int(s)
@@ -766,7 +769,7 @@ class FieldValidator(Validator):
                         self.log(f'The field has the correct size of {s}')
                     else:
                         self.log(f'The field has size {field.shape}, '
-                                 f'should be {s}', level='warning')
+                                 f'should be {s}')
     
     def check_enumeration(self, field, enumerations):
         """

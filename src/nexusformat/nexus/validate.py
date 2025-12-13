@@ -132,6 +132,44 @@ class Validator():
             self.log(f'This is a broken link to "{target}"', level='error')
             return False
 
+    def check_occurrences(self, key, tag, occurrences):
+        """
+        Checks if the number of occurrences of a group is valid.
+
+        Parameters
+        ----------
+        tag : str
+            The XML tag of the group.
+        occurrences : int
+            The number of occurrences of the group.
+        """
+        recommended = False
+        if '@minOccurs' in tag:
+            minOccurs = int(tag['@minOccurs'])
+        elif tag.get('@optional') == 'true':
+            minOccurs = 0
+        elif tag.get('@recommended') == 'true':
+            minOccurs = 0
+            recommended = True
+        else:
+            minOccurs = 1
+        if occurrences == 0 and minOccurs > 0:
+            self.log(f'This required {key} is not in the NeXus file',
+                     level='error')
+        elif occurrences == 0 and recommended:
+            self.log(f'This recommended {key} is not in the NeXus file',
+                     level='warning')
+        elif occurrences == 0:
+            self.log(f'This optional {key} is not in the NeXus file')
+        if '@maxOccurs' in tag:
+            try:
+                maxOccurs = int(tag['@maxOccurs'])
+            except ValueError:
+                maxOccurs = None
+            if maxOccurs is not None and occurrences > maxOccurs:
+                self.log(f'This {key} has more occurrences than allowed',
+                         level='error')
+
     def log(self, message, level='info', indent=None):
         """
         Logs a message with a specified level and indentation.
@@ -798,8 +836,7 @@ class FieldValidator(Validator):
         for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'The attribute "@{attr}" is present')
 
-    def validate(self, tag, field, parent=None, minOccurs=None, link=False,
-                 indent=0):
+    def validate(self, tag, field, parent=None, link=False, indent=0):
         """
         Validates a field in a NeXus group.
 
@@ -811,8 +848,6 @@ class FieldValidator(Validator):
             The field to be validated.
         parent : object, optional
             The parent object. Defaults to None.
-        minOccurs : int, optional
-            The minimum number of occurrences. Defaults to None.
         link : bool, optional
             True if the field is required to be a link. Defaults to
             False.
@@ -827,6 +862,10 @@ class FieldValidator(Validator):
         else:
             self.log(f'Field: {field.nxpath}', level='all')
         self.indent += 1
+        if tag is not None and field.exists():
+            self.check_occurrences('field', tag, 1)
+        elif tag is not None:
+            self.check_occurrences('field', tag, 0)
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
         if link and not isinstance(field, NXlink):
@@ -835,17 +874,6 @@ class FieldValidator(Validator):
             if not self.is_valid_link(field):
                 self.output_log()
                 return
-        if minOccurs is not None:
-            if minOccurs > 0:
-                self.log('This is a required field in the NeXus file')
-            else:
-                self.log('This is an optional field in the NeXus file')
-        elif tag is not None:
-            if '@name' in tag:
-                self.log(f'This field name matches "{tag["@name"]}", '
-                         f'which is allowed in {group.nxclass}')
-            else:
-                self.log(f'This is a valid field in {group.nxclass}')
         if tag is None:
             if self.parent.ignoreExtraFields is True:
                 self.log(f'This field is not defined in {group.nxclass} '
@@ -854,6 +882,11 @@ class FieldValidator(Validator):
                 self.log(f'This field is not defined in {group.nxclass}',
                          level='warning')
         else:
+            if '@name' in tag:
+                self.log(f'This field name matches "{tag["@name"]}", '
+                         f'which is allowed in {group.nxclass}')
+            else:
+                self.log(f'This is a valid field in {group.nxclass}')
             if '@deprecated' in tag:
                 self.log(f'This field is now deprecated. {tag["@deprecated"]}',
                          level='warning')
@@ -1056,19 +1089,10 @@ class ApplicationValidator(Validator):
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
-                    recommended = False
-                    if '@minOccurs' in value[group]:
-                        minOccurs = int(value[group]['@minOccurs'])
-                    elif value[group].get('@optional') == 'true':
-                        minOccurs = 0
-                    elif value[group].get('@recommended') == 'true':
-                        minOccurs = 0
-                        recommended = True
-                    else:
-                        minOccurs = 1
-                    if '@type' in value[group]:
+                    tag = value[group]
+                    if '@type' in tag:
                         name = group
-                        group = value[group]['@type']
+                        group = tag['@type']
                         self.log(f'Group: {name}: {group}', level='all',
                                  indent=self.indent)
                         nxgroups = [g for g in nxgroup.component(group)
@@ -1079,67 +1103,39 @@ class ApplicationValidator(Validator):
                                  indent=self.indent)
                         nxgroups = nxgroup.component(group)
                     self.indent += 1
-                    if len(nxgroups) < minOccurs:
-                        self.log(
-                            f'{len(nxgroups)} {group} group(s) '
-                            f'are in the NeXus file.  At least {minOccurs} '
-                            'are required', level='error')
-                    elif len(nxgroups) == 0 and recommended:
-                        self.log(
-                            'This recommended group is not in the NeXus file',
-                            level='warning')
-                    elif len(nxgroups) == 0:
-                        self.log(
-                            'This optional group is not in the NeXus file')
+                    self.check_occurrences('group', tag, len(nxgroups))
                     for i, nxsubgroup in enumerate(nxgroups):
                         if name:
                             if i != 0:
                                 self.log(f'Group: {name}: {group}',
                                          level='all', indent=self.indent)
-                            self.validate_group(
-                                value[name], nxsubgroup, indent=self.indent)
+                            self.validate_group(value[name], nxsubgroup,
+                                                indent=self.indent)
                         else:
                             if i != 0:
                                 self.log(f'Group: {group}', level='all',
                                          indent=self.indent)
-                            self.validate_group(
-                                value[group], nxsubgroup, indent=self.indent)
+                            self.validate_group(tag, nxsubgroup,
+                                                indent=self.indent)
                     self.indent -= 1
-                self.output_log()
+                    self.output_log()
             elif key == 'field' or key == 'link':
                 for field in value:
-                    recommended = False
-                    if '@minOccurs' in value[field]:
-                        minOccurs = int(value[field]['@minOccurs'])
-                    elif value[field].get('@optional') == 'true':
-                        minOccurs = 0
-                    elif value[field].get('@recommended') == 'true':
-                        minOccurs = 0
-                        recommended = True
-                    else:
-                        minOccurs = 1
+                    tag = value[field]
                     if field in nxgroup.entries:
                         group_validator.symbols.update(self.symbols)
-                        field_validator.validate(
-                            value[field], nxgroup[field], link=(key=='link'),
-                            parent=self, minOccurs=minOccurs,
-                            indent=self.indent)
+                        field_validator.validate(tag, nxgroup[field],
+                                                 link=(key=='link'),
+                                                 parent=self,
+                                                 indent=self.indent)
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'{key.capitalize()}: {field_path}',
                                  level='all')
                         self.indent += 1
-                        if minOccurs > 0:
-                            self.log(f'This required {key} is not '
-                                     'in the NeXus file', level='error')
-                        elif recommended:
-                            self.log(f'This recommended {key} is not '
-                                     'in the NeXus file', level='warning')
-                        else:
-                            self.log(f'This optional {key}) is not '
-                                     'in the NeXus file')
+                        self.check_occurrences('field', tag, 0)
                         self.indent -= 1
-                self.output_log()
+                        self.output_log()
         group_validator.check_symbols(indent=self.indent)
         self.output_log()
     

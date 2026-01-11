@@ -54,7 +54,7 @@ def get_logger():
         logger.addHandler(gui_handler)
     else:
         stream_handler = logging.StreamHandler(stream=sys.stdout)
-        stream_handler.setFormatter(NXFormatter('%(message)s'))    
+        stream_handler.setFormatter(NXFormatter('%(message)s'))
         logger.addHandler(stream_handler)
     logger.total = {'warning': 0, 'error': 0}
     return logger
@@ -141,7 +141,7 @@ def is_valid_int(dtype):
     bool
         True if the data type is a valid integer type, False otherwise.
     """
-    return np.issubdtype(dtype, np.integer) 
+    return np.issubdtype(dtype, np.integer)
 
 
 def is_valid_float(dtype):
@@ -176,7 +176,7 @@ def is_valid_bool(dtype):
     bool
         True if the data type is a valid boolean type, False otherwise.
     """
-    return np.issubdtype(dtype, np.bool_) or is_valid_int(dtype) 
+    return np.issubdtype(dtype, np.bool_) or is_valid_int(dtype)
 
 
 def is_valid_char(dtype):
@@ -231,7 +231,7 @@ def is_valid_complex(dtype):
     bool
         True if the data type is a valid complex type, False otherwise.
     """
-    return np.issubdtype(dtype, np.complex) 
+    return np.issubdtype(dtype, np.complex)
 
 
 def is_valid_number(dtype):
@@ -248,7 +248,7 @@ def is_valid_number(dtype):
     bool
         True if the data type is a valid number type, False otherwise.
     """
-    return np.issubdtype(dtype, np.number) 
+    return np.issubdtype(dtype, np.number)
 
 
 def is_valid_posint(dtype):
@@ -269,7 +269,7 @@ def is_valid_posint(dtype):
     if np.issubdtype(dtype, np.integer):
          info = np.iinfo(dtype)
          return info.max > 0
-    return False 
+    return False
 
 
 def is_valid_uint(dtype):
@@ -287,7 +287,7 @@ def is_valid_uint(dtype):
         True if the data type is a valid unsigned integer type, False
         otherwise.
     """
-    return np.issubdtype(dtype, np.unsignedinteger) 
+    return np.issubdtype(dtype, np.unsignedinteger)
 
 
 def all_dtypes():
@@ -331,7 +331,7 @@ def map_dtype(nexus_type):
                                   "uint16", "uint8"],
                     "NX_PCOMPLEX": ["complex128", "complex64"],
                     "NX_POSINT": ["uint64", "uint32", "uint16", "uint8"],
-                    "NX_QUATERNION": ["complex128", "complex64"], 
+                    "NX_QUATERNION": ["complex128", "complex64"],
                     "NX_UINT": ["uint8", "uint16", "uint32", "uint64"],
                     "NX_CHAR_OR_NUMBER": ["str", "bytes", "float64", "float32",
                                           "int64", "int32", "int16", "int8",
@@ -348,7 +348,7 @@ def strip_namespace(element):
     ----------
     element : xml.etree.ElementTree.Element
         The XML element to strip namespace from.
-    """    
+    """
     if '}' in element.tag:
         element.tag = element.tag.split('}', 1)[1]
     for child in element:
@@ -425,7 +425,7 @@ def xml_to_dict(element):
                     result[child.tag]['dim'].update(
                         {int(item.attrib['index']): item.attrib['value']})
         else:
-            child_dict = convert_xml_dict(xml_to_dict(child))       
+            child_dict = convert_xml_dict(xml_to_dict(child))
             if child.tag in result:
                 result[child.tag].update(child_dict)
             else:
@@ -501,10 +501,10 @@ def match_strings(pattern_string, target_string):
     """
     start_pattern = r'^([A-Z]+)([a-z_]+)$'
     end_pattern = r'^([a-z_]+)([A-Z]+)$'
-    
+
     start_match = re.match(start_pattern, pattern_string)
     end_match = re.match(end_pattern, pattern_string)
-    
+
     if start_match:
         lowercase_part = start_match.group(2)
         target_pattern = f'^[a-z_]+{re.escape(lowercase_part)}$'
@@ -515,7 +515,7 @@ def match_strings(pattern_string, target_string):
         target_pattern = f'^{re.escape(lowercase_part)}[a-z_]+$'
         if re.match(target_pattern, target_string):
             return True
-    
+
     return False
 
 
@@ -645,7 +645,7 @@ def check_nametype(item):
 def check_dimension_sizes(dimensions):
     """
     Check if a list of values are all within one of each other.
-    
+
     This handles the case where axis bin boundaries are stored.
 
     Parameters
@@ -682,7 +682,7 @@ class NXFormatter(logging.Formatter):
         'ERROR': Fore.red + Style.BOLD,
         'CRITICAL': Style.reset
     }
-    
+
     def format(self, record):
         """Format the specified record as text."""
         log_color = self.COLORS.get(record.levelname, Style.reset)

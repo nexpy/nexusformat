@@ -70,7 +70,8 @@ version_file = "src/nexusformat/_version.py"
 [tool.ruff]
 line-length = 88
 target-version = "py39"
+exclude = ["src/nexusformat/notebooks"]
 
 [tool.ruff.lint]
-select = ["F"]
-ignore = ["F403", "F405"]
+select = ["F", "W", "E"]
+ignore = ["F403", "F405", "E721"]

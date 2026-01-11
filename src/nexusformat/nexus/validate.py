@@ -54,7 +54,7 @@ def get_validator(nxclass, definitions=None):
 
 
 class Validator():
-    
+
     def __init__(self, definitions=None):
         """
         Initializes a new Validator instance.
@@ -333,7 +333,7 @@ class GroupValidator(Validator):
                     self.log(f'The NXDL file uses an invalid name type '
                              f'"{nameType}"', level='error')
         self.valid_fields = valid_fields
-        self.partial_fields = partial_fields    
+        self.partial_fields = partial_fields
 
     def get_valid_groups(self):
         """
@@ -368,7 +368,7 @@ class GroupValidator(Validator):
                              f'"{nameType}"', level='error')
         self.valid_groups = valid_groups
         self.partial_groups = partial_groups
-    
+
     def get_valid_attributes(self):
         """
         Retrieves valid group attributes from the NXDL file.
@@ -508,8 +508,8 @@ class GroupValidator(Validator):
                     self.log(f'{entry}: {self.symbols[symbol][entry]}',
                              level='warning')
                 self.indent -= 1
-            
-    def validate(self, group, parent=None, indent=0, level=None): 
+
+    def validate(self, group, parent=None, indent=0, level=None):
         """
         Validates a given group against the NeXus standard.
 
@@ -613,7 +613,7 @@ class GroupValidator(Validator):
             self.check_data(group)
 
         self.reset_symbols()
-        for entry in group.entries: 
+        for entry in group.entries:
             item = group.entries[entry]
             if isinstance(item, NXfield):
                 if entry in self.valid_fields:
@@ -633,7 +633,7 @@ class GroupValidator(Validator):
         self.check_symbols()
         self.output_log()
         self.indent -= 1
-                
+
 
 class FieldValidator(Validator):
 
@@ -654,7 +654,7 @@ class FieldValidator(Validator):
         dtype : str
             The NeXus data type to validate against.
         """
-        if dtype == 'NX_DATE_TIME': 
+        if dtype == 'NX_DATE_TIME':
             if is_valid_iso8601(field.nxvalue):
                 self.log('The field value is a valid NX_DATE_TIME')
             else:
@@ -676,63 +676,63 @@ class FieldValidator(Validator):
                 self.log('The field value is a valid NX_BOOLEAN')
             else:
                 self.log('The field value is not a valid NX_BOOLEAN',
-                         level='warning')         
+                         level='warning')
         elif dtype == 'NX_CHAR':
             if is_valid_char(field.dtype):
                 self.log('The field value is a valid NX_CHAR')
             else:
                 self.log('The field value is not a valid NX_CHAR',
-                         level='warning')                  
+                         level='warning')
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
                 self.log('TThe field value is a valid NX_CHAR_OR_NUMBER')
             else:
                 self.log('The field value is not a valid NX_CHAR_OR_NUMBER',
-                         level='warning')                
+                         level='warning')
         elif dtype == 'NX_COMPLEX':
             if is_valid_complex(field.dtype):
                 self.log('The field value is a valid NX_COMPLEX value')
             else:
                 self.log('The field value is not a valid NX_COMPLEX value',
-                         level='warning') 
+                         level='warning')
         elif dtype == 'NX_PCOMPLEX':
             if is_valid_complex(field.dtype):
                 self.log('The field value is a valid NX_PCOMPLEX value')
             else:
                 self.log('The field value is not a valid NX_PCOMPLEX value',
-                         level='warning') 
+                         level='warning')
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
                 self.log('The field value is a valid NX_NUMBER')
             else:
                 self.log('The field value is not a valid NX_NUMBER',
-                         level='warning')       
+                         level='warning')
         elif dtype == 'NX_POSINT':
             if is_valid_posint(field.dtype):
                 self.log('The field value is a valid NX_POSINT')
             else:
                 self.log('The field value is not a valid NX_POSINT',
-                         level='warning')    
+                         level='warning')
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
                 self.log('The field value is a valid NX_UINT')
             else:
                 self.log('The field value is not a valid NX_UINT',
-                         level='warning')        
+                         level='warning')
 
     def check_dimensions(self, field, dimensions):
         """
         Checks the field dimensions against the specified dimensions.
-        
+
         Note that inconsistencies with the NeXus definition are not
         listed as warnings, because this aspect of the NeXus standard
         needs to be revised.
-        
+
         Parameters
         ----------
-        field : 
+        field :
             The field to check dimensions for.
-        dimensions : 
+        dimensions :
             The base class attribute containing the dimensions to check
             against.
         """
@@ -770,16 +770,16 @@ class FieldValidator(Validator):
                     else:
                         self.log(f'The field has size {field.shape}, '
                                  f'should be {s}')
-    
+
     def check_enumeration(self, field, enumerations):
         """
         Checks if a field's value is a valid member of an enumerated list.
 
         Parameters
         ----------
-        field : 
+        field :
             The field to check the value for.
-        enumerations : 
+        enumerations :
             The list of valid enumerated values.
         """
         if field.nxvalue in enumerations:
@@ -788,7 +788,7 @@ class FieldValidator(Validator):
         else:
             self.log(
                 'The field value is not a member of the enumerated list',
-                level='error') 
+                level='error')
 
     def check_attributes(self, field, attributes=None, units=None):
         """
@@ -796,7 +796,7 @@ class FieldValidator(Validator):
 
         Parameters
         ----------
-        field : 
+        field :
             The field to check attributes for.
         units : optional
             The units of the field. If provided, checks if the units are
@@ -832,7 +832,7 @@ class FieldValidator(Validator):
                                 f'"@{field_attribute}" matches the defined '
                                 f'attribute "{attr}"')
                             checked_attributes.append(attr)
-                            checked_attributes.append(field_attribute)  
+                            checked_attributes.append(field_attribute)
                 if attr not in checked_attributes:
                     self.log(
                         f'The defined attribute "@{attr}" is not present')
@@ -894,7 +894,7 @@ class FieldValidator(Validator):
                 self.log(f'This field is now deprecated. {tag["@deprecated"]}',
                          level='warning')
             if field.exists():
-                if '@type' in tag:  
+                if '@type' in tag:
                     self.check_type(field, tag['@type'])
                 if 'dimensions' in tag:
                     self.check_dimensions(field, tag['dimensions'])
@@ -936,7 +936,7 @@ class FileValidator(Validator):
     def validate(self, path=None):
         """
         Validates a NeXus file by walking through its tree structure.
-        
+
         Each group is validated by its corresponding GroupValidator.
 
         Parameters
@@ -1018,7 +1018,7 @@ class ApplicationValidator(Validator):
         super().__init__(definitions=definitions)
         self.symbols = {}
         self.xml_dict = self.load_application(application)
-        
+
     def load_application(self, application):
         """
         Loads an application definition from an XML file.
@@ -1039,7 +1039,7 @@ class ApplicationValidator(Validator):
         elif self.applications is not None:
             app_path = self.applications / (f'{application}.nxdl.xml')
             if not app_path.exists() and self.contributions is not None:
-                app_path = self.contributions / (f'{application}.nxdl.xml') 
+                app_path = self.contributions / (f'{application}.nxdl.xml')
         elif self.contributions is not None:
             app_path = self.contributions / (f'{application}.nxdl.xml')
         else:
@@ -1141,7 +1141,7 @@ class ApplicationValidator(Validator):
                         self.output_log()
         group_validator.check_symbols(indent=self.indent)
         self.output_log()
-    
+
     def validate(self, entry, level=None):
         """
         Validates a NeXus entry against an XML definition.
@@ -1291,7 +1291,7 @@ def log(message, level='info', indent=0):
         logger.critical(f'{4*indent*" "}{message}')
 
 
-def log_header(validator, filename=None, path=None, application=None):  
+def log_header(validator, filename=None, path=None, application=None):
     log("\n", level='all')
     if filename is not None:
         log(f"Filename: {filename}", level='all')
@@ -1324,6 +1324,6 @@ def log_summary():
     else:
         log(f'\nTotal number of errors: {logger.total["error"]}\n',
             level='all')
-    
+
     return (logger.total['warning'], logger.total['error'])
 

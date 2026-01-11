@@ -6,4 +6,4 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 
-from ._version import version as __version__
+from ._version import __version__ as __version__

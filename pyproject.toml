@@ -66,3 +66,11 @@ version_file = "src/nexusformat/_version.py"
 "nexusformat.definitions.contributed_definitions" = ["*.nxdl.xml"]
 "nexusformat.examples" = ["*.nxs", "*.h5"]
 "nexusformat.notebooks" = ["*.pnyb"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["F"]
+ignore = ["F403", "F405"]

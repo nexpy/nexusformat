@@ -225,7 +225,7 @@ class PyplotPlotter:
                     plt.ylabel(label(signal))
                     plt.title(title)
 
-            if len(data.shape) == 1 and len(coordinates) > 0:
+            elif len(data.shape) == 1 and len(coordinates) > 0:
                 if 'size' in kwargs:
                     s = kwargs.pop('size')
                 else:

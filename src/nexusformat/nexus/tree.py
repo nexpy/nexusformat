@@ -2912,7 +2912,7 @@ class NXfield(NXobject):
                             if v is not None)
         if attrs is None:
             attrs = {}
-        attrs.update(kwargs)
+        attrs.update({k: v for k, v in kwargs.items() if v is not None})
         self._attrs = AttrDict(self, attrs=attrs)
         self._memfile = None
         self._uncopied_data = None

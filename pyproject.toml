@@ -27,6 +27,7 @@ classifiers = [
 keywords = ["data format", "HDF5", "neutron scattering", "x-ray scattering"]
 requires-python = ">=3.9"
 dependencies = [
+    "chardet",
     "colored",
     "h5py",
     "hdf5plugin",

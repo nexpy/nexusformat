@@ -5975,6 +5975,16 @@ class NXlink(NXobject):
             object.__setattr__(self, name, value)
         elif self.is_external():
             raise NeXusError("Cannot modify an external link")
+        elif name == 'nxlink':
+            obj = self.nxlink
+            if isinstance(obj, NXfield):
+                if obj._group is not None:
+                    obj._group[obj.nxname] = value
+                else:
+                    obj.nxdata = value
+                    obj.update()
+            else:
+                raise NeXusError("Cannot modify a linked group")
         else:
             try:
                 self.nxlink.setattr(name, value)

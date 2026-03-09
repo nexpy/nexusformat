@@ -218,7 +218,6 @@ from pathlib import PurePosixPath as PurePath
 
 import h5py as h5
 import numpy as np
-from typeguard import value
 
 from .. import __version__ as nxversion
 from .lock import NXLock, NXLockException

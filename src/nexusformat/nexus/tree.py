@@ -4554,6 +4554,10 @@ class NXvirtualfield(NXfield):
             target = target.nxfilepath
         elif shape is None:
             raise NeXusError('The shape has not been specified')
+        elif dtype is None:
+            raise NeXusError('The dtype has not been specified')
+        else:
+            dtype = _getdtype(dtype)
         self._vshape = shape
         self._vidx = idx
         self._vpath = target

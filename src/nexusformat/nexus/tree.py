@@ -3333,7 +3333,8 @@ class NXfield(NXobject):
                 'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
-                'dtype': str(self.dtype),
+                'dtype': ('vlen_str' if self.dtype == string_dtype
+                          else self.dtype.str),
                 'shape': self.shape,
                 'value': self._value,
                 'vpath': self._vpath,
@@ -3360,7 +3361,10 @@ class NXfield(NXobject):
         if 'link' in serialized_field['class']:
             obj.initialize_link()
         else:
-            obj._dtype = np.dtype(serialized_field['dtype'])
+            if serialized_field['dtype'] == 'vlen_str':
+                obj._dtype = string_dtype
+            else:
+                obj._dtype = np.dtype(serialized_field['dtype'])
             obj._shape = serialized_field['shape']
             obj._value = serialized_field['value']
             obj._h5opts = serialized_field['h5opts']

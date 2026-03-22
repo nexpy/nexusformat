@@ -41,7 +41,7 @@ Some files can even be plotted automatically::
 For a complete description of the features available in this tree view
 of the NeXus data file, see `nx.tree`.
 """
-from .completer import nxcompleter
-from .lock import NXLock, NXLockException
+from .completer import nxcompleter as nxcompleter
+from .lock import NXLock as NXLock, NXLockException as NXLockException
 from .tree import *
-import hdf5plugin
+import hdf5plugin  # noqa: F401 (imported for side effects: HDF5 compression filters)

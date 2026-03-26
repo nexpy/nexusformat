@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2024-2025, Kaitlyn Marlor, Ray Osborn, Justin Wozniak.
+# Copyright (c) 2025-2026, Kaitlyn Marlor, Ray Osborn, Justin Wozniak.
 #
 # Distributed under the terms of the Modified BSD License.
 #

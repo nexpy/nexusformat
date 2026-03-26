@@ -4,3 +4,13 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
+
+repos:
+-   repo: local
+    hooks:
+    -   id: update-copyright
+        name: Update Copyright Year
+        entry: python scripts/update_copyright.py
+        language: python
+        files: \.py$
+        pass_filenames: true

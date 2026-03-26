@@ -2,10 +2,6 @@ import re
 import sys
 import subprocess
 
-# BROAD REGEX: Matches "# Copyright (c) " followed by ANYTHING until the first comma.
-# Group 1: "# Copyright (c) "
-# Group 2: The messy year part (to be replaced)
-# Group 3: ", Kaitlyn Marlor, Ray Osborn..." (The suffix)
 CLEANUP_REGEX = re.compile(r"(#\s*Copyright\s*\(c\)\s*)([^,]+)(,.*)")
 
 def get_git_years(filepath):
@@ -43,7 +39,7 @@ def sync_file(filepath):
 
     with open(filepath, 'w', encoding='utf-8') as f:
         f.writelines(new_lines)
-    print(f"✅ Cleaned and Synced: {filepath} ({first}-{last})")
+    print(f"Cleaned and Synced: {filepath} ({first}-{last})")
 
 if __name__ == "__main__":
     for arg in sys.argv[1:]:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2025, Kaitlyn Marlor, Ray Osborn, Justin Wozniak.
+# Copyright (c) 2025, NeXpy Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #

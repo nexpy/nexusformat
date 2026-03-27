@@ -14,10 +14,10 @@ def update_file(filepath):
         prefix = match.group(1)
         start_year = match.group(2)
         suffix = match.group(4)
-        
+
         if start_year == CURRENT_YEAR:
             return f"{prefix}{start_year}{suffix}"
-        
+
         return f"{prefix}{start_year}-{CURRENT_YEAR}{suffix}"
 
     new_content = COPYRIGHT_REGEX.sub(replace_year, content)

@@ -5,8 +5,7 @@ repos:
       - id: ruff-check
         args: [--fix]
 
-repos:
--   repo: local
+  - repo: local
     hooks:
     -   id: update-copyright
         name: Update Copyright Year

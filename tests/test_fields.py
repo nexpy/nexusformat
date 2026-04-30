@@ -1,5 +1,3 @@
-import sys
-
 import h5py as h5
 import numpy as np
 import pytest
@@ -176,5 +174,5 @@ def test_numpy_conversion(arr, request):
     field = NXfield(arr)
 
     assert np.array_equal(field, arr)
-    assert np.array_equal(np.array(field, dtype=np.float32), 
+    assert np.array_equal(np.array(field, dtype=np.float32),
                           arr.astype(np.float32))

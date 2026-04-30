@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2025, NeXpy Development Team.
+# Copyright (c) 2014-2026, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -226,7 +226,7 @@ from .utils import get_base_classes, remove_deprecations
 warnings.simplefilter('ignore', category=FutureWarning)
 
 # Default configuration parameters.
-NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8', 
+NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8',
              'lock': 0, 'lockdirectory': None, 'lockexpiry': 8 * 3600,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 # These are overwritten below by environment variables if defined.
@@ -3334,7 +3334,8 @@ class NXfield(NXobject):
                 'proxy': self._proxy,
                 'abspath': self._abspath,
                 'soft': self._soft,
-                'dtype': str(self.dtype),
+                'dtype': ('vlen_str' if self.dtype == string_dtype
+                          else self.dtype.str),
                 'shape': self.shape,
                 'value': self._value,
                 'vpath': self._vpath,
@@ -3361,7 +3362,10 @@ class NXfield(NXobject):
         if 'link' in serialized_field['class']:
             obj.initialize_link()
         else:
-            obj._dtype = np.dtype(serialized_field['dtype'])
+            if serialized_field['dtype'] == 'vlen_str':
+                obj._dtype = string_dtype
+            else:
+                obj._dtype = np.dtype(serialized_field['dtype'])
             obj._shape = serialized_field['shape']
             obj._value = serialized_field['value']
             obj._h5opts = serialized_field['h5opts']
@@ -3683,7 +3687,7 @@ class NXfield(NXobject):
         Returns
         -------
         NXfield
-            The average of the field.        
+            The average of the field.
         """
         return NXfield(np.average(self.nxdata, **kwargs),
                        name=self.nxname, attrs=self.safe_attrs)
@@ -3726,7 +3730,7 @@ class NXfield(NXobject):
     def moment(self, order=1, **kwargs):
         """
         Return the moments about the mean of the field.
-        
+
         Other parameters are passed to `scipy.stats.moment`
 
         Parameters
@@ -4018,7 +4022,7 @@ class NXfield(NXobject):
 
     @property
     def nxunits(self):
-        """Units of the field."""        
+        """Units of the field."""
         if 'units' in self.attrs:
             return self.attrs['units']
         else:
@@ -4551,6 +4555,10 @@ class NXvirtualfield(NXfield):
             target = target.nxfilepath
         elif shape is None:
             raise NeXusError('The shape has not been specified')
+        elif dtype is None:
+            raise NeXusError('The dtype has not been specified')
+        else:
+            dtype = _getdtype(dtype)
         self._vshape = shape
         self._vidx = idx
         self._vpath = target
@@ -4936,10 +4944,11 @@ class NXgroup(NXobject):
             elif isinstance(value, NXlink):
                 raise NeXusError(
                     "Cannot assign an NXlink to an existing group entry")
-            elif isinstance(group.entries[key], NXlink):
-                raise NeXusError("Cannot assign values to an NXlink")
             elif group.entries[key].is_linked():
                 raise NeXusError("Cannot modify an item in linked group")
+            elif isinstance(group.entries[key], NXlink):
+                group.entries[key].nxlink = value
+                return
             group.entries[key].nxdata = value
             if isinstance(value, NXfield):
                 group.entries[key]._setattrs(value.attrs)
@@ -5131,7 +5140,7 @@ class NXgroup(NXobject):
     def get(self, name, default=None):
         """
         Retrieve the group entry.
-        
+
         This returns the default value if the entry doesn't exist.
         """
         try:
@@ -5682,7 +5691,7 @@ class NXgroup(NXobject):
     def validate(self, level='warning', application=None, definitions=None):
         """
         Validate the group against a NeXus application definition.
-        
+
         Note that this can only be used on NXroot and NXentry groups.
 
         Parameters
@@ -5968,6 +5977,16 @@ class NXlink(NXobject):
             object.__setattr__(self, name, value)
         elif self.is_external():
             raise NeXusError("Cannot modify an external link")
+        elif name == 'nxlink':
+            obj = self.nxlink
+            if isinstance(obj, NXfield):
+                if obj._group is not None:
+                    obj._group[obj.nxname] = value
+                else:
+                    obj.nxdata = value
+                    obj.update()
+            else:
+                raise NeXusError("Cannot modify a linked group")
         else:
             try:
                 self.nxlink.setattr(name, value)
@@ -6010,10 +6029,7 @@ class NXlink(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
-        if obj._filename:
-            dpcpy._filename = copy(obj.nxfilename)
-        else:
-            dpcpy._filename = None
+        dpcpy._filename = copy(obj._filename)
         dpcpy._abspath = copy(obj._abspath)
         dpcpy._soft = copy(obj._soft)
         dpcpy._link = None
@@ -6074,7 +6090,7 @@ class NXlink(NXobject):
     @nxtarget.setter
     def nxtarget(self, value):
         if self.nxroot.nxfilemode != 'rw':
-            raise NeXusError("NeXus file opened as readonly") 
+            raise NeXusError("NeXus file opened as readonly")
         elif isinstance(value, NXlink):
             raise NeXusError("Cannot link to another NXlink object")
         elif is_text(value):
@@ -7919,7 +7935,7 @@ class NXdata(NXgroup):
     def nxcoordinates(self):
         """
         List of NXfields defined as signal coordinates.
-        
+
         Note that the use of the coordinates attribute is under
         discussion and has not been formally approved by the NeXus
         standard. However, the attribute can be added to NeXus files
@@ -8367,7 +8383,7 @@ nxsetlockdirectory = setlockdirectory
 def getmaxsize():
     """
     Return the default maximum array size in memory.
-    
+
     If the array size is larger than this value, it will be stored
     in core memory instead.
 

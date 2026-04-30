@@ -37,7 +37,8 @@ faces = [
 
 ax.add_collection3d(
     Poly3DCollection(
-        faces, facecolors="lightblue", linewidths=1.5, edgecolors="black", alpha=0.1
+        faces, facecolors="lightblue", linewidths=1.5, edgecolors="black",
+        alpha=0.1
     )
 )
 

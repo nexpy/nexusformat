@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.6
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+
+  - repo: local
+    hooks:
+    -   id: update-copyright
+        name: Update Copyright Year
+        entry: python scripts/update_copyright.py
+        language: python
+        files: \.py$
+        pass_filenames: true

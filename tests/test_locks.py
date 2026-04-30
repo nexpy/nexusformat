@@ -96,11 +96,10 @@ def test_lock_defaults(tmpdir, field4):
     root.save(filename, "w")
 
     with root.nxfile as f:
-
-        assert isinstance(root.nxfile.lock, NXLock)
-        assert root.nxfile.lock.timeout == 20
-        assert root.nxfile.locked
-        assert root.nxfile.is_locked()
+        assert isinstance(f.lock, NXLock)
+        assert f.lock.timeout == 20
+        assert f.locked
+        assert f.is_locked()
 
     assert not root.nxfile.locked
     assert not root.nxfile.is_locked()
@@ -110,9 +109,8 @@ def test_lock_defaults(tmpdir, field4):
     root.save(filename, "w")
 
     with root.nxfile as f:
-
-        assert not root.nxfile.locked
-        assert not root.nxfile.is_locked()
+        assert not f.locked
+        assert not f.is_locked()
 
 
 def test_nested_locks(tmpdir, field4):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -----------------------------------------------------------------------------
-# Copyright (c) 2013-2025, NeXpy Development Team.
+# Copyright (c) 2014-2026, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #
@@ -226,7 +226,7 @@ from .utils import get_base_classes, remove_deprecations
 warnings.simplefilter('ignore', category=FutureWarning)
 
 # Default configuration parameters.
-NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8', 
+NX_CONFIG = {'compression': 'gzip', 'definitions': None, 'encoding': 'utf-8',
              'lock': 0, 'lockdirectory': None, 'lockexpiry': 8 * 3600,
              'maxsize': 10000, 'memory': 2000, 'recursive': False}
 # These are overwritten below by environment variables if defined.
@@ -3686,7 +3686,7 @@ class NXfield(NXobject):
         Returns
         -------
         NXfield
-            The average of the field.        
+            The average of the field.
         """
         return NXfield(np.average(self.nxdata, **kwargs),
                        name=self.nxname, attrs=self.safe_attrs)
@@ -3729,7 +3729,7 @@ class NXfield(NXobject):
     def moment(self, order=1, **kwargs):
         """
         Return the moments about the mean of the field.
-        
+
         Other parameters are passed to `scipy.stats.moment`
 
         Parameters
@@ -4021,7 +4021,7 @@ class NXfield(NXobject):
 
     @property
     def nxunits(self):
-        """Units of the field."""        
+        """Units of the field."""
         if 'units' in self.attrs:
             return self.attrs['units']
         else:
@@ -5139,7 +5139,7 @@ class NXgroup(NXobject):
     def get(self, name, default=None):
         """
         Retrieve the group entry.
-        
+
         This returns the default value if the entry doesn't exist.
         """
         try:
@@ -5690,7 +5690,7 @@ class NXgroup(NXobject):
     def validate(self, level='warning', application=None, definitions=None):
         """
         Validate the group against a NeXus application definition.
-        
+
         Note that this can only be used on NXroot and NXentry groups.
 
         Parameters
@@ -6028,10 +6028,7 @@ class NXlink(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
-        if obj._filename:
-            dpcpy._filename = copy(obj.nxfilename)
-        else:
-            dpcpy._filename = None
+        dpcpy._filename = copy(obj._filename)
         dpcpy._abspath = copy(obj._abspath)
         dpcpy._soft = copy(obj._soft)
         dpcpy._link = None
@@ -6092,7 +6089,7 @@ class NXlink(NXobject):
     @nxtarget.setter
     def nxtarget(self, value):
         if self.nxroot.nxfilemode != 'rw':
-            raise NeXusError("NeXus file opened as readonly") 
+            raise NeXusError("NeXus file opened as readonly")
         elif isinstance(value, NXlink):
             raise NeXusError("Cannot link to another NXlink object")
         elif is_text(value):
@@ -7937,7 +7934,7 @@ class NXdata(NXgroup):
     def nxcoordinates(self):
         """
         List of NXfields defined as signal coordinates.
-        
+
         Note that the use of the coordinates attribute is under
         discussion and has not been formally approved by the NeXus
         standard. However, the attribute can be added to NeXus files
@@ -8385,7 +8382,7 @@ nxsetlockdirectory = setlockdirectory
 def getmaxsize():
     """
     Return the default maximum array size in memory.
-    
+
     If the array size is larger than this value, it will be stored
     in core memory instead.
 

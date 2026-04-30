@@ -3465,37 +3465,36 @@ class NXfield(NXobject):
         if self.ndim != 1:
             raise NeXusError(
                 "NXfield must be one-dimensional to use the index function")
-        if self.nxdata[-1] < self.nxdata[0]:
-            flipped = True
-        else:
-            flipped = False
+        data = self.nxdata
+        count = len(data)
+        if count == 0:
+            return 0
+        flipped = data[-1] < data[0]
         if max:
             if flipped:
-                idx = np.max(len(self.nxdata) -
-                             len(self.nxdata[self.nxdata < value])-1, 0)
+                idx = np.maximum(count - np.count_nonzero(data < value) - 1, 0)
             else:
-                idx = np.max(len(self.nxdata) -
-                             len(self.nxdata[self.nxdata > value])-1, 0)
+                idx = np.maximum(count - np.count_nonzero(data > value) - 1, 0)
             try:
-                diff = value - self.nxdata[idx]
-                step = self.nxdata[idx+1] - self.nxdata[idx]
+                diff = value - data[idx]
+                step = data[idx+1] - data[idx]
                 if abs(diff/step) > 0.01:
-                    idx = idx + 1
-            except IndexError:
+                    idx += 1
+            except (IndexError, ZeroDivisionError):
                 pass
         else:
             if flipped:
-                idx = len(self.nxdata[self.nxdata > value])
+                idx = np.count_nonzero(data > value)
             else:
-                idx = len(self.nxdata[self.nxdata < value])
+                idx = np.count_nonzero(data < value)
             try:
-                diff = value - self.nxdata[idx-1]
-                step = self.nxdata[idx] - self.nxdata[idx-1]
+                diff = value - data[idx-1]
+                step = data[idx] - data[idx-1]
                 if abs(diff/step) < 0.99:
-                    idx = idx - 1
-            except IndexError:
+                    idx -= 1
+            except (IndexError, ZeroDivisionError):
                 pass
-        return int(np.clip(idx, 0, len(self.nxdata)-1))
+        return int(np.clip(idx, 0, count - 1))
 
     def __array__(self, *args, **kwargs):
         """Cast the NXfield as a NumPy array."""

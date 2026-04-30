@@ -266,15 +266,16 @@ def text(value):
     if isinstance(value, bytes):
         try:
             _text = value.decode(NX_CONFIG['encoding'])
-        except UnicodeDecodeError:
-            if NX_CONFIG['encoding'] == 'utf-8':
-                _text = value.decode('latin-1')
-            else:
-                _text = value.decode('utf-8')
+        except (UnicodeDecodeError, KeyError, LookupError):
+            import chardet
+            detected = chardet.detect(value)
+            encoding = detected['encoding']
+            if not encoding:
+                encoding = 'latin-1'
+            _text = value.decode(encoding, errors='replace')
     else:
         _text = str(value)
     return _text.replace('\x00', '').rstrip()
-
 
 def is_text(value):
     """

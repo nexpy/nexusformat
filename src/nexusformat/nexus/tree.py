@@ -4943,10 +4943,11 @@ class NXgroup(NXobject):
             elif isinstance(value, NXlink):
                 raise NeXusError(
                     "Cannot assign an NXlink to an existing group entry")
-            elif isinstance(group.entries[key], NXlink):
-                raise NeXusError("Cannot assign values to an NXlink")
             elif group.entries[key].is_linked():
                 raise NeXusError("Cannot modify an item in linked group")
+            elif isinstance(group.entries[key], NXlink):
+                group.entries[key].nxlink = value
+                return
             group.entries[key].nxdata = value
             if isinstance(value, NXfield):
                 group.entries[key]._setattrs(value.attrs)
@@ -5975,6 +5976,16 @@ class NXlink(NXobject):
             object.__setattr__(self, name, value)
         elif self.is_external():
             raise NeXusError("Cannot modify an external link")
+        elif name == 'nxlink':
+            obj = self.nxlink
+            if isinstance(obj, NXfield):
+                if obj._group is not None:
+                    obj._group[obj.nxname] = value
+                else:
+                    obj.nxdata = value
+                    obj.update()
+            else:
+                raise NeXusError("Cannot modify a linked group")
         else:
             try:
                 self.nxlink.setattr(name, value)

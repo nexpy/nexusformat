@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Copyright (c) 2019-2022, NeXpy Development Team.
+# Copyright (c) 2019-2026, NeXpy Development Team.
 #
 # Author: Paul Kienzle, Ray Osborn
 #

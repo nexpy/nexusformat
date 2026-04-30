@@ -4,7 +4,7 @@ import pytest
 from nexusformat.nexus import NXfield, NXentry, nxopen
 
 def test_encoding_detection(tmpdir):
-    
+
     filename = os.path.join(tmpdir, "encoding_test.nxs")
 
     latin1_text = "Café"

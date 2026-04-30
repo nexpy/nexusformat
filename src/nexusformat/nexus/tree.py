@@ -6017,10 +6017,7 @@ class NXlink(NXobject):
         memo[id(self)] = dpcpy
         dpcpy._name = copy(self.nxname)
         dpcpy._target = copy(obj._target)
-        if obj._filename:
-            dpcpy._filename = copy(obj.nxfilename)
-        else:
-            dpcpy._filename = None
+        dpcpy._filename = copy(obj._filename)
         dpcpy._abspath = copy(obj._abspath)
         dpcpy._soft = copy(obj._soft)
         dpcpy._link = None

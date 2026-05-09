@@ -7998,6 +7998,12 @@ class NXprocess(NXgroup):
             from datetime import datetime as dt
             self.date = dt.isoformat(dt.today())
 
+    def set_date(self, date=None):
+        """Set the date to a specific value."""
+        from datetime import datetime as dt
+        if date is None:
+            date = dt.today()
+        self.date = dt.isoformat(date)
 
 class NXnote(NXgroup):
 

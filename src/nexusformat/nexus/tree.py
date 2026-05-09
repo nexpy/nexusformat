@@ -4380,17 +4380,9 @@ class NXfield(NXobject):
         """
         Shape of NXfield for plotting.
 
-        Size-1 axes are removed from the shape for multidimensional
-        data.
+        Size-1 axes are removed from the shape.
         """
-        try:
-            _shape = list(self.shape)
-            if len(_shape) > 1:
-                while 1 in _shape:
-                    _shape.remove(1)
-            return tuple(_shape)
-        except Exception:
-            return ()
+        return tuple(s for s in self.shape if s > 1)
 
     @property
     def plot_rank(self):

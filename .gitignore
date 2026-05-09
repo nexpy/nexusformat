@@ -64,5 +64,8 @@ src/nexusformat/_version.py
 # miscellaneous system files
 .directoryhash
 
+# Claude settings
+.claude
+
 # uv
 uv.lock

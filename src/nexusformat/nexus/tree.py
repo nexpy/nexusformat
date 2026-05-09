@@ -6356,12 +6356,15 @@ class NXroot(NXgroup):
             Current NXroot instance.
         """
         if self.nxfile:
+            self._current_mode = self._mode
+            self._mode = self._file.mode = 'rw'
             self.nxfile.__enter__()
         return self
 
     def __exit__(self, *args):
         """Close the NeXus file."""
         if self.nxfile:
+            self._mode = self._file.mode = self._current_mode
             self.nxfile.__exit__()
 
     def serialize(self):

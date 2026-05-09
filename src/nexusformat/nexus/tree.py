@@ -2345,10 +2345,7 @@ class NXobject:
                 f.writefile(root)
                 root = f._root
                 root._file = f
-            if mode == 'w' or mode == 'w-':
-                root._mode = 'rw'
-            else:
-                root._mode = mode
+            root._mode = 'rw'
             self.set_changed()
             return root
         else:

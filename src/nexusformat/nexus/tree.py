@@ -7907,7 +7907,8 @@ class NXdata(NXgroup):
             signals = list(signals)
             if all(isinstance(signal, str) for signal in signals):
                 self.attrs['auxiliary_signals'] = signals
-            elif all(isinstance(signal, NXfield) for signal in signals):
+            elif all(isinstance(signal, NXfield) or
+                     isinstance(signal, NXlink)for signal in signals):
                 self.attrs['auxiliary_signals'] = [signal.nxname for signal
                                                    in signals]
             else:

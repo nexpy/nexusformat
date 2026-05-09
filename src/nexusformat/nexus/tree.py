@@ -8592,7 +8592,7 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         Data slice to be used in the virtual field, by default None
     """
 
-    if isinstance(files[0], str):
+    if isinstance(files[0], str) or isinstance(files[0], Path):
         files = [nxload(f) for f in files]
     if isinstance(data_path, NXdata):
         data_path = data_path.nxpath
@@ -8604,6 +8604,8 @@ def consolidate(files, data_path, scan_path=None, idx=None):
     else:
         scan_files = [f for f in files if data_path in f
                       and f[data_path].nxsignal.exists()]
+    if len(scan_files) == 0:
+        raise NeXusError(f'{data_path} not found in files')
     scan_file = scan_files[0]
     if scan_path:
         scan_values = [f[scan_path] for f in scan_files]
@@ -8618,15 +8620,18 @@ def consolidate(files, data_path, scan_path=None, idx=None):
     else:
         scan_axis = NXfield(range(len(scan_files)), name='file_index',
                             long_name='File Index')
-    signal = scan_file[data_path].nxsignal
     axes = scan_file[data_path].nxaxes
-    if idx is not None:
-        axes = [axis[s] for axis, s in zip(axes, idx)]
-    sources = [f[signal.nxpath].nxfilename for f in scan_files]
-    scan_field = NXvirtualfield(signal, sources, shape=signal.shape, idx=idx,
-                                name=signal.nxname)
-    scan_data = NXdata(scan_field, [scan_axis] + axes,
-                       name=scan_file[data_path].nxname)
+    for signal in [s for s in scan_file[data_path].nxsignals if s.exists()]:
+        if idx is not None:
+            axes = [axis[s] for axis, s in zip(axes, idx)]
+        sources = [f[signal.nxpath].nxfilename for f in scan_files]
+        scan_field = NXvirtualfield(signal, sources, shape=signal.shape,
+                                    idx=idx, name=signal.nxname)
+        if signal.nxname == scan_file[data_path].nxsignal.nxname:
+            scan_data = NXdata(scan_field, [scan_axis] + axes,
+                               name=scan_file[data_path].nxname)
+        else:
+            scan_data[signal.nxname] = scan_field
     scan_data.title = data_path
     return scan_data
 

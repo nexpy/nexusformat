@@ -4603,7 +4603,10 @@ class NXvirtualfield(NXfield):
         dpcpy._vidx = copy(obj._vidx)
         dpcpy._vpath = copy(obj._vpath)
         dpcpy._vfiles = copy(obj._vfiles)
-        shape = (len(obj._vfiles),) + slice_shape(obj._vidx, obj._vshape)
+        if obj._vidx:
+            shape = (len(obj._vfiles),) + slice_shape(obj._vidx, obj._vshape)
+        else:
+            shape = (len(obj._vfiles),) + obj._vshape
         dpcpy._create_virtual_data(shape=shape, idx=obj._vidx)
         dpcpy._h5opts = copy(obj._h5opts)
         dpcpy._changed = True

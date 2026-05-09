@@ -352,7 +352,7 @@ def natural_sort(key):
 
     Parameters
     ----------
-    key : str
+    key : str or Path
         String in the list to be sorted.
 
     Returns
@@ -360,7 +360,7 @@ def natural_sort(key):
     list
         List of components splitting embedded numbers as integers.
     """
-    return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', key)]
+    return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', str(key))]
 
 
 class NeXusError(Exception):

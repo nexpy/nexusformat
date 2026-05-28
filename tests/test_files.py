@@ -83,21 +83,10 @@ def test_file_context_manager(tmpdir, field1, field2):
     assert "axes" in w2["entry/data"].attrs
 
 
-def test_read_lazy_field_after_same_path_rewrap(tmpdir):
-    """A file-backed NXfield that has been deep-copied into a new
-    in-memory container at the same on-disk path used to raise
-    ``RuntimeError: destination object already exists`` when read,
-    because ``_get_uncopied_data`` asked HDF5 to copy the field onto
-    itself. This is the scenario hit by the nexpy PlotDialog when a
-    field inside an NXdata is selected as the signal: the dialog
-    wraps it in a fresh NXdata with the same name and reparents to
-    the original grandparent, so the wrapped field's nxpath collides
-    with the source. The field must be large enough to stay
-    lazy-loaded (``_value is None``) so the deepcopy preserves the
-    ``_uncopied_data`` reference.
-    """
+def test_read_lazy_field_on_copy(tmpdir):
+
     filename = os.path.join(tmpdir, "file.nxs")
-    shape = (2000, 2000)  # big enough to stay lazy-loaded
+    shape = (2000, 2000)
     root = NXroot(NXentry(NXdata(
         NXfield(np.zeros(shape, dtype=np.int64), name="signal"),
         name="data")))
@@ -108,10 +97,6 @@ def test_read_lazy_field_after_same_path_rewrap(tmpdir):
 
     root = nxload(filename, "rw")
     src = root["entry/data"]
-    # Mimic PlotDialog: wrap the mask in a new NXdata named after the
-    # original group, reparented to the entry. The wrapped field
-    # ends up at /entry/data/signal_mask -- the same path as the
-    # source.
     wrapper = NXdata(src["signal_mask"], name=src.nxname)
     wrapper.nxgroup = src.nxgroup
     field = wrapper.nxsignal

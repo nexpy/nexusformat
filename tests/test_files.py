@@ -1,8 +1,9 @@
 import os
 
+import numpy as np
 import pytest
-from nexusformat.nexus.tree import (NXdata, NXentry, NXFile, NXroot, nxload,
-                                    nxopen)
+from nexusformat.nexus.tree import (NXdata, NXentry, NXfield, NXFile, NXroot,
+                                    nxload, nxopen)
 
 
 def test_file_creation(tmpdir):
@@ -80,3 +81,29 @@ def test_file_context_manager(tmpdir, field1, field2):
     assert "entry/data/f2" in w2
     assert "signal" in w2["entry/data"].attrs
     assert "axes" in w2["entry/data"].attrs
+
+
+def test_read_lazy_field_on_copy(tmpdir):
+
+    filename = os.path.join(tmpdir, "file.nxs")
+    shape = (2000, 2000)
+    root = NXroot(NXentry(NXdata(
+        NXfield(np.zeros(shape, dtype=np.int64), name="signal"),
+        name="data")))
+    root["entry/data/signal_mask"] = NXfield(np.zeros(shape, dtype=bool))
+    root["entry/data/signal"].attrs["mask"] = "signal_mask"
+    root.save(filename, mode="w")
+    del root
+
+    root = nxload(filename, "rw")
+    src = root["entry/data"]
+    wrapper = NXdata(src["signal_mask"], name=src.nxname)
+    wrapper.nxgroup = src.nxgroup
+    field = wrapper.nxsignal
+    assert field._uncopied_data is not None
+    assert field._uncopied_data[1] == field.nxpath
+
+    arr = field[()]
+    assert arr.shape == shape
+    assert arr.dtype == bool
+    assert field._uncopied_data is None

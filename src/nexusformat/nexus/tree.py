@@ -3286,7 +3286,16 @@ class NXfield(NXobject):
                 return f.readvalue(_path, idx=idx)
             else:
                 if self.nxfilemode == 'rw':
-                    f.copy(_path, self.nxpath)
+                    # Skip the copy if the field already lives at the
+                    # destination path. This happens when a file-backed
+                    # field is deep-copied into a new container that
+                    # ends up at the same on-disk location (e.g. the
+                    # PlotDialog wraps a field in an in-memory NXdata
+                    # whose nxpath collides with the source). HDF5
+                    # otherwise raises 'destination object already
+                    # exists' here.
+                    if _path != self.nxpath:
+                        f.copy(_path, self.nxpath)
                 else:
                     self._create_memfile()
                     f.copy(_path, self._memfile, name='data')

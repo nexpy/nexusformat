@@ -542,9 +542,11 @@ class NXFile:
 
     def __exit__(self, *args):
         """Close the NeXus file and, if necessary, release the lock."""
-        if self._with_count == 1:
-            self.close()
-        self._with_count -= 1
+        try:
+            if self._with_count == 1:
+                self.close()
+        finally:
+            self._with_count -= 1
 
     def __del__(self):
         """Close the file and delete the NXFile instance."""
@@ -721,9 +723,11 @@ class NXFile:
         -----
         The file modification time of the root object is updated.
         """
-        if self.is_open():
-            self._file.close()
-        self.release_lock()
+        try:
+            if self.is_open():
+                self._file.close()
+        finally:
+            self.release_lock()
         try:
             self._root._mtime = self.mtime
         except Exception:

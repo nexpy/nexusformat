@@ -4886,7 +4886,7 @@ class NXgroup(NXobject):
         try:
             path = PurePath(str(key))
         except TypeError:
-            raise NeXusError("Invalid index")
+            raise NeXusError(f"'{key}' is an invalid index")
         if path.is_absolute():
             node = self.nxroot
             path = path.relative_to('/')
@@ -4896,7 +4896,7 @@ class NXgroup(NXobject):
             try:
                 node = node.entries[name]
             except KeyError:
-                raise NeXusError("Invalid path")
+                raise NeXusError(f"'{path}' is an invalid path")
         return node
 
     def __setitem__(self, key, value):
@@ -5007,7 +5007,7 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        raise NeXusError("Invalid path")
+                        raise NeXusError(f"'{key}' is an invalid path")
             if key not in group:
                 raise NeXusError("'"+key+"' not in "+group.nxpath)
             elif group[key].is_linked():

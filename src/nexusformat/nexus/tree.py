@@ -542,9 +542,11 @@ class NXFile:
 
     def __exit__(self, *args):
         """Close the NeXus file and, if necessary, release the lock."""
-        if self._with_count == 1:
-            self.close()
-        self._with_count -= 1
+        try:
+            if self._with_count == 1:
+                self.close()
+        finally:
+            self._with_count -= 1
 
     def __del__(self):
         """Close the file and delete the NXFile instance."""
@@ -721,9 +723,11 @@ class NXFile:
         -----
         The file modification time of the root object is updated.
         """
-        if self.is_open():
-            self._file.close()
-        self.release_lock()
+        try:
+            if self.is_open():
+                self._file.close()
+        finally:
+            self.release_lock()
         try:
             self._root._mtime = self.mtime
         except Exception:
@@ -4886,7 +4890,7 @@ class NXgroup(NXobject):
         try:
             path = PurePath(str(key))
         except TypeError:
-            raise NeXusError("Invalid index")
+            raise NeXusError(f"'{key}' is an invalid index")
         if path.is_absolute():
             node = self.nxroot
             path = path.relative_to('/')
@@ -4896,7 +4900,7 @@ class NXgroup(NXobject):
             try:
                 node = node.entries[name]
             except KeyError:
-                raise NeXusError("Invalid path")
+                raise NeXusError(f"'{path}' is an invalid path")
         return node
 
     def __setitem__(self, key, value):
@@ -5007,7 +5011,7 @@ class NXgroup(NXobject):
                     if name in group:
                         group = group[name]
                     else:
-                        raise NeXusError("Invalid path")
+                        raise NeXusError(f"'{key}' is an invalid path")
             if key not in group:
                 raise NeXusError("'"+key+"' not in "+group.nxpath)
             elif group[key].is_linked():

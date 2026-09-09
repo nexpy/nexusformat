@@ -174,3 +174,68 @@ def test_stale_locks(tmpdir):
 
     assert not root.nxfile.locked
     assert not root.nxfile.is_locked()
+
+
+def test_lock_file_removed_on_release(tmpdir):
+    """The lock file must not be left behind by a leaked file handle.
+
+    On Windows, a second open handle to the lock file prevents it from
+    being removed when the lock is released.
+    """
+    nxsetconfig(lock=2)
+    filename = os.path.join(tmpdir, "file1.nxs")
+    lock = NXLock(filename)
+
+    lock.acquire()
+
+    assert lock.locked
+    assert os.path.exists(lock.lock_file)
+    with open(lock.lock_file) as f:
+        assert f.read() == lock.addr
+
+    lock.release()
+
+    assert not lock.locked
+    assert not os.path.exists(lock.lock_file)
+
+    # The lock must be re-acquirable, which fails if the file remains.
+    lock.acquire()
+
+    assert lock.locked
+
+    lock.release()
+
+    assert not os.path.exists(lock.lock_file)
+
+
+def test_lock_release_survives_removal_error(tmpdir, monkeypatch):
+    """A PermissionError when removing the lock file must not propagate."""
+    nxsetconfig(lock=2)
+    filename = os.path.join(tmpdir, "file1.nxs")
+    lock = NXLock(filename)
+    lock.acquire()
+
+    def denied(path):
+        raise PermissionError(13, 'Access is denied')
+
+    monkeypatch.setattr(os, 'remove', denied)
+
+    lock.release()
+
+    assert lock.fd is None
+
+
+def test_lock_clear_survives_removal_error(tmpdir, monkeypatch):
+    """clear() must not propagate a PermissionError from an external lock."""
+    nxsetconfig(lock=2)
+    filename = os.path.join(tmpdir, "file1.nxs")
+    lock = NXLock(filename)
+    with open(lock.lock_file, 'w') as f:
+        f.write('999@elsewhere')
+
+    def denied(path):
+        raise PermissionError(13, 'Access is denied')
+
+    monkeypatch.setattr(os, 'remove', denied)
+
+    lock.clear()

@@ -3206,7 +3206,9 @@ class NXfield(NXobject):
     def _create_memfile(self):
         """Create an HDF5 core memory file to store the data."""
         import tempfile
-        self._memfile = h5.File(tempfile.mkstemp(suffix='.nxs')[1], mode='r+',
+        fd, memfile_name = tempfile.mkstemp(suffix='.nxs')
+        os.close(fd)
+        self._memfile = h5.File(memfile_name, mode='r+',
                                 driver='core', backing_store=False).file
 
     def _create_memdata(self):
@@ -6469,7 +6471,9 @@ class NXroot(NXgroup):
             prefix = Path(self.nxfilename).stem
             suffix = Path(self.nxfilename).suffix
             prefix = prefix + '_backup_'
-            backup = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=dir)[1]
+            fd, backup = tempfile.mkstemp(prefix=prefix, suffix=suffix,
+                                          dir=dir)
+            os.close(fd)
         else:
             if dir is not None:
                 filename = Path(dir).joinpath(filename)

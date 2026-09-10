@@ -125,20 +125,15 @@ class NXLock:
         initial_attempt = True
         while timeoutend > timeit.default_timer():
             try:
-                # Attempt to create the lockfile. If it already exists,
-                # then someone else has the lock and we need to wait
                 self.fd = os.open(self.lock_file,
                                   os.O_CREAT | os.O_EXCL | os.O_RDWR)
                 os.write(self.fd, self.addr.encode())
                 try:
                     os.chmod(self.lock_file, 0o777)
                 except OSError:
-                    # File modes are not meaningful on all platforms and
-                    # should not prevent the lock from being acquired.
                     pass
                 break
             except OSError as e:
-                # Only catch if the lockfile already exists
                 if e.errno != errno.EEXIST:
                     raise
                 # Remove the lockfile if it is older than one day
@@ -147,7 +142,6 @@ class NXLock:
                         self.clear()
                     initial_attempt = False
                 time.sleep(check_interval)
-        # Raise an error if we had to wait for too long
         else:
             self.fd = None
             raise NXLockException(
@@ -166,8 +160,6 @@ class NXLock:
             try:
                 os.remove(self.lock_file)
             except OSError:
-                # On Windows, removal fails if another process still has
-                # the lock file open. The lock is released either way.
                 pass
             self.fd = None
 
@@ -196,8 +188,6 @@ class NXLock:
             try:
                 os.remove(self.lock_file)
             except OSError:
-                # On Windows, removal fails if the external process that
-                # created the lock file still has it open.
                 pass
 
     def wait(self, timeout=None, check_interval=None):

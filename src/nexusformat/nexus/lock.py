@@ -83,7 +83,7 @@ class NXLock:
         else:
             self.lock_file = self.filename.with_suffix(suffix)
         self.pid = os.getpid()
-        self.addr = f"{self.pid}@{socket.gethostname}"
+        self.addr = f"{self.pid}@{socket.gethostname()}"
         self.fd = None
 
     def __repr__(self):

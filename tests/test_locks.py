@@ -1,4 +1,5 @@
 import os
+import socket
 import time
 
 import pytest
@@ -191,7 +192,7 @@ def test_lock_file_removed_on_release(tmpdir):
     assert lock.locked
     assert os.path.exists(lock.lock_file)
     with open(lock.lock_file) as f:
-        assert f.read() == lock.addr
+        assert f.read() == f"{os.getpid()}@{socket.gethostname()}"
 
     lock.release()
 

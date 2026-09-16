@@ -752,6 +752,9 @@ class FieldValidator(Validator):
                              f'should be {rank}')
         if 'dim' in dimensions:
             for i, s in dimensions['dim'].items():
+                required = dimensions.get('required', {}).get(i, 'true')
+                if len(field.shape) < i and required in ('false', '0'):
+                    continue
                 if s in self.parent.symbols:
                     if len(field.shape) > i-1:
                         self.parent.symbols[s].update(

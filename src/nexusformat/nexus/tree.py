@@ -212,6 +212,7 @@ import os
 import re
 import sys
 import warnings
+import zlib
 from copy import copy, deepcopy
 from pathlib import Path
 from pathlib import PurePosixPath as PurePath
@@ -564,6 +565,23 @@ class NXFile:
         return Path(self._filename).stat().st_mtime
 
     @property
+    def size(self):
+        """Return the size of the NeXus file in bytes."""
+        return Path(self._filename).stat().st_size
+
+    def file_hash(self, nbytes=65536):
+        """Return a fast hash of the leading bytes of the NeXus file.
+
+        Computes an Adler-32 checksum over the first `nbytes` of the file
+        (default 64 KB). This is used as a secondary modification check when
+        the filesystem mtime has changed but the file size has not, which
+        can happen when a file is opened in write mode without any data being
+        written.
+        """
+        with open(self._filename, 'rb') as f:
+            return zlib.adler32(f.read(nbytes))
+
+    @property
     def lock(self):
         """
         Return the NXLock instance to be used in file locking.
@@ -713,6 +731,7 @@ class NXFile:
                 self._file = self.h5.File(self._filename, self._mode, **kwargs)
             if self._root:
                 self._root._mtime = self.mtime
+                self._root._file_size = self.size
             self.nxpath = '/'
 
     def close(self):
@@ -730,6 +749,8 @@ class NXFile:
             self.release_lock()
         try:
             self._root._mtime = self.mtime
+            self._root._file_size = self.size
+            self._root._file_hash = self.file_hash()
         except Exception:
             pass
 
@@ -1424,6 +1445,7 @@ class NXFile:
         self._root._changed = True
         self._root._file_modified = False
         self._root._mtime = self.mtime
+        self._root._file_size = self.size
 
     def rename(self, old_path, new_path):
         """
@@ -6351,6 +6373,8 @@ class NXroot(NXgroup):
         self._class = 'NXroot'
         self._backup = None
         self._mtime = None
+        self._file_size = None
+        self._file_hash = None
         self._file_modified = False
         NXgroup.__init__(self, *args, **kwargs)
 
@@ -6386,6 +6410,7 @@ class NXroot(NXgroup):
         """Serialize the root group to a dictionary."""
         serialized_root = super().serialize()
         serialized_root['mtime'] = self.mtime
+        serialized_root['file_size'] = self._file_size
         return serialized_root
 
     @classmethod
@@ -6393,6 +6418,7 @@ class NXroot(NXgroup):
         """Deserialize the root group from a dictionary."""
         obj = NXgroup.deserialize(serialized_root)
         obj._mtime = serialized_root['mtime']
+        obj._file_size = serialized_root.get('file_size')
         if ('filename' in serialized_root and
                 Path(serialized_root['filename']).is_file()):
             obj._file = NXFile(obj._filename, 'r')
@@ -6409,13 +6435,40 @@ class NXroot(NXgroup):
                 f"'{self.nxname}' has no associated file to reload")
 
     def is_modified(self):
-        """True if the file has been modified by an external process."""
+        """True if the file has been modified by an external process.
+
+        Uses a three-stage check to reduce false positives from operations
+        that update the filesystem mtime without changing the file content
+        (e.g., opening the file in write mode without writing anything):
+
+        1. If the filesystem mtime has not advanced, the file is not modified.
+        2. If the mtime *has* advanced but the file size is unchanged *and*
+           the leading 64 KB of the file hash to the same value as when the
+           file was last opened or closed, the mtime change is treated as a
+           false positive and the file is considered unmodified.
+        3. Only if the mtime advanced *and* either the size changed or the
+           leading-bytes hash differs is the file reported as modified.
+        """
         if self._file is None:
             self._file_modified = False
         else:
-            _mtime = self._file.mtime
+            _stat = Path(self._file.filename).stat()
+            _mtime = _stat.st_mtime
             if self._mtime and _mtime > self._mtime:
-                self._file_modified = True
+                _size = _stat.st_size
+                if self._file_size is not None and _size == self._file_size:
+                    try:
+                        _hash = self._file.file_hash()
+                    except PermissionError:
+                        self._file_modified = True
+                        return self._file_modified
+                    if (self._file_hash is not None and
+                            _hash == self._file_hash):
+                        self._file_modified = False
+                    else:
+                        self._file_modified = True
+                else:
+                    self._file_modified = True
             else:
                 self._file_modified = False
         return self._file_modified
@@ -6576,6 +6629,8 @@ class NXroot(NXgroup):
             self._attrs._setattrs(root.attrs)
             self._file = NXFile(self._filename, self._mode)
             self._mtime = self._file.mtime
+            self._file_size = self._file.size
+            self._file_hash = self._file.file_hash()
             self.set_changed()
         else:
             raise NeXusError(f"'{Path(filename).resolve()}' does not exist")

@@ -31,6 +31,7 @@ dependencies = [
     "colored",
     "h5py",
     "hdf5plugin",
+    "lxml",
     "numpy",
     "packaging",
     "pygments",
@@ -52,6 +53,8 @@ Changelog = "https://github.com/nexpy/nexusformat/releases"
 [project.scripts]
 nexusformat = "nexusformat.scripts.nexusformat:main"
 nxcheck = "nexusformat.scripts.nxcheck:main"
+nxlint = "nexusformat.scripts.nxlint:main"
+nxvalidate = "nexusformat.scripts.nxvalidate:main"
 nxconsolidate = "nexusformat.scripts.nxconsolidate:main"
 nxdir = "nexusformat.scripts.nxdir:main"
 nxduplicate = "nexusformat.scripts.nxduplicate:main"
@@ -62,6 +65,7 @@ nxstack = "nexusformat.scripts.nxstack:main"
 version_file = "src/nexusformat/_version.py"
 
 [tool.setuptools.package-data]
+"nexusformat.definitions" = ["*.xsd"]
 "nexusformat.definitions.applications" = ["*.nxdl.xml"]
 "nexusformat.definitions.base_classes" = ["*.nxdl.xml"]
 "nexusformat.definitions.contributed_definitions" = ["*.nxdl.xml"]

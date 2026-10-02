@@ -1011,7 +1011,11 @@ def validate_file(filename, path=None, definitions=None):
 
     log_header(validator, filename=filename, path=path)
 
-    validator.validate(path)
+    try:
+        validator.validate(path)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     return log_summary()
 

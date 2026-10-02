@@ -13,7 +13,7 @@ https://stackoverflow.com/a/48980995/1046449 -->
 			..
 				NeXus - Neutron and X-ray Common Data Format
 
-				Copyright (C) 2008-2024 NeXus International Advisory Committee (NIAC)
+				Copyright (C) 2008-2026 NeXus International Advisory Committee (NIAC)
 				 
 				This library is free software; you can redistribute it and/or
 				modify it under the terms of the GNU Lesser General Public
@@ -507,7 +507,7 @@ https://stackoverflow.com/a/48980995/1046449 -->
 				</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
-		<xs:attribute name="maxOccurs" use="optional" type="nx:nonNegativeUnbounded">
+		<xs:attribute name="maxOccurs" use="optional" type="nx:nonNegativeUnbounded" default="unbounded">
 			<xs:annotation>
 				<xs:documentation>
 					Maximum number of times this ``group`` is allowed to be present within its
@@ -843,7 +843,7 @@ https://stackoverflow.com/a/48980995/1046449 -->
 						</xs:documentation>
 					</xs:annotation>
 				</xs:attribute>
-				<xs:attribute name="maxOccurs" use="optional"  default="1" type="nx:nonNegativeUnbounded">
+				<xs:attribute name="maxOccurs" use="optional" default="unbounded" type="nx:nonNegativeUnbounded">
 					<xs:annotation>
 						<xs:documentation>
 							Defines the maximum number of times this element may be used.  Its

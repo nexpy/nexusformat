@@ -6,6 +6,7 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -1212,34 +1213,144 @@ def validate_application(filename, path=None, application=None,
         A tuple containing the total number of warnings and errors
         encountered while validating the file.
     """
-    with nxopen(filename) as root:
-        if path is None:
-            nxpath = root.NXentry[0].nxpath
-        else:
-            nxpath = path
-        entry = root[nxpath]
-        if not (isinstance(entry, NXentry) or isinstance(entry, NXsubentry)):
-            logger.error(
-                f'Path "{nxpath}" is not a NXentry or NXsubentry group')
-            return
-        elif application is None and 'definition' in entry:
-            application = entry['definition'].nxvalue
-        elif application is None:
-            logger.error(f'No application definition is defined in "{nxpath}"')
-            return
+    if not Path(filename).exists():
+        logger.error(f'File "{filename}" does not exist')
+        return
+    try:
+        with nxopen(filename) as root:
+            if path is None:
+                nxpath = root.NXentry[0].nxpath
+            else:
+                nxpath = path
+            entry = root[nxpath]
+            if not (isinstance(entry, NXentry)
+                    or isinstance(entry, NXsubentry)):
+                logger.error(
+                    f'Path "{nxpath}" is not a NXentry or NXsubentry group')
+                return
+            elif application is None and 'definition' in entry:
+                application = entry['definition'].nxvalue
+            elif application is None:
+                logger.error(
+                    f'No application definition is defined in "{nxpath}"')
+                return
 
-        try:
-            validator = ApplicationValidator(application,
-                                             definitions=definitions)
-        except NeXusError as e:
-            logger.error(e)
-            return
+            try:
+                validator = ApplicationValidator(application,
+                                                 definitions=definitions)
+            except NeXusError as e:
+                logger.error(e)
+                return
 
-        log_header(validator, filename, nxpath, application)
+            log_header(validator, filename, nxpath, application)
 
-        validator.validate(entry)
+            lint_results = lint_nxdl(validator.filepath,
+                                     definitions=definitions)
+            if lint_results:
+                n_errors = sum(
+                    1 for _, _, sev in lint_results if sev == 'error')
+                n_warnings = sum(
+                    1 for _, _, sev in lint_results if sev == 'warning')
+                issues = []
+                if n_errors:
+                    issues.append(f'{n_errors} error(s)')
+                if n_warnings:
+                    issues.append(f'{n_warnings} warning(s)')
+                if Path(application).exists():
+                    nxlint_cmd = f'nxlint {application}'
+                elif definitions:
+                    nxlint_cmd = f'nxlint -d {definitions} {application}'
+                else:
+                    nxlint_cmd = f'nxlint {application}'
+                logger.warning(
+                    f'The application definition has '
+                    f'{" and ".join(issues)} that may affect validation. '
+                    f'Run \'{nxlint_cmd}\' for details.')
+
+            validator.validate(entry)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     return log_summary()
+
+
+def lint_nxdl(filepath, definitions=None):
+    """
+    Checks an NXDL file for structural errors.
+
+    Performs validation using lxml against the nxdl.xsd schema file, if
+    it is present in the definitions directory, and also checks for the
+    most common NXDL authoring errors: nested <field> elements.
+
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to the NXDL file to lint.
+    definitions : str or Path, optional
+        Path to the NeXus definitions directory (used to locate nxdl.xsd).
+        Defaults to the bundled definitions.
+
+    Returns
+    -------
+    list of tuple
+        A list of (message, location_hint, severity) tuples where severity is
+        'error' or 'warning'. An empty list means no issues were found.
+    """
+    filepath = Path(filepath)
+    if not filepath.exists():
+        stem = filepath.stem if filepath.suffix else filepath.name
+        defs = get_definitions(definitions=definitions)
+        for search_dir in [defs / 'applications',
+                           defs / 'contributed_definitions',
+                           defs / 'base_classes']:
+            candidate = search_dir / f'{stem}.nxdl.xml'
+            if candidate.exists():
+                filepath = candidate
+                break
+        else:
+            return [(f'NXDL definition "{stem}" not found in the definitions '
+                     f'directory', str(defs), 'error')]
+    from lxml import etree as lxml_etree
+
+    filepath = filepath.resolve()
+    results = []
+
+    try:
+        doc = lxml_etree.parse(str(filepath))
+    except lxml_etree.XMLSyntaxError as e:
+        return [(f'XML syntax error: {e}', str(filepath), 'error')]
+
+    def walk(elem):
+        local = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+        if local == 'field':
+            field_name = elem.get('name', '(unnamed)')
+            for child in elem:
+                child_local = (child.tag.split('}')[-1]
+                               if '}' in child.tag else child.tag)
+                if child_local == 'field':
+                    child_name = child.get('name', '(unnamed)')
+                    results.append((
+                        f'Nested <field name="{child_name}"> inside '
+                        f'<field name="{field_name}"> is not allowed; '
+                        f'use <attribute> instead',
+                        f'line {child.sourceline}', 'error'))
+        for child in elem:
+            walk(child)
+
+    walk(doc.getroot())
+
+    definitions_path = get_definitions(definitions=definitions)
+    xsd_path = definitions_path / 'nxdl.xsd'
+    if xsd_path.exists():
+        schema = lxml_etree.XMLSchema(lxml_etree.parse(str(xsd_path)))
+        if not schema.validate(doc):
+            for err in schema.error_log:
+                msg = re.sub(r'\{[^}]+\}', '', err.message)
+                results.append((msg, f'line {err.line}', 'error'))
+
+    results.sort(key=lambda r: int(r[1].split()[-1]))
+    return results
 
 
 def inspect_base_class(base_class, definitions=None):
@@ -1263,7 +1374,7 @@ def inspect_base_class(base_class, definitions=None):
         log(f"NXDL File: {truncate_path(validator.filepath)}\n")
     else:
         log(f'NXDL file for "{base_class}" does not exist')
-        log(f"Definitions: {truncate_path(validator.filepath)}\n")
+        log(f"Definitions: {truncate_path(validator.definitions)}\n")
         return
 
     tree = ET.parse(validator.filepath)

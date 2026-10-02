@@ -1322,10 +1322,14 @@ def lint_nxdl(filepath, definitions=None):
         return [(f'XML syntax error: {e}', str(filepath), 'error')]
 
     def walk(elem):
+        if callable(elem.tag):  # skip comments, PIs, and other non-elements
+            return
         local = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
         if local == 'field':
             field_name = elem.get('name', '(unnamed)')
             for child in elem:
+                if callable(child.tag):
+                    continue
                 child_local = (child.tag.split('}')[-1]
                                if '}' in child.tag else child.tag)
                 if child_local == 'field':

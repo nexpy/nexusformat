@@ -123,6 +123,19 @@ class Validator():
         else:
             target = item._target
         if item.exists():
+            if not item.is_external() and isinstance(item, NXlink):
+                try:
+                    resolved = item.nxlink
+                    if isinstance(resolved, NXlink) and not resolved.exists():
+                        chain_target = (
+                            f'{resolved._filename}[{resolved._target}]'
+                            if resolved.is_external() else resolved._target)
+                        self.log(f'This is a broken link to "{target}", '
+                                 f'which itself links to "{chain_target}"',
+                                 level='error')
+                        return False
+                except Exception:
+                    pass
             if isinstance(item, NXfield):
                 self.log(f'This field is linked to "{target}"', level='info')
             elif isinstance(item, NXgroup):

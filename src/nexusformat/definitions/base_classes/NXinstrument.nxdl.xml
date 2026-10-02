@@ -60,7 +60,6 @@
     <group type="NXfermi_chopper" />
     <group type="NXfilter" />
     <group type="NXflipper" />
-    <group type="NXgoniometer" />
     <group type="NXguide" />
     <group type="NXhistory"/>
     <group type="NXinsertion_device" />
@@ -74,4 +73,5 @@
     <group type="NXtransformations" name="DIFFRACTOMETER" />
     <group type="NXvelocity_selector" />
     <group type="NXxraylens" />
+    <group type="NXenvironment" />
 </definition>

@@ -27,13 +27,14 @@ class NXLock:
 
     Attributes
     ----------
-    lock_file : str
-        Name of the lock file. This has the extension `.lock` appended to
+    lock_file : Path
+        Path of the lock file. This has the extension `.lock` appended to
         the name of the locked file.
     pid : int
         Current process id.
-    fd : int
-        File descriptor of the opened lock file.
+    fd : int or None
+        File descriptor of the opened lock file, or None if the lock is not
+        held by this process.
     """
 
     def __init__(self, filename, timeout=None, check_interval=1, expiry=28800,
@@ -62,6 +63,7 @@ class NXLock:
         """
         from .tree import nxgetconfig
 
+        self.fd = None
         self.filename = Path(filename).resolve()
         suffix = self.filename.suffix + '.lock'
         if timeout is None:
@@ -84,7 +86,6 @@ class NXLock:
             self.lock_file = self.filename.with_suffix(suffix)
         self.pid = os.getpid()
         self.addr = f"{self.pid}@{socket.gethostname()}"
-        self.fd = None
 
     def __repr__(self):
         return f"NXLock('{self.filename.name}', pid={self.addr})"
@@ -141,7 +142,7 @@ class NXLock:
                     if self.is_stale(expiry=expiry):
                         self.clear()
                     initial_attempt = False
-                time.sleep(check_interval)
+                time.sleep(max(check_interval, 0.1))
         else:
             self.fd = None
             raise NXLockException(
@@ -156,7 +157,10 @@ class NXLock:
         This will only work if the lock was created by the current process.
         """
         if self.fd is not None:
-            os.close(self.fd)
+            try:
+                os.close(self.fd)
+            except OSError:
+                pass
             try:
                 os.remove(self.lock_file)
             except OSError:
@@ -216,7 +220,7 @@ class NXLock:
                 check_interval = self.check_interval
             timeoutend = timeit.default_timer() + timeout
             while timeoutend > timeit.default_timer():
-                time.sleep(check_interval)
+                time.sleep(max(check_interval, 0.1))
                 if not self.lock_file.exists():
                     break
             else:
@@ -225,7 +229,7 @@ class NXLock:
         return
 
     def is_stale(self, expiry=None):
-        """Return True if the lock file is older than one day.
+        """Return True if the lock file is older than `expiry` seconds.
 
         If the lock file has been cleared before this check, the
         function returns False to enable another attempt to acquire it.
@@ -238,7 +242,8 @@ class NXLock:
             return False
 
     def __enter__(self):
-        return self.acquire()
+        self.acquire()
+        return self
 
     def __exit__(self, *args):
         self.release()

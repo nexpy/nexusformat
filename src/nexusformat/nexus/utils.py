@@ -422,8 +422,11 @@ def xml_to_dict(element):
             result[child.tag]['dim'] = {}
             for item in [c for c in child if c.tag == 'dim']:
                 if 'index' in item.attrib and 'value' in item.attrib:
-                    result[child.tag]['dim'].update(
-                        {int(item.attrib['index']): item.attrib['value']})
+                    index = int(item.attrib['index'])
+                    result[child.tag]['dim'][index] = item.attrib['value']
+                    if 'required' in item.attrib:
+                        result[child.tag].setdefault('required', {})[index] = (
+                            item.attrib['required'])
         else:
             child_dict = convert_xml_dict(xml_to_dict(child))
             if child.tag in result:

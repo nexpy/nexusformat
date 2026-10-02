@@ -232,6 +232,7 @@ class GroupValidator(Validator):
         """
         super().__init__(definitions=definitions)
         self.nxclass = nxclass
+        self.symbols = {}
         if self.nxclass is None or self.nxclass == 'NXgroup':
             self.xml_dict = None
             self.valid_class = False
@@ -293,7 +294,7 @@ class GroupValidator(Validator):
                 xml_extended_dict = parent_validator.get_xml_dict()
                 xml_dict = merge_dicts(xml_dict, xml_extended_dict)
             if 'symbols' in xml_dict:
-                self.symbols = xml_dict['symbols']['symbol']
+                self.symbols = xml_dict['symbols'].get('symbol', {})
             else:
                 self.symbols = {}
         else:
@@ -561,8 +562,8 @@ class GroupValidator(Validator):
                                              definitions=self.definitions)
             parsed = False
             if group.nxname in parent_validator.valid_groups:
-                cls = parent_validator.valid_groups[group.nxname]['@type']
-                if group.nxclass != cls:
+                cls = parent_validator.valid_groups[group.nxname].get('@type')
+                if cls is not None and group.nxclass != cls:
                     self.log(f'{group.nxname} should have a class of '
                              f'{cls}, not {group.nxclass}', level='error')
                 parsed = True
@@ -1057,7 +1058,7 @@ class ApplicationValidator(Validator):
                 'does not contain the correct root tag.')
         symbols = xml_root.find('symbols')
         if symbols is not None:
-            self.symbols.update(xml_to_dict(symbols)['symbol'])
+            self.symbols.update(xml_to_dict(symbols).get('symbol', {}))
         xml_dict = xml_to_dict(xml_root.find('group'))
         if xml_root.attrib['extends'] != 'NXobject':
             xml_extended_dict = self.load_application(

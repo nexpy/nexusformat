@@ -414,7 +414,8 @@ def xml_to_dict(element):
         if child.tag == 'doc' and child.text:
             result[child.tag] = re.sub(r'[\t\n]+', ' ', child.text.strip())
         elif child.tag == 'enumeration':
-            result[child.tag] = [item.attrib['value'] for item in child]
+            result[child.tag] = [item.attrib['value'] for item in child
+                                 if 'value' in item.attrib]
         elif child.tag == 'dimensions':
             result[child.tag] =  {}
             if 'rank' in child.attrib:
@@ -422,7 +423,10 @@ def xml_to_dict(element):
             result[child.tag]['dim'] = {}
             for item in [c for c in child if c.tag == 'dim']:
                 if 'index' in item.attrib and 'value' in item.attrib:
-                    index = int(item.attrib['index'])
+                    try:
+                        index = int(item.attrib['index'])
+                    except ValueError:
+                        continue
                     result[child.tag]['dim'][index] = item.attrib['value']
                     if 'required' in item.attrib:
                         result[child.tag].setdefault('required', {})[index] = (

@@ -22,6 +22,60 @@ from .utils import (check_dimension_sizes, check_nametype, get_definitions,
 logger = get_logger()
 
 validators = {}
+extending = set()
+
+
+def parse_nxdl(filepath):
+    """
+    Parses an NXDL file and returns its root element.
+
+    Parameters
+    ----------
+    filepath : Path
+        The path to the NXDL file.
+
+    Returns
+    -------
+    root : ElementTree.Element
+        The root element of the NXDL file with namespaces stripped.
+
+    Raises
+    ------
+    NeXusError
+        If the file cannot be read, is not well-formed XML, or does not
+        have a <definition> root element.
+    """
+    try:
+        root = ET.parse(filepath).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise NeXusError(f'Unable to parse NXDL file "{filepath}": {error}')
+    strip_namespace(root)
+    if root.tag != 'definition':
+        raise NeXusError(
+            f'The NXDL file "{filepath}" does not contain the correct '
+            'root tag.')
+    return root
+
+
+def is_true(value):
+    """
+    Returns True if an NXDL boolean attribute value is true.
+    """
+    return str(value).lower() in ('true', '1')
+
+
+def valid_items(items, log=None):
+    """
+    Returns the items that are dictionaries, i.e., that are named elements.
+
+    If an element in an NXDL file has no name, its contents are merged
+    into the parent dictionary, so those entries are not dictionaries.
+    """
+    valid = {k: v for k, v in items.items() if isinstance(v, dict)}
+    if log is not None and len(valid) < len(items):
+        log('The NXDL file contains an element without a name',
+            level='error')
+    return valid
 
 
 def get_validator(nxclass, definitions=None):
@@ -76,34 +130,8 @@ class Validator():
         self.indent = 0
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.filepath.stem})'
-
-    def get_attributes(self, element):
-        """
-        Retrieves the attributes of a given XML item as a dictionary.
-
-        Parameters
-        ----------
-        element : XML.Element
-            The item from which to retrieve attributes.
-
-        Returns
-        -------
-        dict
-            A dictionary containing the item's attributes.
-        """
-        try:
-            result = {}
-            result = {f"@{k}": v for k, v in element.attrib.items()}
-            for child in element:
-                if child.tag == 'enumeration':
-                    result[child.tag] = [item.attrib['value']
-                                         for item in child]
-                elif child.tag != 'doc':
-                    result[child.tag] = self.get_attributes(child)
-            return result
-        except Exception:
-            return {}
+        stem = self.filepath.stem if self.filepath is not None else None
+        return f'{self.__class__.__name__}({stem})'
 
     def is_valid_link(self, item):
         """
@@ -158,15 +186,20 @@ class Validator():
             The number of occurrences of the group.
         """
         recommended = False
+        minOccurs = None
         if '@minOccurs' in tag:
-            minOccurs = int(tag['@minOccurs'])
-        elif tag.get('@optional') == 'true':
-            minOccurs = 0
-        elif tag.get('@recommended') == 'true':
-            minOccurs = 0
-            recommended = True
-        else:
-            minOccurs = 1
+            try:
+                minOccurs = int(tag['@minOccurs'])
+            except ValueError:
+                pass
+        if minOccurs is None:
+            if tag.get('@optional') == 'true':
+                minOccurs = 0
+            elif tag.get('@recommended') == 'true':
+                minOccurs = 0
+                recommended = True
+            else:
+                minOccurs = 1
         if occurrences == 0 and minOccurs > 0:
             self.log(f'This required {key} is not in the NeXus file',
                      level='error')
@@ -247,6 +280,10 @@ class GroupValidator(Validator):
         super().__init__(definitions=definitions)
         self.nxclass = nxclass
         self.symbols = {}
+        self.valid_class = False
+        self.ignoreExtraAttributes = False
+        self.ignoreExtraFields = False
+        self.ignoreExtraGroups = False
         if self.nxclass is None or self.nxclass == 'NXgroup':
             self.xml_dict = None
             self.valid_class = False
@@ -285,27 +322,32 @@ class GroupValidator(Validator):
 
         if class_path is not None and class_path.exists():
             self.filepath = class_path.resolve()
-            tree = ET.parse(class_path)
-            root = tree.getroot()
-            strip_namespace(root)
+            root = parse_nxdl(class_path)
             xml_dict = xml_to_dict(root)
             self.valid_class = True
-            if '@ignoreExtraAttributes' in xml_dict:
-                self.ignoreExtraAttributes = True
-            else:
-                self.ignoreExtraAttributes = False
-            if '@ignoreExtraFields' in xml_dict:
-                self.ignoreExtraFields = True
-            else:
-                self.ignoreExtraFields = False
-            if '@ignoreExtraGroups' in xml_dict:
-                self.ignoreExtraGroups = True
-            else:
-                self.ignoreExtraGroups = False
+            self.ignoreExtraAttributes = is_true(
+                xml_dict.get('@ignoreExtraAttributes', False))
+            self.ignoreExtraFields = is_true(
+                xml_dict.get('@ignoreExtraFields', False))
+            self.ignoreExtraGroups = is_true(
+                xml_dict.get('@ignoreExtraGroups', False))
             if '@extends' in xml_dict:
-                parent_validator = get_validator(
-                    xml_dict['@extends'], definitions=self.definitions)
-                xml_extended_dict = parent_validator.get_xml_dict()
+                parent = xml_dict['@extends']
+                if parent == self.nxclass or parent in extending:
+                    raise NeXusError(
+                        f'"{self.nxclass}" has a circular "extends" '
+                        f'dependency on "{parent}"')
+                extending.add(self.nxclass)
+                try:
+                    parent_validator = get_validator(
+                        parent, definitions=self.definitions)
+                    xml_extended_dict = parent_validator.get_xml_dict()
+                finally:
+                    extending.discard(self.nxclass)
+                if xml_extended_dict is None:
+                    raise NeXusError(
+                        f'"{self.nxclass}" extends "{parent}", which does '
+                        'not have a valid NXDL file')
                 xml_dict = merge_dicts(xml_dict, xml_extended_dict)
             if 'symbols' in xml_dict:
                 self.symbols = xml_dict['symbols'].get('symbol', {})
@@ -333,7 +375,7 @@ class GroupValidator(Validator):
                 self.valid_fields = valid_fields
                 self.partial_fields = partial_fields
                 return
-            fields = self.xml_dict['field']
+            fields = valid_items(self.xml_dict['field'], self.log)
             for field in fields:
                 nameType = check_nametype(fields[field])
                 if nameType  == 'any':
@@ -367,7 +409,7 @@ class GroupValidator(Validator):
                 self.valid_groups = valid_groups
                 self.partial_groups = partial_groups
                 return
-            groups = self.xml_dict['group']
+            groups = valid_items(self.xml_dict['group'], self.log)
             for group in groups:
                 nameType = check_nametype(groups[group])
                 if nameType =='any':
@@ -401,7 +443,7 @@ class GroupValidator(Validator):
                 self.valid_attributes = valid_attributes
                 self.partial_attributes = partial_attributes
                 return
-            attributes = self.xml_dict['attribute']
+            attributes = valid_items(self.xml_dict['attribute'], self.log)
             for attribute in attributes:
                 nameType = check_nametype(attributes[attribute])
                 if nameType == 'any':
@@ -430,6 +472,7 @@ class GroupValidator(Validator):
         group : NXgroup
             The group to be checked.
         """
+        signal_field = None
         if 'signal' in group.attrs:
             signal = group.attrs['signal']
             if signal in group.entries:
@@ -456,7 +499,11 @@ class GroupValidator(Validator):
                     self.log(f'Axis "{axis}" is present in the group',
                              level='info')
                     axis_field = group[axis]
-                    if signal in group and group[signal].exists():
+                    if (signal in group and group[signal].exists()
+                            and isinstance(signal_field, NXfield)
+                            and isinstance(axis_field, NXfield)
+                            and i < len(signal_field.shape)
+                            and len(axis_field.shape) > 0):
                         if check_dimension_sizes(
                             [signal_field.shape[i], axis_field.shape[0]]):
                             self.log(f'Axis "{axis}" size is consistent '
@@ -548,7 +595,7 @@ class GroupValidator(Validator):
         self.indent += 1
 
         if group.nxclass == 'NXgroup':
-            if parent.nxclass == 'NXroot':
+            if getattr(parent, 'nxclass', None) == 'NXroot':
                 self.log('This group has no NeXus base class assigned '
                          'and will not be inspected')
             else:
@@ -700,7 +747,7 @@ class FieldValidator(Validator):
                          level='warning')
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
-                self.log('TThe field value is a valid NX_CHAR_OR_NUMBER')
+                self.log('The field value is a valid NX_CHAR_OR_NUMBER')
             else:
                 self.log('The field value is not a valid NX_CHAR_OR_NUMBER',
                          level='warning')
@@ -783,7 +830,7 @@ class FieldValidator(Validator):
                         s = int(s)
                     except ValueError:
                         pass
-                    if len(field.shape) > i and field.shape[i-1] == s:
+                    if len(field.shape) >= i and field.shape[i-1] == s:
                         self.log(f'The field has the correct size of {s}')
                     else:
                         self.log(f'The field has size {field.shape}, '
@@ -800,7 +847,11 @@ class FieldValidator(Validator):
         enumerations :
             The list of valid enumerated values.
         """
-        if field.nxvalue in enumerations:
+        try:
+            is_member = field.nxvalue in enumerations
+        except ValueError:  # array values have no unambiguous membership
+            is_member = False
+        if is_member:
             self.log(
                 'The field value is a member of the enumerated list')
         else:
@@ -1041,7 +1092,7 @@ class ApplicationValidator(Validator):
         self.symbols = {}
         self.xml_dict = self.load_application(application)
 
-    def load_application(self, application):
+    def load_application(self, application, seen=None):
         """
         Loads an application definition from an XML file.
 
@@ -1056,7 +1107,9 @@ class ApplicationValidator(Validator):
         dict
             A dictionary representation of the application definition.
         """
-        if Path(application).exists():
+        if seen is None:
+            seen = []
+        if Path(application).is_file():
             app_path = Path(application).resolve()
         elif self.applications is not None:
             app_path = self.applications / (f'{application}.nxdl.xml')
@@ -1066,24 +1119,27 @@ class ApplicationValidator(Validator):
             app_path = self.contributions / (f'{application}.nxdl.xml')
         else:
             app_path = None
-        if app_path is not None and app_path.exists():
-            tree = ET.parse(app_path)
-        else:
+        if app_path is None or not app_path.exists():
             raise NeXusError(
                 f'The application definition "{application}" does not exist')
-        xml_root = tree.getroot()
-        strip_namespace(xml_root)
-        if xml_root.tag != 'definition':
+        if app_path.resolve() in seen:
             raise NeXusError(
-                f'The application definition "{application}"'
-                'does not contain the correct root tag.')
+                f'The application definition "{application}" has a '
+                'circular "extends" dependency')
+        seen.append(app_path.resolve())
+        xml_root = parse_nxdl(app_path)
         symbols = xml_root.find('symbols')
         if symbols is not None:
             self.symbols.update(xml_to_dict(symbols).get('symbol', {}))
-        xml_dict = xml_to_dict(xml_root.find('group'))
-        if xml_root.attrib['extends'] != 'NXobject':
-            xml_extended_dict = self.load_application(
-                xml_root.attrib['extends'])
+        group = xml_root.find('group')
+        if group is None:
+            raise NeXusError(
+                f'The application definition "{application}" does not '
+                'contain a <group> element')
+        xml_dict = xml_to_dict(group)
+        extends = xml_root.attrib.get('extends', 'NXobject')
+        if extends != 'NXobject':
+            xml_extended_dict = self.load_application(extends, seen=seen)
             xml_dict = merge_dicts(xml_extended_dict, xml_dict)
         self.filepath = app_path.resolve()
         return xml_dict
@@ -1112,6 +1168,8 @@ class ApplicationValidator(Validator):
                                         definitions=self.definitions)
         group_validator.parent = self
         for key, value in xml_dict.items():
+            if key in ('group', 'field', 'link'):
+                value = valid_items(value, self.log)
             if key == 'group':
                 for group in value:
                     tag = value[group]
@@ -1147,7 +1205,15 @@ class ApplicationValidator(Validator):
             elif key == 'field' or key == 'link':
                 for field in value:
                     tag = value[field]
-                    if field in nxgroup.entries:
+                    if (field in nxgroup.entries
+                            and isinstance(nxgroup[field], NXgroup)
+                            and not isinstance(nxgroup[field], NXlink)):
+                        self.log(f'{key.capitalize()}: {nxgroup.nxpath}/'
+                                 f'{field}', level='all')
+                        self.log(f'"{field}" is a group, not a field',
+                                 level='error')
+                        self.output_log()
+                    elif field in nxgroup.entries:
                         group_validator.symbols.update(self.symbols)
                         field_validator.validate(tag, nxgroup[field],
                                                  link=(key=='link'),
@@ -1162,6 +1228,7 @@ class ApplicationValidator(Validator):
                         self.indent -= 1
                         self.output_log()
         group_validator.check_symbols(indent=self.indent)
+        group_validator.output_log()
         self.output_log()
 
     def validate(self, entry, level=None):
@@ -1354,8 +1421,14 @@ def lint_nxdl(filepath, definitions=None):
     definitions_path = get_definitions(definitions=definitions)
     xsd_path = definitions_path / 'nxdl.xsd'
     if xsd_path.exists():
-        schema = lxml_etree.XMLSchema(lxml_etree.parse(str(xsd_path)))
-        if not schema.validate(doc):
+        try:
+            schema = lxml_etree.XMLSchema(lxml_etree.parse(str(xsd_path)))
+        except (lxml_etree.XMLSyntaxError, lxml_etree.XMLSchemaParseError,
+                OSError) as e:
+            results.append((f'Unable to load the schema "{xsd_path}": {e}',
+                            'line 0', 'warning'))
+            schema = None
+        if schema is not None and not schema.validate(doc):
             for err in schema.error_log:
                 msg = re.sub(r'\{[^}]+\}', '', err.message)
                 results.append((msg, f'line {err.line}', 'error'))
@@ -1378,7 +1451,11 @@ def inspect_base_class(base_class, definitions=None):
     """
     logger.setLevel(logging.INFO)
 
-    validator = get_validator(base_class, definitions=definitions)
+    try:
+        validator = get_validator(base_class, definitions=definitions)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     if validator.filepath is not None:
         log(f"\nValid components of the {base_class} base class")
@@ -1388,9 +1465,11 @@ def inspect_base_class(base_class, definitions=None):
         log(f"Definitions: {truncate_path(validator.definitions)}\n")
         return
 
-    tree = ET.parse(validator.filepath)
-    root = tree.getroot()
-    strip_namespace(root)
+    try:
+        root = parse_nxdl(validator.filepath)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     from pygments import highlight
     from pygments.formatters import TerminalFormatter

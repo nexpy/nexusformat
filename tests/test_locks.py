@@ -3,8 +3,9 @@ import socket
 import time
 
 import pytest
-from nexusformat.nexus.tree import (NeXusError, NXentry, NXLock, NXroot,
-                                    nxload, nxsetconfig, text)
+from nexusformat.nexus.tree import (NeXusError, NXentry, NXLock,
+                                    NXLockException, NXroot, nxload,
+                                    nxsetconfig, text)
 
 
 def test_lock_creation(tmpdir, field4):
@@ -225,6 +226,10 @@ def test_lock_release_survives_removal_error(tmpdir, monkeypatch):
 
     assert lock.fd is None
 
+    monkeypatch.undo()
+    lock.clear()
+    assert not os.path.exists(lock.lock_file)
+
 
 def test_lock_clear_survives_removal_error(tmpdir, monkeypatch):
     """clear() must not propagate a PermissionError from an external lock."""
@@ -240,3 +245,36 @@ def test_lock_clear_survives_removal_error(tmpdir, monkeypatch):
     monkeypatch.setattr(os, 'remove', denied)
 
     lock.clear()
+
+    monkeypatch.undo()
+    lock.clear()
+    assert not os.path.exists(lock.lock_file)
+
+
+def test_lock_bad_directory_is_collectable(tmpdir):
+    """A failed constructor must leave an object that can be released."""
+    filename = os.path.join(tmpdir, "file1.nxs")
+    missing = os.path.join(tmpdir, "missing")
+
+    with pytest.raises(NXLockException):
+        NXLock(filename, directory=missing)
+
+    lock = NXLock.__new__(NXLock)
+    with pytest.raises(NXLockException):
+        lock.__init__(filename, directory=missing)
+
+    assert lock.fd is None
+    lock.release()
+
+
+def test_lock_context_manager_returns_lock(tmpdir):
+    nxsetconfig(lock=2)
+    filename = os.path.join(tmpdir, "file1.nxs")
+
+    with NXLock(filename) as lock:
+        assert isinstance(lock, NXLock)
+        assert lock.locked
+        assert os.path.exists(lock.lock_file)
+
+    assert not lock.locked
+    assert not os.path.exists(lock.lock_file)

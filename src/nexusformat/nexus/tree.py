@@ -5160,8 +5160,15 @@ class NXgroup(NXobject):
             with self.nxfile as f:
                 f.update(self)
         elif self.nxfilemode is None:
-            for node in self.walk():
-                if isinstance(node, NXfield) and node._uncopied_data:
+            # Link targets do not belong to this in-memory copy.
+            nodes = list(self.values())
+            while nodes:
+                node = nodes.pop()
+                if isinstance(node, NXlink):
+                    continue
+                elif isinstance(node, NXgroup):
+                    nodes.extend(node.values())
+                elif isinstance(node, NXfield) and node._uncopied_data:
                     node._value = node._get_uncopied_data()
         self.set_changed()
 

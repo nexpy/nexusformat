@@ -58,7 +58,8 @@ def main():
         results = lint_nxdl(filename, definitions=definitions)
         if results:
             for message, location, severity in results:
-                log(f'[{location}] {message}', level=severity)
+                log(f'[{location}] {message}' if location else message,
+                    level=severity)
             log('\nFor help interpreting these errors, consult the NXDL '
                 'reference at https://manual.nexusformat.org/nxdl.html',
                 level='all')

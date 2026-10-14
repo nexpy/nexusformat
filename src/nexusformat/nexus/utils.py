@@ -526,9 +526,41 @@ def match_strings(pattern_string, target_string):
     return False
 
 
-def get_base_classes(definitions=None):
+def get_base_classes(definitions=None, contributed=True):
     """
     Return a list of all base class names.
+
+    Parameters
+    ----------
+    definitions : str or Path or None
+        The path to the NeXus definitions directory (default is None).
+    contributed : bool, optional
+        If True, the base classes in the 'contributed_definitions' directory
+        are appended to the standard base classes (default is True).
+
+    Returns
+    -------
+    list of str
+        A list of NeXus base class names. The standard base classes are
+        listed first, followed by the contributed base classes, if requested.
+    """
+    definitions = get_definitions(definitions=definitions)
+    base_class_path = definitions.joinpath('base_classes')
+    base_classes = sorted(
+        [str(c.stem[:-5]) for c in base_class_path.glob('*.nxdl.xml')])
+    if contributed:
+        base_classes += [c for c in get_contributed_base_classes(definitions)
+                         if c not in base_classes]
+    return base_classes
+
+
+def get_contributed_base_classes(definitions=None):
+    """
+    Return a list of the base class names in the contributed definitions.
+
+    The 'contributed_definitions' directory contains both base classes and
+    application definitions. Base classes are identified by the 'category'
+    attribute of the root 'definition' element of each NXDL file.
 
     Parameters
     ----------
@@ -538,12 +570,27 @@ def get_base_classes(definitions=None):
     Returns
     -------
     list of str
-        A list of NeXus base class names.
+        A sorted list of contributed NeXus base class names.
     """
     definitions = get_definitions(definitions=definitions)
-    base_class_path = definitions.joinpath('base_classes')
-    return sorted(
-        [str(c.stem[:-5]) for c in base_class_path.glob('*.nxdl.xml')])
+    contributed_path = definitions.joinpath('contributed_definitions')
+    definition_tag = re.compile(rb'<definition\b[^>]*>')
+    category = re.compile(rb'\bcategory\s*=\s*["\']([^"\']*)["\']')
+    base_classes = []
+    for path in contributed_path.glob('*.nxdl.xml'):
+        # The root element is within the first few hundred bytes of the file
+        with open(path, 'rb') as f:
+            tag = definition_tag.search(f.read(16384))
+        if tag:
+            match = category.search(tag.group(0))
+            if match and match.group(1) == b'base':
+                base_classes.append(str(path.stem[:-5]))
+        else:
+            from xml.etree import ElementTree
+            root = ElementTree.parse(path).getroot()
+            if root.get('category') == 'base':
+                base_classes.append(str(path.stem[:-5]))
+    return sorted(base_classes)
 
 
 def get_definitions(definitions=None):

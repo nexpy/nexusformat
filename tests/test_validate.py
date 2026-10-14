@@ -4,7 +4,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from nexusformat.nexus import NeXusError, NXfield
+from nexusformat.nexus import (NeXusError, NXdata, NXentry, NXfield,
+                               NXsource)
 from nexusformat.nexus.utils import xml_to_dict
 from nexusformat.nexus.validate import (ApplicationValidator, FieldValidator,
                                         GroupValidator)
@@ -219,3 +220,37 @@ def test_xml_to_dict_tolerates_malformed_items():
 
     assert result['enumeration'] == ['a']
     assert result['dimensions']['dim'] == {}
+
+
+def test_group_not_allowed_in_parent_is_reported(definitions):
+    write_nxdl(definitions, 'NXentry', content='<group type="NXdata"/>')
+    write_nxdl(definitions, 'NXdata')
+    write_nxdl(definitions, 'NXsource')
+    entry = NXentry(NXdata(), NXsource())
+    validator = GroupValidator('NXentry', definitions=definitions)
+
+    allowed = validator.check_in_parent(entry['data'])
+    invalid = validator.check_in_parent(entry['source'])
+
+    assert allowed == [('info', 'This group is a valid class in NXentry')]
+    assert invalid == [('error', 'NXsource is an invalid class in NXentry')]
+
+
+def test_application_reports_base_class_violation_as_warning(definitions):
+    write_nxdl(definitions, 'NXentry', content='<group type="NXdata"/>')
+    write_nxdl(definitions, 'NXdata')
+    write_nxdl(definitions, 'NXsource')
+    write_nxdl(definitions, 'NXapp', folder='applications',
+               content='<group type="NXentry"/>', attributes='')
+    entry = NXentry(NXdata(), NXsource())
+    validator = ApplicationValidator('NXapp', definitions=definitions)
+    group_validator = GroupValidator('NXentry', definitions=definitions)
+
+    validator.check_base_class(group_validator, entry['data'])
+    assert validator.logged_messages == []
+
+    validator.check_base_class(group_validator, entry['source'])
+    assert [(level, message) for message, level, _
+            in validator.logged_messages] == [
+        ('warning', 'NXsource is an invalid class in NXentry, but it is '
+                    'used by the application definition')]

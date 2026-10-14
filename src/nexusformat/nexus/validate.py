@@ -11,7 +11,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from . import NeXusError, NXentry, NXfield, NXgroup, NXlink, NXsubentry, nxopen
-from .utils import (check_dimension_sizes, check_nametype, get_definitions,
+from .utils import (check_dimension_sizes, check_nametype,
+                    get_contributed_base_classes, get_definitions,
                     get_log_level, get_logger, is_valid_bool, is_valid_char,
                     is_valid_char_or_number, is_valid_complex, is_valid_float,
                     is_valid_int, is_valid_iso8601, is_valid_name,
@@ -571,6 +572,59 @@ class GroupValidator(Validator):
                              level='warning')
                 self.indent -= 1
 
+    def check_in_parent(self, group):
+        """
+        Checks whether a group is allowed in its parent group by the
+        parent's base class.
+
+        Parameters
+        ----------
+        group : NXgroup
+            The group whose name and class are to be checked.
+
+        Returns
+        -------
+        list of tuple
+            A list of (level, message) tuples describing the result. It
+            is empty if the group has no parent or is an NXroot group.
+        """
+        results = []
+        parent_group = group.nxgroup
+        if group.nxclass == 'NXroot' or parent_group is None:
+            return results
+        parent_validator = get_validator(parent_group.nxclass,
+                                         definitions=self.definitions)
+        parsed = False
+        if group.nxname in parent_validator.valid_groups:
+            cls = parent_validator.valid_groups[group.nxname].get('@type')
+            if cls is not None and group.nxclass != cls:
+                results.append(('error',
+                                f'{group.nxname} should have a class of '
+                                f'{cls}, not {group.nxclass}'))
+            parsed = True
+        elif parent_validator.partial_groups:
+            for partial_name in parent_validator.partial_groups:
+                if match_strings(partial_name, group.nxname):
+                    results.append(('info',
+                                    f'This group name matches "{partial_name}"'
+                                    f', which is allowed in '
+                                    f'{parent_group.nxclass}'))
+                    parsed = True
+        if not parsed:
+            if group.nxclass in parent_validator.valid_groups:
+                results.append(('info', 'This group is a valid class in '
+                                f'{parent_group.nxclass}'))
+            elif parent_validator.ignoreExtraGroups:
+                results.append(('info',
+                                f'{group.nxclass} is not defined in '
+                                f'{parent_group.nxclass}. '
+                                'Additional classes are allowed.'))
+            else:
+                results.append(('error',
+                                f'{group.nxclass} is an invalid class in '
+                                f'{parent_group.nxclass}'))
+        return results
+
     def validate(self, group, parent=None, indent=0, level=None):
         """
         Validates a given group against the NeXus standard.
@@ -616,36 +670,8 @@ class GroupValidator(Validator):
             self.output_log()
             return
 
-        parent_group = group.nxgroup
-        if group.nxclass != 'NXroot' and group.nxgroup is not None:
-            parent_group = group.nxgroup
-            parent_validator = get_validator(parent_group.nxclass,
-                                             definitions=self.definitions)
-            parsed = False
-            if group.nxname in parent_validator.valid_groups:
-                cls = parent_validator.valid_groups[group.nxname].get('@type')
-                if cls is not None and group.nxclass != cls:
-                    self.log(f'{group.nxname} should have a class of '
-                             f'{cls}, not {group.nxclass}', level='error')
-                parsed = True
-            elif parent_validator.partial_groups:
-                for partial_name in parent_validator.partial_groups:
-                    if match_strings(partial_name, group.nxname):
-                        self.log(f'This group name matches "{partial_name}", '
-                         f'which is allowed in {parent_group.nxclass}')
-                        parsed = True
-            if not parsed:
-                if group.nxclass in parent_validator.valid_groups:
-                    self.log('This group is a valid class in '
-                             f'{parent_group.nxclass}')
-                elif group.nxclass not in parent_validator.valid_groups:
-                    if parent_validator.ignoreExtraGroups:
-                        self.log(f'{group.nxclass} is not defined in '
-                                 f'{parent_group.nxclass}. '
-                                 'Additional classes are allowed.')
-                    else:
-                        self.log(f'{group.nxclass} is an invalid class in '
-                                 f'{parent_group.nxclass}', level='error')
+        for level, message in self.check_in_parent(group):
+            self.log(message, level=level)
 
         for attribute in group.attrs:
             if attribute == 'target':
@@ -1144,6 +1170,24 @@ class ApplicationValidator(Validator):
         self.filepath = app_path.resolve()
         return xml_dict
 
+    def check_base_class(self, group_validator, nxgroup):
+        """
+        Reports a warning if a group required by the application
+        definition is not allowed in its parent by the parent's base
+        class.
+
+        Parameters
+        ----------
+        group_validator : GroupValidator
+            A group validator used to check the group against its parent.
+        nxgroup : NXgroup
+            The group in the NeXus file to be checked.
+        """
+        for level, message in group_validator.check_in_parent(nxgroup):
+            if level == 'error':
+                self.log(f'{message}, but it is used by the application '
+                         'definition', level='warning')
+
     def validate_group(self, xml_dict, nxgroup, indent=0):
         """
         Validates a NeXus group against an XML definition.
@@ -1192,12 +1236,14 @@ class ApplicationValidator(Validator):
                             if i != 0:
                                 self.log(f'Group: {name}: {group}',
                                          level='all', indent=self.indent)
+                            self.check_base_class(group_validator, nxsubgroup)
                             self.validate_group(value[name], nxsubgroup,
                                                 indent=self.indent)
                         else:
                             if i != 0:
                                 self.log(f'Group: {group}', level='all',
                                          indent=self.indent)
+                            self.check_base_class(group_validator, nxsubgroup)
                             self.validate_group(tag, nxsubgroup,
                                                 indent=self.indent)
                     self.indent -= 1
@@ -1372,8 +1418,11 @@ def lint_nxdl(filepath, definitions=None):
         'error' or 'warning'. An empty list means no issues were found.
     """
     filepath = Path(filepath)
+    results = []
     if not filepath.exists():
         stem = filepath.stem if filepath.suffix else filepath.name
+        if stem.endswith('.nxdl'):
+            stem = stem[:-5]
         defs = get_definitions(definitions=definitions)
         for search_dir in [defs / 'applications',
                            defs / 'contributed_definitions',
@@ -1381,14 +1430,18 @@ def lint_nxdl(filepath, definitions=None):
             candidate = search_dir / f'{stem}.nxdl.xml'
             if candidate.exists():
                 filepath = candidate
+                if (search_dir.name == 'contributed_definitions' and
+                        stem in get_contributed_base_classes(defs)):
+                    results.append(
+                        (f'The base class "{stem}" is in the contributed '
+                         f'definitions', 'line 0', 'warning'))
                 break
         else:
             return [(f'NXDL definition "{stem}" not found in the definitions '
-                     f'directory', str(defs), 'error')]
+                     f'directory', 'line 0', 'error')]
     from lxml import etree as lxml_etree
 
     filepath = filepath.resolve()
-    results = []
 
     try:
         doc = lxml_etree.parse(str(filepath))
@@ -1470,6 +1523,40 @@ def inspect_base_class(base_class, definitions=None):
     except NeXusError as e:
         logger.error(e)
         return
+
+    from pygments import highlight
+    from pygments.formatters import TerminalFormatter
+    from pygments.lexers import XmlLexer
+
+    log(highlight(ET.tostring(root, encoding='unicode'), XmlLexer(),
+                  TerminalFormatter()))
+
+
+def inspect_application(application, definitions=None):
+    """
+    Prints the NXDL file of a NeXus application definition.
+
+    Parameters
+    ----------
+    application : str or Path
+        The name of the NeXus application definition to inspect or the
+        path to its NXDL file.
+    definitions : str or Path, optional
+        The path to the directory containing the NeXus definitions
+        (default is None).
+    """
+    logger.setLevel(logging.INFO)
+
+    try:
+        validator = ApplicationValidator(application, definitions=definitions)
+        root = parse_nxdl(validator.filepath)
+    except NeXusError as e:
+        logger.error(e)
+        return
+
+    log(f"\nContents of the {Path(validator.filepath).stem[:-5]} "
+        "application definition")
+    log(f"NXDL File: {truncate_path(validator.filepath)}\n")
 
     from pygments import highlight
     from pygments.formatters import TerminalFormatter

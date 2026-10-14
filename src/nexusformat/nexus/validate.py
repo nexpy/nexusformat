@@ -1434,11 +1434,11 @@ def lint_nxdl(filepath, definitions=None):
                         stem in get_contributed_base_classes(defs)):
                     results.append(
                         (f'The base class "{stem}" is in the contributed '
-                         f'definitions', 'line 0', 'warning'))
+                         f'definitions', '', 'warning'))
                 break
         else:
             return [(f'NXDL definition "{stem}" not found in the definitions '
-                     f'directory', 'line 0', 'error')]
+                     f'directory', '', 'error')]
     from lxml import etree as lxml_etree
 
     filepath = filepath.resolve()
@@ -1479,14 +1479,14 @@ def lint_nxdl(filepath, definitions=None):
         except (lxml_etree.XMLSyntaxError, lxml_etree.XMLSchemaParseError,
                 OSError) as e:
             results.append((f'Unable to load the schema "{xsd_path}": {e}',
-                            'line 0', 'warning'))
+                            '', 'warning'))
             schema = None
         if schema is not None and not schema.validate(doc):
             for err in schema.error_log:
                 msg = re.sub(r'\{[^}]+\}', '', err.message)
                 results.append((msg, f'line {err.line}', 'error'))
 
-    results.sort(key=lambda r: int(r[1].split()[-1]))
+    results.sort(key=lambda r: int(r[1].split()[-1]) if r[1] else 0)
     return results
 
 

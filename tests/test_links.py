@@ -3,8 +3,8 @@ import os
 import h5py
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import (NXentry, NXfield, NXgroup, NXlink, NXroot,
-                                    nxload, nxsetlock)
+from nexusformat.nexus.tree import (NXentry, NXfield, NXgroup, NXlink,
+                                    NXlinkgroup, NXroot, nxload, nxsetlock)
 
 
 @pytest.fixture
@@ -325,3 +325,32 @@ def test_copy_group_with_external_group_link(tmp_path, saved, absolute, nested):
         reopened[link_path + "/counts"].nxdata, values)
     assert reopened[link_path + "/counts"].units == "counts"
     reopened.close()
+
+
+def test_tree_of_unresolved_group_link(tmp_path, monkeypatch):
+
+    monkeypatch.chdir(tmp_path)
+    root = NXroot(NXentry(NXgroup(name="data")))
+    root["entry/data/metadata"] = NXlinkgroup(
+        "/entry/raw", file="external.nxs", name="metadata")
+
+    assert root.tree.splitlines()[-1].strip() == (
+        "metadata:NXlink -> external.nxs['/entry/raw']")
+
+
+def test_tree_of_group_link_resolved_after_save(tmp_path, monkeypatch):
+
+    external = NXroot(NXentry(NXgroup(
+        NXfield([17, 23, 41], name="counts"), name="raw")))
+    external.save(tmp_path / "external.nxs")
+    external.close()
+    monkeypatch.chdir(tmp_path.parent)
+    root = NXroot(NXentry(NXgroup(name="data")))
+    root["entry/data/metadata"] = NXlinkgroup(
+        "/entry/raw", file="external.nxs", name="metadata")
+    assert "counts" not in root.tree
+
+    root.save(tmp_path / "dest.nxs")
+
+    assert "counts = [17 23 41]" in root.tree
+    root.close()

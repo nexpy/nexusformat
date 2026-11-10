@@ -3,9 +3,9 @@ import warnings
 
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import (NXdata, NXentry, NXfield, NXroot,
-                                    NXsubentry, NXvirtualfield, nxconsolidate,
-                                    nxload)
+from nexusformat.nexus.tree import (NeXusError, NXdata, NXentry, NXfield,
+                                    NXroot, NXsubentry, NXvirtualfield,
+                                    nxconsolidate, nxload)
 
 
 @pytest.fixture
@@ -253,6 +253,51 @@ def test_data_angles(data):
     data.nxangles = [120, 90, 90]
 
     assert data.nxangles == [120.0, 90.0, 90.0]
+
+
+@pytest.mark.parametrize("idx, explicit", [
+    (np.s_[..., 0], np.s_[:, :, 0]),
+    (np.s_[0, ...], np.s_[0, :, :]),
+    (np.s_[1, 2, ...], np.s_[1, 2, :]),
+    (np.s_[0, ..., 2:6], np.s_[0, :, 2:6]),
+    (np.s_[..., 4.0:12.0], np.s_[:, :, 4.0:12.0]),
+    (np.s_[...], np.s_[:, :, :]),
+])
+def test_data_ellipsis_slab(data, idx, explicit):
+
+    slab = data[idx]
+    expected = data[explicit]
+
+    assert np.array_equal(slab.nxsignal.nxvalue, expected.nxsignal.nxvalue)
+    assert len(slab.nxaxes) == len(expected.nxaxes)
+    for axis, expected_axis in zip(slab.nxaxes, expected.nxaxes):
+        assert axis.nxname == expected_axis.nxname
+        assert np.array_equal(axis.nxvalue, expected_axis.nxvalue)
+
+
+@pytest.mark.parametrize("idx, explicit", [
+    (np.s_[..., 0], np.s_[:, :, 0]),
+    (np.s_[0, ...], np.s_[0, :, :]),
+    (np.s_[..., 4.0:12.0], np.s_[:, :, 4.0:12.0]),
+])
+def test_data_ellipsis_assignment(x, y, z, v, idx, explicit):
+
+    data1 = NXdata(NXfield(v.nxvalue.copy(), name="v"), (z, y, x))
+    data2 = NXdata(NXfield(v.nxvalue.copy(), name="v"), (z, y, x))
+
+    data1[idx] = -1.0
+    data2[explicit] = -1.0
+
+    assert np.array_equal(data1.nxsignal.nxvalue, data2.nxsignal.nxvalue)
+    assert (data1.nxsignal.nxvalue == -1.0).any()
+
+
+@pytest.mark.parametrize("idx", [
+    np.s_[None, 0], np.s_[:, None], np.s_[..., ...], np.s_[0, 0, 0, 0, ...]])
+def test_data_invalid_slab_index(data, idx):
+
+    with pytest.raises(NeXusError):
+        data[idx]
 
 
 def test_data_slabs(data, x, y, v):

@@ -138,7 +138,7 @@ def test_negative_step_slices_of_memory_field():
     field = NXfield(shape=arr.shape, dtype=arr.dtype)
     field[::-1] = arr[::-1]
     assert field._memfile is not None
-    assert np.array_equal(field[::-1, ::-7].nxvalue, arr[::-1, ::-7]
+    assert np.array_equal(field[::-1, ::-7].nxvalue, arr[::-1, ::-7])
 
 
 @pytest.mark.parametrize("nested", [False, True])

@@ -1,9 +1,10 @@
 import os
 
+import h5py
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import (NXentry, NXfield, NXgroup, NXlink, NXroot,
-                                    nxload, nxsetlock)
+from nexusformat.nexus.tree import (NXentry, NXfield, NXgroup, NXlink,
+                                    NXlinkgroup, NXroot, nxload, nxsetlock)
 
 
 @pytest.fixture
@@ -272,3 +273,84 @@ def test_soft_field_links(tmpdir, field1a, field2a, save):
     assert root["g1/f2_link"].a2 == 2
 
     assert root["g1/f2_link"].nxdata[0] == root["g1/g2/f2"].nxdata[0]
+
+
+@pytest.mark.parametrize("saved", [False, True])
+@pytest.mark.parametrize("absolute", [False, True])
+@pytest.mark.parametrize("nested", [False, True])
+def test_copy_group_with_external_group_link(tmp_path, saved, absolute, nested):
+
+    external_filename = tmp_path / "external.nxs"
+    values = np.array([17, 23, 41], dtype=np.int32)
+    external = NXroot(NXentry(NXgroup(
+        NXfield(values, name="counts", units="counts"), name="raw")))
+    external.save(external_filename)
+    external.close()
+
+    source_filename = tmp_path / "source.nxs"
+    source = NXroot(NXentry(NXgroup(name="data"))).save(source_filename)
+    parent = "entry/data"
+    if nested:
+        source[parent + "/nested"] = NXgroup()
+        parent += "/nested"
+    filename = str(external_filename) if absolute else external_filename.name
+    source[parent + "/metadata"] = NXlink(
+        "/entry/raw", file=filename, abspath=absolute)
+    source.close()
+    source = nxload(source_filename)
+
+    destination_filename = tmp_path / "copied.nxs"
+    destination = NXroot(NXentry())
+    if saved:
+        destination = destination.save(destination_filename)
+    destination["entry/copied"] = source["entry/data"]
+    link_path = "entry/copied/" + ("nested/" if nested else "") + "metadata"
+    link = destination[link_path]
+    assert isinstance(link, NXlink)
+    assert link._filename == filename
+    assert link.nxtarget == "/entry/raw"
+    if not saved:
+        assert link._link is None
+        destination = destination.save(destination_filename)
+    destination.close()
+    source.close()
+
+    with h5py.File(destination_filename, "r") as file:
+        stored_link = file.get(link_path, getlink=True)
+        assert isinstance(stored_link, h5py.ExternalLink)
+        assert stored_link.filename == filename
+        assert stored_link.path == "/entry/raw"
+    reopened = nxload(destination_filename)
+    np.testing.assert_array_equal(
+        reopened[link_path + "/counts"].nxdata, values)
+    assert reopened[link_path + "/counts"].units == "counts"
+    reopened.close()
+
+
+def test_tree_of_unresolved_group_link(tmp_path, monkeypatch):
+
+    monkeypatch.chdir(tmp_path)
+    root = NXroot(NXentry(NXgroup(name="data")))
+    root["entry/data/metadata"] = NXlinkgroup(
+        "/entry/raw", file="external.nxs", name="metadata")
+
+    assert root.tree.splitlines()[-1].strip() == (
+        "metadata:NXlink -> external.nxs['/entry/raw']")
+
+
+def test_tree_of_group_link_resolved_after_save(tmp_path, monkeypatch):
+
+    external = NXroot(NXentry(NXgroup(
+        NXfield([17, 23, 41], name="counts"), name="raw")))
+    external.save(tmp_path / "external.nxs")
+    external.close()
+    monkeypatch.chdir(tmp_path.parent)
+    root = NXroot(NXentry(NXgroup(name="data")))
+    root["entry/data/metadata"] = NXlinkgroup(
+        "/entry/raw", file="external.nxs", name="metadata")
+    assert "counts" not in root.tree
+
+    root.save(tmp_path / "dest.nxs")
+
+    assert "counts = [17 23 41]" in root.tree
+    root.close()

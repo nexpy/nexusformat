@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 import pytest
-from nexusformat.nexus.tree import (NXdata, NXentry, NXfield, NXFile, NXroot,
-                                    nxload, nxopen)
+from nexusformat.nexus.tree import (NXdata, NXentry, NXfield, NXFile, NXgroup,
+                                    NXroot, nxload, nxopen)
 
 
 def test_file_creation(tmpdir):
@@ -138,4 +138,37 @@ def test_negative_step_slices_of_memory_field():
     field = NXfield(shape=arr.shape, dtype=arr.dtype)
     field[::-1] = arr[::-1]
     assert field._memfile is not None
-    assert np.array_equal(field[::-1, ::-7].nxvalue, arr[::-1, ::-7])
+    assert np.array_equal(field[::-1, ::-7].nxvalue, arr[::-1, ::-7]
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_copy_group_materializes_owned_fields(tmp_path, nested):
+
+    values = np.arange(10001, dtype=np.int32)
+    source = NXroot(NXentry(NXgroup(name="data")))
+    parent = "entry/data"
+    if nested:
+        source[parent + "/nested"] = NXgroup()
+        parent += "/nested"
+    source[parent + "/counts"] = NXfield(values, units="counts")
+    filename = tmp_path / "source.nxs"
+    source.save(filename)
+    source.close()
+    source = nxload(filename)
+    assert source[parent + "/counts"]._value is None
+
+    destination = NXroot(NXentry())
+    destination["entry/copied"] = source["entry/data"]
+    field_path = "entry/copied/" + ("nested/" if nested else "") + "counts"
+    field = destination[field_path]
+    assert field._uncopied_data is None
+    assert field._memfile is not None
+    source.close()
+    filename.rename(tmp_path / "renamed-source.nxs")
+    np.testing.assert_array_equal(field.nxdata, values)
+    assert field.units == "counts"
+    destination.save(tmp_path / "copied.nxs")
+    destination.close()
+    reopened = nxload(tmp_path / "copied.nxs")
+    np.testing.assert_array_equal(reopened[field_path].nxdata, values)
+    reopened.close()

@@ -5232,8 +5232,15 @@ class NXgroup(NXobject):
             with self.nxfile as f:
                 f.update(self)
         elif self.nxfilemode is None:
-            for node in self.walk():
-                if isinstance(node, NXfield) and node._uncopied_data:
+            # Link targets do not belong to this in-memory copy.
+            nodes = list(self.values())
+            while nodes:
+                node = nodes.pop()
+                if isinstance(node, NXlink):
+                    continue
+                elif isinstance(node, NXgroup):
+                    nodes.extend(node.values())
+                elif isinstance(node, NXfield) and node._uncopied_data:
                     node._value = node._get_uncopied_data()
         self.set_changed()
 
@@ -6405,7 +6412,7 @@ class NXlinkgroup(NXlink, NXgroup):
             return NXgroup._str_tree(self, indent=indent, attrs=attrs,
                                      recursive=recursive)
         except Exception:
-            return NXlink(self)._str_tree(self, indent=indent)
+            return NXlink._str_tree(self, indent=indent)
 
     @property
     def entries(self):
@@ -7071,7 +7078,8 @@ class NXdata(NXgroup):
             else:
                 slices = []
                 axes = self.nxaxes
-                for i, ind in enumerate(idx):
+                for i, ind in enumerate(expand_index(idx,
+                                                     self.nxsignal.ndim)):
                     if self.nxsignal.shape[i] == axes[i].shape[0]:
                         axis = axes[i].boundaries()
                     else:
@@ -7599,9 +7607,10 @@ class NXdata(NXgroup):
             Tuple containing the signal slice and a list of sliced axes.
         """
         if (isinstance(idx, numbers.Real) or isinstance(idx, numbers.Integral)
-                or isinstance(idx, slice)):
+                or isinstance(idx, slice) or idx is Ellipsis or idx is None):
             idx = [idx]
         signal = self.nxsignal
+        idx = expand_index(idx, signal.ndim)
         axes = self.nxaxes
         slices = []
         for i, ind in enumerate(idx):
@@ -8185,7 +8194,9 @@ def is_real_slice(idx):
     """True if the slice contains real values."""
 
     def is_real(x):
-        if isinstance(x, slice):
+        if x is None or x is Ellipsis:
+            return False
+        elif isinstance(x, slice):
             x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
         x = np.array(x)
         return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)
@@ -8198,6 +8209,54 @@ def is_real_slice(idx):
         return any([is_real(i) for i in idx])
     else:
         return is_real(idx)
+
+
+def expand_index(idx, ndim):
+    """Return an index with one entry for each dimension it covers.
+
+    An Ellipsis is replaced by the full slices that it stands for, so
+    that each entry of the index corresponds to the axis in the same
+    position. The index of an NXdata group is applied to its axes in
+    this way.
+
+    Parameters
+    ----------
+    idx : slice, int, Ellipsis, tuple or list
+        Index of a field or group.
+    ndim : int
+        Number of dimensions of the field or group.
+
+    Returns
+    -------
+    list
+        Entries of the index without an Ellipsis. An index that is not a
+        tuple, list, Ellipsis or None is returned unchanged.
+
+    Raises
+    ------
+    NeXusError
+        If the index contains None (np.newaxis), since it has no axis,
+        more than one Ellipsis, or more entries than dimensions.
+    """
+    if idx is Ellipsis or idx is None:
+        items = [idx]
+    elif isinstance(idx, (tuple, list)):
+        items = list(idx)
+    else:
+        return idx
+    if any(item is None for item in items):
+        raise NeXusError(
+            "np.newaxis (None) cannot be used to index an NXdata group")
+    count = sum(item is Ellipsis for item in items)
+    if count > 1:
+        raise NeXusError("An index can only contain one Ellipsis")
+    elif count == 1:
+        fill = ndim - (len(items) - 1)
+        if fill < 0:
+            raise NeXusError("Too many indices for the NXdata group")
+        position = [item is Ellipsis for item in items].index(True)
+        items[position:position+1] = [slice(None)] * fill
+    return items
 
 
 def convert_index(idx, axis):
@@ -8716,7 +8775,39 @@ def directory(filename, short=False):
 nxdir = directory
 
 
-def consolidate(files, data_path, scan_path=None, idx=None):
+def _relative_sources(sources, relative_to):
+    """
+    Return source file names relative to the directory of another file.
+
+    Parameters
+    ----------
+    sources : list of str
+        Absolute paths of the source files.
+    relative_to : str, Path, or NXroot
+        File that contains the virtual dataset.
+
+    Returns
+    -------
+    list of str
+        Paths relative to the directory of `relative_to`, with forward
+        slashes. A source that has no relative path, because it is on
+        another drive, is returned unchanged.
+    """
+    if isinstance(relative_to, NXroot):
+        relative_to = relative_to.nxfilename
+    directory = Path(relative_to).resolve().parent
+    relative = []
+    for source in sources:
+        try:
+            relative.append(
+                Path(os.path.relpath(Path(source).resolve(),
+                                     directory)).as_posix())
+        except ValueError:
+            relative.append(source)
+    return relative
+
+
+def consolidate(files, data_path, scan_path=None, idx=None, relative_to=None):
     """
     Create NXdata using a virtual field to combine multiple files.
 
@@ -8734,6 +8825,10 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         If not specified, the scan is constructed from file indices.
     idx : int, optional
         Data slice to be used in the virtual field, by default None
+    relative_to : str, Path, or NXroot, optional
+        File that will contain the consolidated data, by default None.
+        If it is given, the source files of the virtual field are stored
+        as paths relative to the directory of this file.
     """
 
     if isinstance(files[0], str) or isinstance(files[0], Path):
@@ -8769,6 +8864,8 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         if idx is not None:
             axes = [axis[s] for axis, s in zip(axes, idx)]
         sources = [f[signal.nxpath].nxfilename for f in scan_files]
+        if relative_to is not None:
+            sources = _relative_sources(sources, relative_to)
         scan_field = NXvirtualfield(signal, sources, shape=signal.shape,
                                     idx=idx, name=signal.nxname)
         if signal.nxname == scan_file[data_path].nxsignal.nxname:

@@ -6340,7 +6340,7 @@ class NXlinkgroup(NXlink, NXgroup):
             return NXgroup._str_tree(self, indent=indent, attrs=attrs,
                                      recursive=recursive)
         except Exception:
-            return NXlink(self)._str_tree(self, indent=indent)
+            return NXlink._str_tree(self, indent=indent)
 
     @property
     def entries(self):

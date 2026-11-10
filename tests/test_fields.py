@@ -108,6 +108,21 @@ def test_field_slice(arr, idx, request):
     assert field[idx].shape == arr[idx].shape
 
 
+@pytest.mark.parametrize(
+    "arr,idx", [("arr2D", np.s_[..., -1]),
+                ("arr2D", np.s_[0, ...]),
+                ("arr2D", np.s_[None, 0]),
+                ("arr3D", np.s_[1, ..., 2:4]),
+                ("arr3D", np.s_[:, np.newaxis, 0])])
+def test_field_ellipsis_and_newaxis_slice(arr, idx, request):
+
+    arr = request.getfixturevalue(arr)
+    field = NXfield(arr)
+
+    assert np.array_equal(field[idx].nxvalue, arr[idx])
+    assert field[idx].shape == arr[idx].shape
+
+
 def test_field_index(arr1D):
 
     field = NXfield(2*arr1D)

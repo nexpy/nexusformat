@@ -8120,7 +8120,9 @@ def is_real_slice(idx):
     """True if the slice contains real values."""
 
     def is_real(x):
-        if isinstance(x, slice):
+        if x is None or x is Ellipsis:
+            return False
+        elif isinstance(x, slice):
             x = [x if x is not None else 0 for x in [x.start, x.stop, x.step]]
         x = np.array(x)
         return not (np.issubdtype(x.dtype, np.integer) or x.dtype == bool)

@@ -8644,7 +8644,39 @@ def directory(filename, short=False):
 nxdir = directory
 
 
-def consolidate(files, data_path, scan_path=None, idx=None):
+def _relative_sources(sources, relative_to):
+    """
+    Return source file names relative to the directory of another file.
+
+    Parameters
+    ----------
+    sources : list of str
+        Absolute paths of the source files.
+    relative_to : str, Path, or NXroot
+        File that contains the virtual dataset.
+
+    Returns
+    -------
+    list of str
+        Paths relative to the directory of `relative_to`, with forward
+        slashes. A source that has no relative path, because it is on
+        another drive, is returned unchanged.
+    """
+    if isinstance(relative_to, NXroot):
+        relative_to = relative_to.nxfilename
+    directory = Path(relative_to).resolve().parent
+    relative = []
+    for source in sources:
+        try:
+            relative.append(
+                Path(os.path.relpath(Path(source).resolve(),
+                                     directory)).as_posix())
+        except ValueError:
+            relative.append(source)
+    return relative
+
+
+def consolidate(files, data_path, scan_path=None, idx=None, relative_to=None):
     """
     Create NXdata using a virtual field to combine multiple files.
 
@@ -8662,6 +8694,10 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         If not specified, the scan is constructed from file indices.
     idx : int, optional
         Data slice to be used in the virtual field, by default None
+    relative_to : str, Path, or NXroot, optional
+        File that will contain the consolidated data, by default None.
+        If it is given, the source files of the virtual field are stored
+        as paths relative to the directory of this file.
     """
 
     if isinstance(files[0], str) or isinstance(files[0], Path):
@@ -8697,6 +8733,8 @@ def consolidate(files, data_path, scan_path=None, idx=None):
         if idx is not None:
             axes = [axis[s] for axis, s in zip(axes, idx)]
         sources = [f[signal.nxpath].nxfilename for f in scan_files]
+        if relative_to is not None:
+            sources = _relative_sources(sources, relative_to)
         scan_field = NXvirtualfield(signal, sources, shape=signal.shape,
                                     idx=idx, name=signal.nxname)
         if signal.nxname == scan_file[data_path].nxsignal.nxname:

@@ -109,6 +109,60 @@ def test_read_lazy_field_on_copy(tmpdir):
     assert field._uncopied_data is None
 
 
+@pytest.mark.parametrize(
+    "idx", [np.s_[::-1], np.s_[5, ::-3], np.s_[-2:2:-2, 1:9],
+            np.s_[:, ::-4], np.s_[3:1, ::-1]])
+def test_negative_step_slices_of_file_field(tmpdir, idx):
+
+    filename = os.path.join(tmpdir, "file.nxs")
+    arr = np.arange(200 * 100, dtype=np.float64).reshape(200, 100)
+    NXroot(NXentry(NXfield(arr, name="data"))).save(filename, mode="w")
+
+    root = nxload(filename, "rw")
+    field = root["entry/data"]
+    assert field._value is None
+    assert np.array_equal(field[idx].nxvalue, arr[idx])
+
+    expected = arr.copy()
+    expected[idx] = -1.0 - np.arange(expected[idx].size).reshape(
+        expected[idx].shape)
+    field[idx] = expected[idx]
+    root.close()
+
+    assert np.array_equal(nxload(filename)["entry/data"].nxvalue, expected)
+
+
+@pytest.mark.parametrize(
+    "idx", [np.s_[..., ::-2], np.s_[::-1, ...], np.s_[5, ..., ::-3],
+            np.s_[-2:2:-2, ..., 1:9]])
+def test_negative_step_ellipsis_file_field(tmpdir, idx):
+
+    filename = os.path.join(tmpdir, "file.nxs")
+    arr = np.arange(200 * 100, dtype=np.float64).reshape(200, 100)
+    NXroot(NXentry(NXfield(arr, name="data"))).save(filename, mode="w")
+
+    root = nxload(filename, "rw")
+    field = root["entry/data"]
+    assert field._value is None
+    assert np.array_equal(field[idx].nxvalue, arr[idx])
+
+    expected = arr.copy()
+    expected[idx] = -1.0
+    field[idx] = -1.0
+    root.close()
+
+    assert np.array_equal(nxload(filename)["entry/data"].nxvalue, expected)
+
+
+def test_negative_step_slices_of_memory_field():
+
+    arr = np.arange(200 * 100, dtype=np.float64).reshape(200, 100)
+    field = NXfield(shape=arr.shape, dtype=arr.dtype)
+    field[::-1] = arr[::-1]
+    assert field._memfile is not None
+    assert np.array_equal(field[::-1, ::-7].nxvalue, arr[::-1, ::-7])
+
+
 @pytest.mark.parametrize("nested", [False, True])
 def test_copy_group_materializes_owned_fields(tmp_path, nested):
 

@@ -332,6 +332,78 @@ def is_iterable(obj):
     return isinstance(obj, list) or isinstance(obj, tuple)
 
 
+def split_h5_index(idx, shape):
+    """
+    Split an index into one that h5py accepts and one applied afterwards.
+
+    HDF5 hyperslabs do not support negative steps, so each slice with a
+    negative step is replaced by the equivalent slice with a positive
+    step, and the returned NumPy index reverses that axis again after
+    the data have been read.
+
+    Parameters
+    ----------
+    idx : slice, int, or tuple
+        Index of the field.
+    shape : tuple
+        Shape of the field.
+
+    Returns
+    -------
+    tuple
+        Index for h5py and index to apply to the result, which is None
+        if the h5py index can be used unchanged.
+    """
+    _idx = idx if isinstance(idx, tuple) else (idx,)
+    if not any(isinstance(i, slice) and i.step is not None and i.step < 0
+               for i in _idx):
+        return idx, None
+    if (_idx.count(Ellipsis) > 1 or
+        not all(i is Ellipsis or isinstance(i, (slice, numbers.Integral))
+                for i in _idx)):
+        return idx, None
+    if Ellipsis in _idx:
+        n = _idx.index(Ellipsis)
+        _idx = (_idx[:n] + (slice(None),) * (len(shape) - len(_idx) + 1) +
+                _idx[n+1:])
+    if len(_idx) > len(shape):
+        return idx, None
+    h5_idx, post_idx = [], []
+    for i, size in zip(_idx, shape):
+        if isinstance(i, slice) and i.step is not None and i.step < 0:
+            r = range(*i.indices(size))
+            if len(r) == 0:
+                h5_idx.append(slice(0, 0))
+                post_idx.append(slice(None))
+            else:
+                h5_idx.append(slice(r[-1], r[0] + 1, -i.step))
+                post_idx.append(slice(None, None, -1))
+        else:
+            h5_idx.append(i)
+            if isinstance(i, slice):
+                post_idx.append(slice(None))
+    return tuple(h5_idx), tuple(post_idx)
+
+
+def read_h5_slice(dataset, idx):
+    """Read a slice of an h5py dataset, allowing negative steps."""
+    h5_idx, post_idx = split_h5_index(idx, dataset.shape)
+    if post_idx is None:
+        return dataset[idx]
+    return dataset[h5_idx][post_idx]
+
+
+def write_h5_slice(dataset, idx, value):
+    """Write a slice of an h5py dataset, allowing negative steps."""
+    h5_idx, post_idx = split_h5_index(idx, dataset.shape)
+    if post_idx is None:
+        dataset[idx] = value
+    else:
+        shape = np.broadcast_to(np.empty((), dtype=bool), dataset.shape)
+        value = np.broadcast_to(np.asarray(value), shape[idx].shape)
+        dataset[h5_idx] = value[post_idx]
+
+
 def format_float(value, width=np.get_printoptions()['precision']):
     """
     Return a float value with the specified width.
@@ -1310,7 +1382,7 @@ class NXFile:
         """
         field = self.get(path)
         if field is not None:
-            return field[idx]
+            return read_h5_slice(field, idx)
         return None
 
     def writevalue(self, path, value, idx=()):
@@ -1326,7 +1398,7 @@ class NXFile:
         idx : tuple, optional
             Slice to be written, by default the whole field.
         """
-        self[path][idx] = value
+        write_h5_slice(self[path], idx, value)
 
     def move(self, source, destination):
         """
@@ -3197,9 +3269,9 @@ class NXfield(NXobject):
         array_like
             Array containing the slice values.
         """
-        result = self._memfile['data'][idx]
+        result = read_h5_slice(self._memfile['data'], idx)
         if 'mask' in self._memfile:
-            mask = self._memfile['mask'][idx]
+            mask = read_h5_slice(self._memfile['mask'], idx)
             if mask.any():
                 result = np.ma.array(result, mask=mask)
         return result
@@ -3219,11 +3291,11 @@ class NXfield(NXobject):
             self._create_memfile()
         if 'data' not in self._memfile:
             self._create_memdata()
-        self._memfile['data'][idx] = value
+        write_h5_slice(self._memfile['data'], idx, value)
         if isinstance(value, np.ma.MaskedArray):
             if 'mask' not in self._memfile:
                 self._create_memmask()
-            self._memfile['mask'][idx] = value.mask
+            write_h5_slice(self._memfile['mask'], idx, value.mask)
 
     def _create_memfile(self):
         """Create an HDF5 core memory file to store the data."""

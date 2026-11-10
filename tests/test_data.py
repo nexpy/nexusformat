@@ -460,6 +460,94 @@ def test_virtual_fields(tmpdir, path, v):
     assert vds3.nxfile["entry/data/v"].is_virtual
 
 
+def make_scans(tmpdir, v):
+    """Save three scans in sub-directories of a directory, returning them."""
+    directory = os.path.join(tmpdir, "old")
+    scans = []
+    for i, name in enumerate(["sub1", "sub2", "sub3"], start=1):
+        os.makedirs(os.path.join(directory, name))
+        scan = NXroot(NXentry(NXdata(i * v)))
+        scan.save(os.path.join(directory, name, "scan.nxs"), "w")
+        scans.append(scan)
+    return directory, scans
+
+
+def test_consolidate_absolute_sources(tmpdir, v):
+
+    directory, scans = make_scans(tmpdir, v)
+
+    vds = nxconsolidate(scans, "entry/data")
+    root = NXroot(NXentry(vds))
+    root.save(os.path.join(directory, "parent.nxs"), "w")
+
+    root = nxload(os.path.join(directory, "parent.nxs"))
+    sources = root.nxfile["entry/data/v"].virtual_sources()
+    assert all(os.path.isabs(s.file_name) for s in sources)
+
+
+@pytest.mark.parametrize("as_roots", [True, False])
+def test_consolidate_relative_sources(tmpdir, as_roots, v):
+
+    directory, scans = make_scans(tmpdir, v)
+    parent = os.path.join(directory, "parent.nxs")
+    files = scans if as_roots else [s.nxfilename for s in scans]
+
+    vds = nxconsolidate(files, "entry/data", relative_to=parent)
+    NXroot(NXentry(vds)).save(parent, "w")
+
+    root = nxload(parent)
+    sources = root.nxfile["entry/data/v"].virtual_sources()
+    assert [s.file_name for s in sources] == [
+        "sub1/scan.nxs", "sub2/scan.nxs", "sub3/scan.nxs"]
+    assert root["entry/data/v"].sum() == 6 * v.sum()
+
+
+def test_consolidate_moved_relative(tmpdir, v):
+
+    directory, scans = make_scans(tmpdir, v)
+    parent = os.path.join(directory, "parent.nxs")
+
+    vds = nxconsolidate(scans, "entry/data", relative_to=parent)
+    NXroot(NXentry(vds)).save(parent, "w")
+    moved = os.path.join(tmpdir, "new", "deeper")
+    os.makedirs(os.path.dirname(moved))
+    os.rename(directory, moved)
+
+    root = nxload(os.path.join(moved, "parent.nxs"))
+    assert root["entry/data/v"].sum() == 6 * v.sum()
+
+
+def test_consolidate_moved_absolute(tmpdir, v):
+
+    directory, scans = make_scans(tmpdir, v)
+    parent = os.path.join(directory, "parent.nxs")
+
+    vds = nxconsolidate(scans, "entry/data")
+    NXroot(NXentry(vds)).save(parent, "w")
+    moved = os.path.join(tmpdir, "new", "deeper")
+    os.makedirs(os.path.dirname(moved))
+    os.rename(directory, moved)
+
+    root = nxload(os.path.join(moved, "parent.nxs"))
+    assert root["entry/data/v"].sum() != 6 * v.sum()
+
+
+def test_consolidate_other_directory(tmpdir, v):
+
+    _, scans = make_scans(tmpdir, v)
+    os.makedirs(os.path.join(tmpdir, "other"))
+    parent = NXroot(NXentry())
+    parent.save(os.path.join(tmpdir, "other", "parent.nxs"), "w")
+
+    vds = nxconsolidate(scans, "entry/data", relative_to=parent)
+    parent["entry/data"] = vds
+    sources = parent.nxfile["entry/data/v"].virtual_sources()
+    assert [s.file_name for s in sources] == [
+        "../old/sub1/scan.nxs", "../old/sub2/scan.nxs",
+        "../old/sub3/scan.nxs"]
+    assert parent["entry/data/v"].sum() == 6 * v.sum()
+
+
 def test_data_signals(arr1D):
 
     x = NXfield(arr1D, dtype=np.float64, name="x")
